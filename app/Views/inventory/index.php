@@ -30,13 +30,14 @@
 <div class="card">
     <h3>Utstyrsliste</h3>
     <table style="color:#f8fafc;">
-        <tr><th>ID</th><th>Navn</th><th>Serienummer</th><th>Antall</th><th>Lokasjon</th><th>Status</th><th>Handling</th></tr>
+        <tr><th>ID</th><th>Navn</th><th>Serienummer</th><th>Antall</th><th>Utlånt</th><th>Lokasjon</th><th>Status</th><th>Handling</th></tr>
         <?php foreach ($equipment as $row): ?>
             <tr>
                 <td><?= esc((string) $row->id) ?></td>
                 <td><?= esc((string) $row->name) ?></td>
                 <td><?= esc((string) $row->serial_number) ?></td>
                 <td><?= esc((string) ($row->quantity ?? 0)) ?></td>
+                <td><?= esc((string) ($row->loaned_quantity ?? 0)) ?></td>
                 <td><?= esc((string) (($row->location_names ?? null) ?: ($row->location_name ?? '-'))) ?></td>
                 <td><span class="badge <?= esc((string) $row->status) ?>"><?= esc((string) $row->status) ?></span></td>
                 <td>

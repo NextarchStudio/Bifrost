@@ -52,6 +52,17 @@ class AdminController extends BaseController
         }
     }
 
+    public function updateUserActive(int $userId)
+    {
+        try {
+            $active = (string) $this->request->getPost('active') === '1';
+            $this->admin->updateUserActive($userId, $active, (int) $this->session->get('user_id'));
+            return redirect()->to('/admin/users/edit/' . $userId)->with('message', 'Brukerstatus oppdatert.');
+        } catch (\Throwable $e) {
+            return redirect()->back()->with('error', $e->getMessage());
+        }
+    }
+
     public function inspectUser(int $userId)
     {
         try {

@@ -26,6 +26,11 @@ class UserRepository
         return $this->users->where('email', $email)->first();
     }
 
+    public function findByWannabeId(int $wannabeId): ?object
+    {
+        return $this->users->where('wannabe_id', $wannabeId)->first();
+    }
+
     public function all(): array
     {
         return $this->users->orderBy('name', 'ASC')->findAll();

@@ -5,6 +5,7 @@ namespace App\Services;
 
 use App\Repositories\SettingsRepository;
 use App\Repositories\UserRepository;
+use Config\Database;
 
 class AdminService
 {
@@ -18,6 +19,8 @@ class AdminService
 
     public function panelData(): array
     {
+        $this->ensureDefaultRoles();
+
         $users = $this->users->all();
         $roleNamesByUser = [];
         foreach ($users as $user) {
@@ -34,6 +37,8 @@ class AdminService
 
     public function userDetails(int $userId): array
     {
+        $this->ensureDefaultRoles();
+
         $user = $this->users->findById($userId);
         if ($user === null) {
             throw new \InvalidArgumentException('Bruker finnes ikke.');
@@ -95,5 +100,36 @@ class AdminService
         $filtered = array_map(static fn ($id): int => (int) $id, $roleIds);
         $this->users->syncRoles($userId, $filtered);
         $this->audit->log($actorUserId, 'sync_roles', 'user', $userId, ['roles' => $filtered]);
+    }
+
+    public function updateUserActive(int $userId, bool $active, int $actorUserId): void
+    {
+        $user = $this->users->findById($userId);
+        if ($user === null) {
+            throw new \InvalidArgumentException('Bruker finnes ikke.');
+        }
+        if ($userId === $actorUserId && ! $active) {
+            throw new \InvalidArgumentException('Du kan ikke deaktivere din egen bruker.');
+        }
+
+        $this->users->updateById($userId, [
+            'active' => $active ? 1 : 0,
+            'updated_at' => date('Y-m-d H:i:s'),
+        ]);
+        $this->audit->log($actorUserId, 'status', 'user', $userId, ['active' => $active ? 1 : 0]);
+    }
+
+    private function ensureDefaultRoles(): void
+    {
+        $db = Database::connect();
+        $roleTable = $db->table('roles');
+        $defaults = ['developer', 'chief', 'co-chief', 'transport_ansvarlig', 'skiftleder', 'sambandsansvarlig', 'logistikk', 'bruker'];
+
+        foreach ($defaults as $name) {
+            $exists = $roleTable->where('name', $name)->get()->getFirstRow();
+            if ($exists === null) {
+                $roleTable->insert(['name' => $name]);
+            }
+        }
     }
 }

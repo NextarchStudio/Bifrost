@@ -17,7 +17,21 @@ class DashboardService
 
     public function summary(): array
     {
-        $activeLoans = (int) $this->db->table('equipment_loans')->where('status', 'active')->countAllResults();
+        $activeEquipmentItems = (int) ($this->db->table('equipment_loans')
+            ->select('COALESCE(SUM(quantity), 0) AS total')
+            ->where('status', 'active')
+            ->get()
+            ->getRowArray()['total'] ?? 0);
+        $activeCommsItems = 0;
+        if ($this->db->tableExists('comms_loans') && $this->db->tableExists('comms_loan_items')) {
+            $activeCommsItems = (int) ($this->db->table('comms_loan_items cli')
+                ->select('COALESCE(SUM(cli.quantity), 0) AS total')
+                ->join('comms_loans cl', 'cl.id = cli.loan_id', 'inner')
+                ->where('cl.status', 'active')
+                ->get()
+                ->getRowArray()['total'] ?? 0);
+        }
+        $activeLoans = $activeEquipmentItems + $activeCommsItems;
         $activeTransport = (int) $this->db->table('transport_jobs')->whereIn('status', ['open', 'assigned', 'in_progress'])->countAllResults();
         $equipmentPerLocation = $this->db->query(
             'SELECT l.name AS location_name, COUNT(e.id) AS equipment_count
@@ -36,4 +50,3 @@ class DashboardService
         ];
     }
 }
-

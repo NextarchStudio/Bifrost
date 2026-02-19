@@ -65,6 +65,9 @@ class AuthService
             if ($user === null) {
                 throw new \RuntimeException('Provider account points to missing user.');
             }
+            if ((int) ($user->active ?? 1) !== 1) {
+                throw new \RuntimeException('Brukeren er deaktivert.');
+            }
 
             return [
                 'user_id' => (int) $user->id,
@@ -89,6 +92,9 @@ class AuthService
                 'updated_at'    => date('Y-m-d H:i:s'),
             ]);
             $user = $this->users->findById($userId);
+        }
+        if ($user !== null && (int) ($user->active ?? 1) !== 1) {
+            throw new \RuntimeException('Brukeren er deaktivert.');
         }
 
         $this->authRepo->linkAuthAccount((int) $user->id, $provider, $providerId);

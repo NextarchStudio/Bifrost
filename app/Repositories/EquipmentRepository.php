@@ -14,7 +14,11 @@ class EquipmentRepository
     public function allWithContext(): array
     {
         return $this->equipment
-            ->select('equipment.*, pallet_slots.slot_number, pallets.name AS pallet_name, locations.name AS location_name')
+            ->select('equipment.*, pallet_slots.slot_number, pallets.name AS pallet_name, locations.id AS location_id, locations.name AS location_name')
+            ->select('(SELECT COALESCE(SUM(el.quantity), 0)
+                FROM equipment_loans el
+                WHERE el.equipment_id = equipment.id
+                  AND el.status = \'active\') AS loaned_quantity', false)
             ->select('(SELECT GROUP_CONCAT(DISTINCT l2.name ORDER BY l2.name SEPARATOR ", ")
                 FROM equipment e2
                 LEFT JOIN pallet_slots ps2 ON ps2.id = e2.pallet_slot_id
@@ -143,5 +147,22 @@ class EquipmentRepository
     public function deleteById(int $id): bool
     {
         return $this->equipment->delete($id);
+    }
+
+    public function belongsToLocation(int $equipmentId, int $locationId): bool
+    {
+        if ($equipmentId < 1 || $locationId < 1) {
+            return false;
+        }
+
+        $row = $this->equipment
+            ->select('equipment.id')
+            ->join('pallet_slots', 'pallet_slots.id = equipment.pallet_slot_id', 'left')
+            ->join('pallets', 'pallets.id = pallet_slots.pallet_id', 'left')
+            ->where('equipment.id', $equipmentId)
+            ->where('pallets.location_id', $locationId)
+            ->first();
+
+        return $row !== null;
     }
 }

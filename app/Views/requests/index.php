@@ -15,6 +15,13 @@ $statusLabel = static function (string $status): string {
 ?>
 <h1>Utstyrsforespørsler</h1>
 
+<?php if (! ($canCreateRequest ?? true)): ?>
+<div class="card" style="color:#f8fafc;">
+    <p style="margin:0;">Logistikk kan se innkommende og mine forespørsler, men kan ikke opprette nye forespørsler.</p>
+</div>
+<?php endif; ?>
+
+<?php if ($canCreateRequest ?? true): ?>
 <div class="grid">
     <div class="card" style="color:#f8fafc;">
         <h3>Ny forespørsel</h3>
@@ -50,17 +57,25 @@ $statusLabel = static function (string $status): string {
         </form>
     </div>
 </div>
+<?php endif; ?>
 
 <div class="card" style="color:#f8fafc;">
     <h3>Mine forespørsler</h3>
     <table style="color:#f8fafc;">
-        <tr><th>ID</th><th>Wannabe ID</th><th>Utstyr</th><th>Status</th><th>Opprettet</th></tr>
+        <tr><th>ID</th><th>Wannabe ID</th><th>Utstyr</th><th>Status</th><th>Avvik</th><th>Opprettet</th></tr>
         <?php foreach ($myRequests as $request): ?>
             <tr>
                 <td><?= esc((string) $request['id']) ?></td>
                 <td><?= esc((string) ($request['wannabe_id'] ?? '-')) ?></td>
                 <td><?= esc((string) ($request['items_summary'] ?? '-')) ?></td>
                 <td><span class="badge <?= esc((string) $request['status']) ?>"><?= esc($statusLabel((string) $request['status'])) ?></span></td>
+                <td>
+                    <?php if (! empty($request['change_summary'])): ?>
+                        <span class="badge partial">Endret: <?= esc((string) $request['change_summary']) ?></span>
+                    <?php else: ?>
+                        -
+                    <?php endif; ?>
+                </td>
                 <td><?= esc((string) $request['created_at']) ?></td>
             </tr>
         <?php endforeach; ?>
@@ -80,7 +95,9 @@ $statusLabel = static function (string $status): string {
                 <td><?= esc((string) ($request['items_summary'] ?? '-')) ?></td>
                 <td><span class="badge <?= esc((string) $request['status']) ?>"><?= esc($statusLabel((string) $request['status'])) ?></span></td>
                 <td>
-                    <?php if ((string) $request['status'] === 'approved'): ?>
+                    <?php if (! ($canManageRequests ?? false)): ?>
+                        <span style="color:#94a3b8;">Kun visning</span>
+                    <?php elseif ((string) $request['status'] === 'approved'): ?>
                         <form method="post" action="/requests/status/<?= esc((string) $request['id']) ?>">
                             <?= csrf_field() ?>
                             <input type="hidden" name="status" value="fulfilled">

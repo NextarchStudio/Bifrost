@@ -13,14 +13,18 @@ class EquipmentRequestsController extends BaseController
 
     public function index()
     {
-        $isLogistics = hasRole(['developer', 'chief', 'co-chief', 'skiftleder', 'transport_ansvarlig']);
+        $canManageRequests = hasRole(['developer', 'chief', 'co-chief', 'skiftleder', 'transport_ansvarlig']);
+        $canViewIncoming = $canManageRequests || hasRole('logistikk');
+        $canCreateRequest = ! hasRole('logistikk');
         $userId = (int) $this->session->get('user_id');
 
         return view('requests/index', [
-            'equipment'    => $this->requests->equipmentForSelection(),
+            'equipment'    => $canCreateRequest ? $this->requests->equipmentForSelection() : [],
             'myRequests'   => $this->requests->mine($userId),
-            'allRequests'  => $isLogistics ? $this->requests->allForLogistics() : [],
-            'isLogistics'  => $isLogistics,
+            'allRequests'  => $canViewIncoming ? $this->requests->allForLogistics() : [],
+            'isLogistics'  => $canViewIncoming,
+            'canManageRequests' => $canManageRequests,
+            'canCreateRequest' => $canCreateRequest,
             'currentWannabeId' => $this->requests->currentWannabeIdForUser($userId),
         ]);
     }
@@ -28,6 +32,9 @@ class EquipmentRequestsController extends BaseController
     public function create()
     {
         try {
+            if (hasRole('logistikk')) {
+                throw new \RuntimeException('Logistikk kan ikke opprette forespørsler.');
+            }
             $this->requests->create($this->request->getPost(), (int) $this->session->get('user_id'));
 
             return redirect()->to('/requests')->with('message', 'Forespørsel sendt til logistikk.');

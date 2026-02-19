@@ -23,10 +23,11 @@ $routes->group('auth', static function (RouteCollection $routes): void {
 $routes->group('', ['filter' => 'auth'], static function (RouteCollection $routes): void {
     $routes->get('dashboard', 'DashboardController::index');
     $routes->get('search', 'SearchController::index');
-    $routes->get('profile', 'ProfileController::index');
+    $routes->get('profile', 'ProfileController::redirectToOwn');
+    $routes->get('profil/(:num)', 'ProfileController::index/$1');
     $routes->post('profile/password', 'ProfileController::changePassword');
 
-    $routes->group('equipment', ['filter' => 'role:developer,chief,co-chief,transport_ansvarlig,skiftleder'], static function (RouteCollection $routes): void {
+    $routes->group('equipment', ['filter' => 'role:developer,chief,co-chief,transport_ansvarlig,skiftleder,logistikk'], static function (RouteCollection $routes): void {
         $routes->get('/', 'InventoryController::index');
         $routes->post('create', 'InventoryController::create');
         $routes->post('move/(:num)', 'InventoryController::move/$1');
@@ -34,19 +35,19 @@ $routes->group('', ['filter' => 'auth'], static function (RouteCollection $route
         $routes->post('delete/(:num)', 'InventoryController::delete/$1');
     });
 
-    $routes->group('categories', ['filter' => 'role:developer,chief,co-chief,transport_ansvarlig,skiftleder'], static function (RouteCollection $routes): void {
+    $routes->group('categories', ['filter' => 'role:developer,chief,co-chief,transport_ansvarlig,skiftleder,logistikk'], static function (RouteCollection $routes): void {
         $routes->get('/', 'EquipmentCategoriesController::index');
         $routes->post('create', 'EquipmentCategoriesController::create');
         $routes->post('delete/(:num)', 'EquipmentCategoriesController::delete/$1');
     });
 
-    $routes->group('locations', ['filter' => 'role:developer,chief,co-chief,transport_ansvarlig,skiftleder'], static function (RouteCollection $routes): void {
+    $routes->group('locations', ['filter' => 'role:developer,chief,co-chief,transport_ansvarlig,skiftleder,logistikk'], static function (RouteCollection $routes): void {
         $routes->get('/', 'LocationsController::index');
         $routes->post('create', 'LocationsController::create');
         $routes->post('delete/(:num)', 'LocationsController::delete/$1');
     });
 
-    $routes->group('warehouse', ['filter' => 'role:developer,chief,co-chief,transport_ansvarlig'], static function (RouteCollection $routes): void {
+    $routes->group('warehouse', ['filter' => 'role:developer,chief,co-chief,transport_ansvarlig,logistikk'], static function (RouteCollection $routes): void {
         $routes->get('/', 'WarehouseController::index');
         $routes->get('pallet/inspect/(:num)', 'WarehouseController::inspectPallet/$1');
         $routes->post('pallet/create', 'WarehouseController::createPallet');
@@ -56,10 +57,18 @@ $routes->group('', ['filter' => 'auth'], static function (RouteCollection $route
         $routes->post('slot/create', 'WarehouseController::createSlot');
     });
 
-    $routes->group('loans', ['filter' => 'role:developer,chief,co-chief,skiftleder'], static function (RouteCollection $routes): void {
+    $routes->group('loans', ['filter' => 'role:developer,chief,co-chief,skiftleder,logistikk'], static function (RouteCollection $routes): void {
         $routes->get('/', 'LoansController::index');
         $routes->post('issue', 'LoansController::issue');
         $routes->post('return/(:num)', 'LoansController::returnLoan/$1');
+    });
+
+    $routes->group('samband', ['filter' => 'role:developer,chief,sambandsansvarlig'], static function (RouteCollection $routes): void {
+        $routes->get('/', 'CommsController::index');
+        $routes->post('item/create', 'CommsController::createItem');
+        $routes->post('set/create', 'CommsController::createSet');
+        $routes->post('issue', 'CommsController::issue');
+        $routes->post('return/(:num)', 'CommsController::returnLoan/$1');
     });
 
     $routes->group('transport', static function (RouteCollection $routes): void {
@@ -85,5 +94,6 @@ $routes->group('', ['filter' => 'auth'], static function (RouteCollection $route
         $routes->get('users/inspect/(:num)', 'AdminController::inspectUser/$1');
         $routes->get('users/edit/(:num)', 'AdminController::editUser/$1');
         $routes->post('users/roles/(:num)', 'AdminController::syncUserRoles/$1');
+        $routes->post('users/active/(:num)', 'AdminController::updateUserActive/$1');
     });
 });

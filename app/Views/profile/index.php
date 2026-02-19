@@ -1,6 +1,6 @@
 <?= $this->extend('layouts/base') ?>
 <?= $this->section('content') ?>
-<h1>Min profil</h1>
+<h1><?= ! empty($isOwnProfile) ? 'Min profil' : 'Profil' ?></h1>
 
 <div class="grid">
     <div class="card">
@@ -11,9 +11,11 @@
             <tr><th>Etternavn</th><td><?= esc((string) $user->last_name) ?></td></tr>
             <tr><th>E-post</th><td><?= esc((string) $user->email) ?></td></tr>
             <tr><th>Wannabe-ID</th><td><?= esc((string) ($user->wannabe_id ?? '-')) ?></td></tr>
+            <tr><th>Roller</th><td><?= esc(implode(', ', (array) ($roles ?? []))) ?></td></tr>
         </table>
     </div>
 
+    <?php if (! empty($isOwnProfile)): ?>
     <div class="card">
         <h3>Endre passord</h3>
         <form method="post" action="/profile/password">
@@ -24,10 +26,11 @@
             <button type="submit" class="btn btn-primary">Oppdater passord</button>
         </form>
     </div>
+    <?php endif; ?>
 </div>
 
 <div class="card">
-    <h3>Mine aktive utlån</h3>
+    <h3><?= ! empty($isOwnProfile) ? 'Mine aktive utlån' : 'Aktive utlån' ?></h3>
     <table>
         <tr><th>ID</th><th>Utstyr</th><th>Serienummer</th><th>Antall</th><th>Status</th><th>Utstedt</th></tr>
         <?php foreach ($loans as $loan): ?>
@@ -45,18 +48,35 @@
 </div>
 
 <div class="card">
-    <h3>Mine forespørsler</h3>
+    <h3><?= ! empty($isOwnProfile) ? 'Mine aktive samband-lån' : 'Aktive samband-lån' ?></h3>
     <table>
-        <tr><th>ID</th><th>Utstyr</th><th>Status</th><th>Opprettet</th></tr>
-        <?php foreach ($requests as $request): ?>
+        <tr><th>ID</th><th>Type</th><th>Innhold</th><th>Antall ting</th><th>Utstedt</th></tr>
+        <?php foreach (($commsLoans ?? []) as $loan): ?>
             <tr>
-                <td><?= esc((string) $request['id']) ?></td>
-                <td><?= esc((string) ($request['items_summary'] ?? '-')) ?></td>
-                <td><span class="badge <?= esc((string) $request['status']) ?>"><?= esc((string) $request['status']) ?></span></td>
-                <td><?= esc((string) $request['created_at']) ?></td>
+                <td><?= esc((string) $loan['id']) ?></td>
+                <td><?= esc(! empty($loan['set_id']) ? 'Sett: ' . (string) ($loan['set_name'] ?? '-') : 'Enkeltutstyr') ?></td>
+                <td><?= esc((string) ($loan['items_summary'] ?? '-')) ?></td>
+                <td><?= esc((string) ($loan['total_items'] ?? 0)) ?></td>
+                <td><?= esc((string) $loan['issued_at']) ?></td>
             </tr>
         <?php endforeach; ?>
     </table>
 </div>
-<?= $this->endSection() ?>
 
+<?php if (! empty($canViewRequests)): ?>
+    <div class="card">
+        <h3><?= ! empty($isOwnProfile) ? 'Mine forespørsler' : 'Brukerens forespørsler' ?></h3>
+        <table>
+            <tr><th>ID</th><th>Utstyr</th><th>Status</th><th>Opprettet</th></tr>
+            <?php foreach ($requests as $request): ?>
+                <tr>
+                    <td><?= esc((string) $request['id']) ?></td>
+                    <td><?= esc((string) ($request['items_summary'] ?? '-')) ?></td>
+                    <td><span class="badge <?= esc((string) $request['status']) ?>"><?= esc((string) $request['status']) ?></span></td>
+                    <td><?= esc((string) $request['created_at']) ?></td>
+                </tr>
+            <?php endforeach; ?>
+        </table>
+    </div>
+<?php endif; ?>
+<?= $this->endSection() ?>

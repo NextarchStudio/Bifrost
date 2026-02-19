@@ -28,7 +28,32 @@ class EquipmentRequestService
 
     public function mine(int $userId): array
     {
-        return $this->requests->mineWithSummary($userId);
+        $requests = $this->requests->mineWithSummary($userId);
+
+        foreach ($requests as &$request) {
+            $items = $this->requests->requestItems((int) $request['id']);
+            $changes = [];
+            foreach ($items as $item) {
+                $requestedQty = (int) ($item['quantity'] ?? 0);
+                $approvedQty = (int) ($item['approved_quantity'] ?? 0);
+                $itemStatus = (string) ($item['item_status'] ?? 'pending');
+
+                if ($itemStatus === 'pending' || $approvedQty >= $requestedQty) {
+                    continue;
+                }
+
+                $changes[] = sprintf(
+                    '%s %d/%d',
+                    (string) ($item['equipment_name'] ?? 'Utstyr'),
+                    $approvedQty,
+                    $requestedQty
+                );
+            }
+
+            $request['change_summary'] = $changes !== [] ? implode(', ', $changes) : null;
+        }
+
+        return $requests;
     }
 
     public function allForLogistics(): array

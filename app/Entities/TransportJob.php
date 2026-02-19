@@ -14,6 +14,7 @@ class TransportJob extends Entity
         'to_location_id'   => null,
         'transport_type'   => 'equipment',
         'people_count'     => null,
+        'pickup_at'        => null,
         'equipment_id'     => null,
         'requester_user_id'=> null,
         'assigned_user_id' => null,

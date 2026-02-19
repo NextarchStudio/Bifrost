@@ -7,7 +7,7 @@
     </div>
 </div>
 <div class="grid">
-    <div class="card"><h3>Aktive lån</h3><div style="font-size:34px;font-weight:800;color:#f8fafc;"><?= esc((string) $summary['activeLoans']) ?></div></div>
+    <div class="card"><h3>Antall ting utlånt</h3><div style="font-size:34px;font-weight:800;color:#f8fafc;"><?= esc((string) $summary['activeLoans']) ?></div></div>
     <div class="card"><h3>Aktive transporter</h3><div style="font-size:34px;font-weight:800;color:#f8fafc;"><?= esc((string) $summary['activeTransportJobs']) ?></div></div>
 </div>
 <div class="card">

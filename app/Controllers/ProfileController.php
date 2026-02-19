@@ -11,11 +11,27 @@ class ProfileController extends BaseController
     {
     }
 
-    public function index()
+    public function redirectToOwn()
     {
         $userId = (int) $this->session->get('user_id');
+        $wannabeId = $this->profile->wannabeIdForUser($userId);
+        if ($wannabeId === null) {
+            return redirect()->to('/dashboard')->with('error', 'Brukeren mangler wannabe-id.');
+        }
 
-        return view('profile/index', $this->profile->profileData($userId));
+        return redirect()->to('/profil/' . $wannabeId);
+    }
+
+    public function index(int $wannabeId)
+    {
+        $userId = (int) $this->session->get('user_id');
+        try {
+            return view('profile/index', $this->profile->profileData($userId, $wannabeId));
+        } catch (\Throwable $e) {
+            $ownWannabeId = $this->profile->wannabeIdForUser($userId);
+            $fallback = $ownWannabeId !== null ? '/profil/' . $ownWannabeId : '/dashboard';
+            return redirect()->to($fallback)->with('error', $e->getMessage());
+        }
     }
 
     public function changePassword()
@@ -23,11 +39,12 @@ class ProfileController extends BaseController
         try {
             $userId = (int) $this->session->get('user_id');
             $this->profile->changePassword($userId, $this->request->getPost());
+            $wannabeId = $this->profile->wannabeIdForUser($userId);
+            $target = $wannabeId !== null ? '/profil/' . $wannabeId : '/dashboard';
 
-            return redirect()->to('/profile')->with('message', 'Passord oppdatert.');
+            return redirect()->to($target)->with('message', 'Passord oppdatert.');
         } catch (\Throwable $e) {
             return redirect()->back()->withInput()->with('error', $e->getMessage());
         }
     }
 }
-

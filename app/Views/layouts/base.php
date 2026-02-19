@@ -100,6 +100,7 @@
     $path = trim(service('uri')->getPath(), '/');
     $path = $path === '' ? 'dashboard' : $path;
     $segment = explode('/', $path)[0];
+    $profileLink = session('wannabe_id') !== null ? base_url('profil/' . (int) session('wannabe_id')) : base_url('profile');
 ?>
 <div class="header-container container-xxl">
     <header class="header navbar navbar-expand-sm expand-header">
@@ -112,7 +113,7 @@
         </a>
         <ul class="navbar-item flex-row ms-lg-auto ms-0">
             <li class="nav-item">
-                <a class="nav-link text-white" href="<?= base_url('profile') ?>">
+                <a class="nav-link text-white" href="<?= $profileLink ?>">
                     <i class="fa-solid fa-user me-1"></i><?= esc((string) (session('first_name') ?: session('name'))) ?>
                 </a>
             </li>
@@ -133,7 +134,7 @@
                 <li class="menu <?= $segment === 'dashboard' ? 'active' : '' ?>">
                     <a href="<?= base_url('dashboard') ?>"><i class="fa-solid fa-gauge-high me-2"></i><span class="nav-text">Dashbord</span></a>
                 </li>
-                <?php if (hasRole(['developer', 'chief', 'co-chief', 'transport_ansvarlig', 'skiftleder'])): ?>
+                <?php if (hasRole(['developer', 'chief', 'co-chief', 'transport_ansvarlig', 'skiftleder', 'logistikk'])): ?>
                     <li class="menu <?= $segment === 'equipment' ? 'active' : '' ?>">
                         <a href="<?= base_url('equipment') ?>"><i class="fa-solid fa-toolbox me-2"></i><span class="nav-text">Utstyr</span></a>
                     </li>
@@ -144,14 +145,19 @@
                         <a href="<?= base_url('locations') ?>"><i class="fa-solid fa-location-dot me-2"></i><span class="nav-text">Lokasjoner</span></a>
                     </li>
                 <?php endif; ?>
-                <?php if (hasRole(['developer', 'chief', 'co-chief', 'transport_ansvarlig'])): ?>
+                <?php if (hasRole(['developer', 'chief', 'co-chief', 'transport_ansvarlig', 'logistikk'])): ?>
                     <li class="menu <?= $segment === 'warehouse' ? 'active' : '' ?>">
                         <a href="<?= base_url('warehouse') ?>"><i class="fa-solid fa-warehouse me-2"></i><span class="nav-text">Lager</span></a>
                     </li>
                 <?php endif; ?>
-                <?php if (hasRole(['developer', 'chief', 'co-chief', 'skiftleder'])): ?>
+                <?php if (hasRole(['developer', 'chief', 'co-chief', 'skiftleder', 'logistikk'])): ?>
                     <li class="menu <?= $segment === 'loans' ? 'active' : '' ?>">
                         <a href="<?= base_url('loans') ?>"><i class="fa-solid fa-handshake-angle me-2"></i><span class="nav-text">Utlån</span></a>
+                    </li>
+                <?php endif; ?>
+                <?php if (hasRole(['developer', 'chief', 'sambandsansvarlig'])): ?>
+                    <li class="menu <?= $segment === 'samband' ? 'active' : '' ?>">
+                        <a href="<?= base_url('samband') ?>"><i class="fa-solid fa-tower-broadcast me-2"></i><span class="nav-text">Samband</span></a>
                     </li>
                 <?php endif; ?>
                 <li class="menu <?= $segment === 'requests' ? 'active' : '' ?>">

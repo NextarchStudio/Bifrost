@@ -1,0 +1,29 @@
+# Project-specific
+AdminTemplate/
+
+# Dependencies
+vendor/
+node_modules/
+
+# Environment and local config
+.env
+.env.*
+!.env.example
+
+# CodeIgniter writable/runtime
+writable/cache/*
+!writable/cache/index.html
+writable/logs/*
+!writable/logs/index.html
+writable/session/*
+!writable/session/index.html
+writable/uploads/*
+!writable/uploads/index.html
+writable/debugbar/*
+!writable/debugbar/index.html
+
+# OS/Editor noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

@@ -29,7 +29,7 @@ class App extends BaseConfig
      *
      * @var list<string>
      */
-    public array $allowedHostnames = [];
+    public array $allowedHostnames = ['localhost', '127.0.0.1', 'tg.legacyh.dev'];
 
     /**
      * --------------------------------------------------------------------------
@@ -199,4 +199,24 @@ class App extends BaseConfig
      * @see http://www.w3.org/TR/CSP/
      */
     public bool $CSPEnabled = false;
+
+    public function __construct()
+    {
+        parent::__construct();
+
+        $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+        $host = strtolower((string) preg_replace('/:\d+$/', '', $host));
+
+        if ($host === 'tg.legacyh.dev') {
+            $this->baseURL = 'https://tg.legacyh.dev/';
+            $this->forceGlobalSecureRequests = true;
+
+            return;
+        }
+
+        if ($host === 'localhost' || $host === '127.0.0.1') {
+            $this->baseURL = 'http://' . $host . '/';
+            $this->forceGlobalSecureRequests = false;
+        }
+    }
 }

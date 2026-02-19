@@ -5,7 +5,7 @@
         <div class="card mt-5">
             <div class="card-body p-4">
                 <div class="text-center mb-4">
-                    <img src="<?= base_url('admintemplate/src/assets/img/logo2.svg') ?>" alt="logo" style="height:40px;">
+                    <img src="https://www.tg.no/tg26/tg26_horizontal.svg" alt="TG26 logo" style="height:40px;">
                     <h4 class="mt-3 mb-0">TG Logistics CMS</h4>
                     <p class="text-muted">Logg inn for å fortsette</p>
                 </div>

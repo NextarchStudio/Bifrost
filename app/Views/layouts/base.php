@@ -107,7 +107,7 @@
             <i class="fa-solid fa-bars-staggered"></i>
         </button>
         <a href="<?= base_url('dashboard') ?>" class="navbar-brand d-flex align-items-center gap-2">
-            <img src="<?= base_url('admintemplate/src/assets/img/logo.svg') ?>" class="navbar-logo" alt="logo" style="height:28px;">
+            <img src="https://www.tg.no/tg26/tg26_horizontal.svg" class="navbar-logo" alt="TG26 logo" style="height:28px;">
             <span class="text-white fw-bold">TG Logistics</span>
         </a>
         <ul class="navbar-item flex-row ms-lg-auto ms-0">

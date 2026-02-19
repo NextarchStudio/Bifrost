@@ -39,6 +39,7 @@ class DashboardService
              LEFT JOIN pallets p ON p.location_id = l.id
              LEFT JOIN pallet_slots ps ON ps.pallet_id = p.id
              LEFT JOIN equipment e ON e.pallet_slot_id = ps.id
+             WHERE LOWER(COALESCE(l.type, "")) <> "transport"
              GROUP BY l.id, l.name
              ORDER BY l.name ASC'
         )->getResultArray();

@@ -12,6 +12,10 @@ $statusLabel = static function (string $status): string {
         default => $status,
     };
 };
+
+$canDeleteOwnRequest = static function (string $status): bool {
+    return in_array($status, ['pending', 'rejected', 'returned'], true);
+};
 ?>
 <h1>Utstyrsforespørsler</h1>
 
@@ -62,13 +66,14 @@ $statusLabel = static function (string $status): string {
 <div class="card" style="color:#f8fafc;">
     <h3>Mine forespørsler</h3>
     <table style="color:#f8fafc;">
-        <tr><th>ID</th><th>Wannabe ID</th><th>Utstyr</th><th>Status</th><th>Avvik</th><th>Opprettet</th></tr>
+        <tr><th>ID</th><th>Wannabe ID</th><th>Utstyr</th><th>Status</th><th>Avvik</th><th>Opprettet</th><th>Handling</th></tr>
         <?php foreach ($myRequests as $request): ?>
+            <?php $status = (string) $request['status']; ?>
             <tr>
                 <td><?= esc((string) $request['id']) ?></td>
                 <td><?= esc((string) ($request['wannabe_id'] ?? '-')) ?></td>
                 <td><?= esc((string) ($request['items_summary'] ?? '-')) ?></td>
-                <td><span class="badge <?= esc((string) $request['status']) ?>"><?= esc($statusLabel((string) $request['status'])) ?></span></td>
+                <td><span class="badge <?= esc($status) ?>"><?= esc($statusLabel($status)) ?></span></td>
                 <td>
                     <?php if (! empty($request['change_summary'])): ?>
                         <span class="badge partial">Endret: <?= esc((string) $request['change_summary']) ?></span>
@@ -77,6 +82,16 @@ $statusLabel = static function (string $status): string {
                     <?php endif; ?>
                 </td>
                 <td><?= esc((string) $request['created_at']) ?></td>
+                <td>
+                    <?php if ($canDeleteOwnRequest($status)): ?>
+                        <form method="post" action="/requests/delete/<?= esc((string) $request['id']) ?>" onsubmit="return confirm('Slette denne forespørselen?');">
+                            <?= csrf_field() ?>
+                            <button type="submit" style="background:#7f1d1d;">Slett</button>
+                        </form>
+                    <?php else: ?>
+                        <span style="color:#94a3b8;">Kan ikke slettes</span>
+                    <?php endif; ?>
+                </td>
             </tr>
         <?php endforeach; ?>
     </table>
@@ -102,6 +117,11 @@ $statusLabel = static function (string $status): string {
                             <?= csrf_field() ?>
                             <input type="hidden" name="status" value="fulfilled">
                             <button type="submit">Levert</button>
+                        </form>
+
+                        <form method="post" action="/requests/delete/<?= esc((string) $request['id']) ?>" style="margin-top:.6rem;" onsubmit="return confirm('Slette denne forespørselen? Dette er bare mulig hvis ingen aktive utlån er knyttet til den.');">
+                            <?= csrf_field() ?>
+                            <button type="submit" style="background:#7f1d1d;">Slett</button>
                         </form>
                     <?php else: ?>
                         <form method="post" action="/requests/status/<?= esc((string) $request['id']) ?>">
@@ -143,6 +163,11 @@ $statusLabel = static function (string $status): string {
                                 </div>
                             <?php endforeach; ?>
                             <button type="submit">Behandle linjer</button>
+                        </form>
+
+                        <form method="post" action="/requests/delete/<?= esc((string) $request['id']) ?>" style="margin-top:.6rem;" onsubmit="return confirm('Slette denne forespørselen? Dette er bare mulig hvis ingen aktive utlån er knyttet til den.');">
+                            <?= csrf_field() ?>
+                            <button type="submit" style="background:#7f1d1d;">Slett</button>
                         </form>
                     <?php endif; ?>
                 </td>

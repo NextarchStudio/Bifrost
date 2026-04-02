@@ -13,16 +13,16 @@ class EquipmentRequestsController extends BaseController
 
     public function index()
     {
-        $canManageRequests = hasRole(['developer', 'chief', 'co-chief', 'skiftleder', 'transport_ansvarlig']);
-        $canViewIncoming = $canManageRequests || hasRole('logistikk');
-        $canCreateRequest = ! hasRole('logistikk');
+        $canManageRequests = hasRole(['developer', 'chief', 'co-chief', 'logistikk']);
+        $canViewIncoming = $canManageRequests;
+        $canCreateRequest = ! hasRole(['developer', 'chief', 'co-chief', 'logistikk', 'sambandsansvarlig']);
         $userId = (int) $this->session->get('user_id');
 
         return view('requests/index', [
-            'equipment'    => $canCreateRequest ? $this->requests->equipmentForSelection() : [],
-            'myRequests'   => $this->requests->mine($userId),
-            'allRequests'  => $canViewIncoming ? $this->requests->allForLogistics() : [],
-            'isLogistics'  => $canViewIncoming,
+            'equipment' => $canCreateRequest ? $this->requests->equipmentForSelection() : [],
+            'myRequests' => $this->requests->mine($userId),
+            'allRequests' => $canViewIncoming ? $this->requests->allForLogistics() : [],
+            'isLogistics' => $canViewIncoming,
             'canManageRequests' => $canManageRequests,
             'canCreateRequest' => $canCreateRequest,
             'currentWannabeId' => $this->requests->currentWannabeIdForUser($userId),
@@ -32,9 +32,10 @@ class EquipmentRequestsController extends BaseController
     public function create()
     {
         try {
-            if (hasRole('logistikk')) {
-                throw new \RuntimeException('Logistikk kan ikke opprette forespørsler.');
+            if (hasRole(['developer', 'chief', 'co-chief', 'logistikk', 'sambandsansvarlig'])) {
+                throw new \RuntimeException('Denne rollen kan ikke opprette nye utstyrsforespørsler.');
             }
+
             $this->requests->create($this->request->getPost(), (int) $this->session->get('user_id'));
 
             return redirect()->to('/requests')->with('message', 'Forespørsel sendt til logistikk.');
@@ -43,10 +44,22 @@ class EquipmentRequestsController extends BaseController
         }
     }
 
+    public function delete(int $requestId)
+    {
+        try {
+            $canManageRequests = hasRole(['developer', 'chief', 'co-chief', 'logistikk']);
+            $this->requests->delete($requestId, (int) $this->session->get('user_id'), $canManageRequests);
+
+            return redirect()->to('/requests')->with('message', 'Forespørsel slettet.');
+        } catch (\Throwable $e) {
+            return redirect()->back()->with('error', $e->getMessage());
+        }
+    }
+
     public function updateStatus(int $requestId)
     {
         try {
-            requireRole(['developer', 'chief', 'co-chief', 'skiftleder', 'transport_ansvarlig']);
+            requireRole(['developer', 'chief', 'co-chief', 'logistikk']);
             $status = (string) $this->request->getPost('status');
             $actorUserId = (int) $this->session->get('user_id');
 
@@ -67,7 +80,7 @@ class EquipmentRequestsController extends BaseController
     public function approve(int $requestId)
     {
         try {
-            requireRole(['developer', 'chief', 'co-chief', 'skiftleder', 'transport_ansvarlig']);
+            requireRole(['developer', 'chief', 'co-chief', 'logistikk']);
             $approvedQuantities = [];
             foreach ((array) $this->request->getPost('approved_quantities') as $itemId => $qty) {
                 $approvedQuantities[(int) $itemId] = max(0, (int) $qty);

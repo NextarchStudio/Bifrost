@@ -17,6 +17,7 @@ class AdminController extends BaseController
         $data['inspectedUser'] = null;
         $data['editUser'] = null;
         $data['editRoleIds'] = [];
+        $data['editCompetencies'] = [];
 
         return view('admin/index', $data);
     }
@@ -35,9 +36,19 @@ class AdminController extends BaseController
     {
         try {
             $this->admin->createUser($this->request->getPost(), (int) $this->session->get('user_id'));
-            return redirect()->to('/admin')->with('message', 'Bruker opprettet.');
+            return redirect()->to('/admin')->with('message', 'Bruker opprettet og e-post med passordlenke er sendt.');
         } catch (\Throwable $e) {
             return redirect()->back()->withInput()->with('error', $e->getMessage());
+        }
+    }
+
+    public function clearCrewCache()
+    {
+        try {
+            $this->admin->clearCrewCache((int) $this->session->get('user_id'));
+            return redirect()->to('/admin')->with('message', 'Crew-cache er tømt.');
+        } catch (\Throwable $e) {
+            return redirect()->back()->with('error', $e->getMessage());
         }
     }
 
@@ -58,6 +69,26 @@ class AdminController extends BaseController
             $active = (string) $this->request->getPost('active') === '1';
             $this->admin->updateUserActive($userId, $active, (int) $this->session->get('user_id'));
             return redirect()->to('/admin/users/edit/' . $userId)->with('message', 'Brukerstatus oppdatert.');
+        } catch (\Throwable $e) {
+            return redirect()->back()->with('error', $e->getMessage());
+        }
+    }
+
+    public function updateUserCompetencies(int $userId)
+    {
+        try {
+            $this->admin->updateUserCompetencies($userId, $this->request->getPost(), (int) $this->session->get('user_id'));
+            return redirect()->to('/admin/users/edit/' . $userId)->with('message', 'Sertifikater og kompetanse oppdatert.');
+        } catch (\Throwable $e) {
+            return redirect()->back()->with('error', $e->getMessage());
+        }
+    }
+
+    public function deleteUser(int $userId)
+    {
+        try {
+            $this->admin->deleteUser($userId, (int) $this->session->get('user_id'));
+            return redirect()->to('/admin')->with('message', 'Bruker slettet.');
         } catch (\Throwable $e) {
             return redirect()->back()->with('error', $e->getMessage());
         }
@@ -85,6 +116,7 @@ class AdminController extends BaseController
             $data['inspectedUser'] = null;
             $data['editUser'] = $details['user'];
             $data['editRoleIds'] = $details['roleIds'];
+            $data['editCompetencies'] = $details['competencies'];
 
             return view('admin/index', $data);
         } catch (\Throwable $e) {

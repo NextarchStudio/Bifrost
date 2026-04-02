@@ -29,6 +29,17 @@ class LocationsController extends BaseController
         }
     }
 
+    public function update(int $locationId)
+    {
+        try {
+            $this->locations->update($locationId, $this->request->getPost(), (int) $this->session->get('user_id'));
+
+            return redirect()->to('/locations')->with('message', 'Lokasjon oppdatert.');
+        } catch (\Throwable $e) {
+            return redirect()->back()->withInput()->with('error', $e->getMessage());
+        }
+    }
+
     public function delete(int $locationId)
     {
         try {

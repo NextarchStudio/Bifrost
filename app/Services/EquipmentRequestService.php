@@ -7,6 +7,7 @@ use App\Repositories\EquipmentRepository;
 use App\Repositories\EquipmentRequestRepository;
 use App\Repositories\LoanRepository;
 use App\Repositories\UserRepository;
+use Config\Database;
 
 class EquipmentRequestService
 {
@@ -52,6 +53,7 @@ class EquipmentRequestService
 
             $request['change_summary'] = $changes !== [] ? implode(', ', $changes) : null;
         }
+        unset($request);
 
         return $requests;
     }
@@ -62,6 +64,7 @@ class EquipmentRequestService
         foreach ($requests as &$request) {
             $request['items'] = $this->requests->requestItems((int) $request['id']);
         }
+        unset($request);
 
         return $requests;
     }
@@ -111,6 +114,43 @@ class EquipmentRequestService
         $this->audit->log($requesterUserId, 'create', 'equipment_request', $requestId, ['items' => $parsedItems]);
 
         return $requestId;
+    }
+
+    public function delete(int $requestId, int $actorUserId, bool $canManageRequests): void
+    {
+        $request = $this->requests->findRequestById($requestId);
+        if ($request === null) {
+            throw new \InvalidArgumentException('Forespørsel ikke funnet.');
+        }
+
+        $isOwner = (int) ($request['requester_user_id'] ?? 0) === $actorUserId;
+        if (! $isOwner && ! $canManageRequests) {
+            throw new \InvalidArgumentException('Du kan ikke slette denne forespørselen.');
+        }
+
+        $status = (string) ($request['status'] ?? 'pending');
+        if (! $canManageRequests && ! in_array($status, ['pending', 'rejected', 'returned'], true)) {
+            throw new \InvalidArgumentException('Du kan bare slette egne forespørsler som er ventende, avvist eller returnert.');
+        }
+
+        if ($this->loans->activeCountByRequestId($requestId) > 0) {
+            throw new \InvalidArgumentException('Forespørsel kan ikke slettes mens det finnes aktive utlån knyttet til den.');
+        }
+
+        $db = Database::connect();
+        $db->transStart();
+        $this->requests->deleteItemsByRequestId($requestId);
+        $this->requests->deleteRequestById($requestId);
+        $db->transComplete();
+
+        if (! $db->transStatus()) {
+            throw new \RuntimeException('Forespørsel kunne ikke slettes.');
+        }
+
+        $this->audit->log($actorUserId, 'delete', 'equipment_request', $requestId, [
+            'status' => $status,
+            'requester_user_id' => (int) ($request['requester_user_id'] ?? 0),
+        ]);
     }
 
     public function updateStatus(int $requestId, string $status, int $actorUserId): void

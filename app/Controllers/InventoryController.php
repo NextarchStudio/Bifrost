@@ -16,9 +16,12 @@ class InventoryController extends BaseController
 
     public function index()
     {
+        $search = trim((string) $this->request->getGet('q'));
+
         return view('inventory/index', [
             'equipment' => $this->inventory->list(),
             'categories'=> $this->categories->list(),
+            'search' => $search,
         ]);
     }
 
@@ -29,6 +32,26 @@ class InventoryController extends BaseController
             return redirect()->to('/equipment')->with('message', 'Utstyr opprettet.');
         } catch (\Throwable $e) {
             return redirect()->back()->withInput()->with('error', $e->getMessage());
+        }
+    }
+
+    public function updateDetails(int $equipmentId)
+    {
+        try {
+            $this->inventory->updateDetails($equipmentId, $this->request->getPost(), (int) $this->session->get('user_id'));
+            return redirect()->to('/equipment')->with('message', 'Navn, strekkode og antall oppdatert.');
+        } catch (\Throwable $e) {
+            return redirect()->back()->with('error', $e->getMessage());
+        }
+    }
+
+    public function updateQuantity(int $equipmentId)
+    {
+        try {
+            $this->inventory->updateQuantity($equipmentId, $this->request->getPost(), (int) $this->session->get('user_id'));
+            return redirect()->to('/equipment')->with('message', 'Antall oppdatert.');
+        } catch (\Throwable $e) {
+            return redirect()->back()->with('error', $e->getMessage());
         }
     }
 

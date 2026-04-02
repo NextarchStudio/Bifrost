@@ -1,5 +1,6 @@
 # Project-specific
 AdminTemplateRoot/
+PHP/
 
 # Dependencies
 vendor/

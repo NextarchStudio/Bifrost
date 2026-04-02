@@ -59,7 +59,6 @@ class CreateTgLogisticsSchema extends Migration
         $this->forge->addField([
             'id' => ['type' => 'TINYINT', 'unsigned' => true],
             'enable_local_login' => ['type' => 'TINYINT', 'constraint' => 1, 'default' => 1],
-            'enable_discord_login' => ['type' => 'TINYINT', 'constraint' => 1, 'default' => 1],
             'enable_keycloak_login' => ['type' => 'TINYINT', 'constraint' => 1, 'default' => 1],
         ]);
         $this->forge->addKey('id', true);

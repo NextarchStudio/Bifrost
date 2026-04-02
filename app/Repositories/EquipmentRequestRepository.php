@@ -64,6 +64,7 @@ class EquipmentRequestRepository
             ->join('equipment_request_items', 'equipment_request_items.request_id = equipment_requests.id', 'left')
             ->join('equipment', 'equipment.id = equipment_request_items.equipment_id', 'left')
             ->where('equipment_requests.requester_user_id', $userId)
+            ->where('equipment_requests.status !=', 'returned')
             ->groupBy('equipment_requests.id')
             ->orderBy('equipment_requests.created_at', 'DESC')
             ->findAll();
@@ -83,6 +84,18 @@ class EquipmentRequestRepository
             ->groupBy('equipment_requests.id')
             ->orderBy('equipment_requests.created_at', 'DESC')
             ->findAll();
+    }
+
+    public function deleteItemsByRequestId(int $requestId): bool
+    {
+        return $this->items
+            ->where('request_id', $requestId)
+            ->delete();
+    }
+
+    public function deleteRequestById(int $requestId): bool
+    {
+        return $this->requests->delete($requestId);
     }
 
     public function updateStatus(int $requestId, string $status): bool

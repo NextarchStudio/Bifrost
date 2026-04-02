@@ -7,17 +7,22 @@ use App\Repositories\CommsRepository;
 use App\Repositories\EquipmentRequestRepository;
 use App\Repositories\LoanRepository;
 use App\Repositories\UserRepository;
+use App\Repositories\VehicleLoanRepository;
 use Config\Database;
 
 class ProfileService
 {
+    private const PICTURE_BLOCKED_ROLES = ['sperret'];
+
     public function __construct(
         private readonly UserRepository $users = new UserRepository(),
         private readonly LoanRepository $loans = new LoanRepository(),
+        private readonly VehicleLoanRepository $vehicleLoans = new VehicleLoanRepository(),
         private readonly CommsRepository $comms = new CommsRepository(),
         private readonly EquipmentRequestRepository $requests = new EquipmentRequestRepository(),
         private readonly PasswordService $passwords = new PasswordService(),
-        private readonly AuditService $audit = new AuditService()
+        private readonly AuditService $audit = new AuditService(),
+        private readonly CrewDirectoryService $crewDirectory = new CrewDirectoryService()
     ) {
     }
 
@@ -55,12 +60,18 @@ class ProfileService
             $commsLoans = $this->comms->activeLoansByWannabeId($targetWannabeId);
         }
 
+        $targetRoles = $this->users->rolesForUser((int) $targetUser->id);
+
         return [
             'user' => $targetUser,
-            'roles' => $this->users->rolesForUser((int) $targetUser->id),
+            'roles' => $targetRoles,
             'isOwnProfile' => $isOwnProfile,
             'canViewRequests' => $canViewRequests,
+            'profilePictureUrl' => ($targetWannabeId > 0 && ! $this->isPictureBlockedForRoles($targetRoles))
+                ? base_url('profile/picture/' . $targetWannabeId)
+                : null,
             'loans' => $targetWannabeId > 0 ? $this->loans->loansByWannabeId($targetWannabeId) : [],
+            'vehicleLoans' => $targetWannabeId > 0 ? $this->vehicleLoans->loansByWannabeId($targetWannabeId) : [],
             'commsLoans' => $commsLoans,
             'requests' => $canViewRequests ? $this->requests->mineWithSummary((int) $targetUser->id) : [],
         ];
@@ -74,6 +85,30 @@ class ProfileService
         }
 
         return (int) $user->wannabe_id;
+    }
+
+    public function canShowPictureForUser(int $userId): bool
+    {
+        $user = $this->users->findById($userId);
+        if ($user === null || (int) ($user->wannabe_id ?? 0) < 1) {
+            return false;
+        }
+
+        return ! $this->isPictureBlockedForRoles($this->users->rolesForUser($userId));
+    }
+
+    public function canShowPictureForWannabeId(int $wannabeId): bool
+    {
+        if ($wannabeId < 1) {
+            return false;
+        }
+
+        $user = $this->users->findByWannabeId($wannabeId);
+        if ($user === null) {
+            return true;
+        }
+
+        return ! $this->isPictureBlockedForRoles($this->users->rolesForUser((int) $user->id));
     }
 
     public function changePassword(int $userId, array $input): void
@@ -105,5 +140,10 @@ class ProfileService
             'updated_at'    => date('Y-m-d H:i:s'),
         ]);
         $this->audit->log($userId, 'change_password', 'user', $userId);
+    }
+
+    private function isPictureBlockedForRoles(array $roles): bool
+    {
+        return count(array_intersect(self::PICTURE_BLOCKED_ROLES, $roles)) > 0;
     }
 }

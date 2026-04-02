@@ -64,9 +64,34 @@ class CommsRepository
         return (int) $this->db->insertID();
     }
 
+    public function findSetById(int $setId): ?array
+    {
+        $row = $this->db->table('comms_sets')
+            ->where('id', $setId)
+            ->get()
+            ->getRowArray();
+
+        return $row !== null ? $row : null;
+    }
+
+    public function updateSetById(int $setId, array $data): bool
+    {
+        return (bool) $this->db->table('comms_sets')->where('id', $setId)->update($data);
+    }
+
+    public function deleteSetById(int $setId): bool
+    {
+        return (bool) $this->db->table('comms_sets')->where('id', $setId)->delete();
+    }
+
     public function addSetItem(array $data): void
     {
         $this->db->table('comms_set_items')->insert($data);
+    }
+
+    public function deleteSetItemsBySetId(int $setId): bool
+    {
+        return (bool) $this->db->table('comms_set_items')->where('set_id', $setId)->delete();
     }
 
     public function setItems(int $setId): array
@@ -90,6 +115,22 @@ class CommsRepository
     public function addLoanItem(array $data): void
     {
         $this->db->table('comms_loan_items')->insert($data);
+    }
+
+    public function updateLoanItemQuantity(int $loanId, int $itemId, int $quantity): bool
+    {
+        return (bool) $this->db->table('comms_loan_items')
+            ->where('loan_id', $loanId)
+            ->where('item_id', $itemId)
+            ->update(['quantity' => $quantity]);
+    }
+
+    public function deleteLoanItem(int $loanId, int $itemId): bool
+    {
+        return (bool) $this->db->table('comms_loan_items')
+            ->where('loan_id', $loanId)
+            ->where('item_id', $itemId)
+            ->delete();
     }
 
     public function loanItems(int $loanId): array
@@ -146,6 +187,14 @@ class CommsRepository
             ->orderBy('cl.issued_at', 'DESC')
             ->get()
             ->getResultArray();
+    }
+
+    public function activeLoanCountBySetId(int $setId): int
+    {
+        return (int) $this->db->table('comms_loans')
+            ->where('set_id', $setId)
+            ->where('status', 'active')
+            ->countAllResults();
     }
 
     public function activeLoanedItemCount(): int

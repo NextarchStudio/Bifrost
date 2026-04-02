@@ -9,6 +9,8 @@ use App\Models\PalletSlotModel;
 
 class WarehouseRepository
 {
+    private const TRANSPORT_ARCHIVE_LOCATION = 'Slettet lokasjon (transportarkiv)';
+
     public function __construct(
         private readonly LocationModel $locations = new LocationModel(),
         private readonly PalletModel $pallets = new PalletModel(),
@@ -18,12 +20,14 @@ class WarehouseRepository
 
     public function locations(): array
     {
-        return $this->locations->orderBy('name', 'ASC')->findAll();
+        return $this->visibleLocationsQuery()
+            ->orderBy('name', 'ASC')
+            ->findAll();
     }
 
     public function palletEligibleLocations(): array
     {
-        return $this->locations
+        return $this->visibleLocationsQuery()
             ->where('LOWER(type) !=', 'transport')
             ->orderBy('name', 'ASC')
             ->findAll();
@@ -31,7 +35,7 @@ class WarehouseRepository
 
     public function transportLocations(): array
     {
-        return $this->locations
+        return $this->visibleLocationsQuery()
             ->where('LOWER(type)', 'transport')
             ->orderBy('name', 'ASC')
             ->findAll();
@@ -39,7 +43,7 @@ class WarehouseRepository
 
     public function nonTransportLocations(): array
     {
-        return $this->locations
+        return $this->visibleLocationsQuery()
             ->where('LOWER(type) !=', 'transport')
             ->orderBy('name', 'ASC')
             ->findAll();
@@ -69,6 +73,11 @@ class WarehouseRepository
         $this->locations->insert($data);
 
         return (int) $this->locations->getInsertID();
+    }
+
+    public function updateLocationById(int $locationId, array $data): bool
+    {
+        return $this->locations->update($locationId, $data);
     }
 
     public function createPallet(array $data): int
@@ -109,9 +118,57 @@ class WarehouseRepository
         return $this->locations->find($locationId);
     }
 
+    public function findLocationByName(string $name): ?object
+    {
+        return $this->locations
+            ->where('name', $name)
+            ->first();
+    }
+
     public function countPalletsByLocation(int $locationId): int
     {
         return (int) $this->pallets->where('location_id', $locationId)->countAllResults();
+    }
+
+    public function countTransportJobsByLocation(int $locationId): int
+    {
+        return (int) $this->locations->db
+            ->table('transport_jobs')
+            ->groupStart()
+                ->where('from_location_id', $locationId)
+                ->orWhere('to_location_id', $locationId)
+            ->groupEnd()
+            ->countAllResults();
+    }
+
+    public function countActiveTransportJobsByLocation(int $locationId): int
+    {
+        return (int) $this->locations->db
+            ->table('transport_jobs')
+            ->groupStart()
+                ->where('from_location_id', $locationId)
+                ->orWhere('to_location_id', $locationId)
+            ->groupEnd()
+            ->whereIn('status', ['open', 'assigned', 'in_progress'])
+            ->countAllResults();
+    }
+
+    public function reassignInactiveTransportJobsLocation(int $fromLocationId, int $archiveLocationId): void
+    {
+        $builder = $this->locations->db->table('transport_jobs');
+
+        $builder
+            ->set('from_location_id', $archiveLocationId)
+            ->where('from_location_id', $fromLocationId)
+            ->whereNotIn('status', ['open', 'assigned', 'in_progress'])
+            ->update();
+
+        $builder = $this->locations->db->table('transport_jobs');
+        $builder
+            ->set('to_location_id', $archiveLocationId)
+            ->where('to_location_id', $fromLocationId)
+            ->whereNotIn('status', ['open', 'assigned', 'in_progress'])
+            ->update();
     }
 
     public function findPalletById(int $palletId): ?object
@@ -158,5 +215,11 @@ class WarehouseRepository
     public function deleteLocationById(int $locationId): bool
     {
         return $this->locations->delete($locationId);
+    }
+
+    private function visibleLocationsQuery(): LocationModel
+    {
+        return $this->locations
+            ->where('name !=', self::TRANSPORT_ARCHIVE_LOCATION);
     }
 }

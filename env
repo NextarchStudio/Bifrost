@@ -78,6 +78,3 @@
 # auth.keycloak.clientSecret =
 # auth.keycloak.redirectUri =
 #
-# auth.discord.clientId =
-# auth.discord.clientSecret =
-# auth.discord.redirectUri =

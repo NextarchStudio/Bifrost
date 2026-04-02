@@ -6,21 +6,29 @@ namespace App\Services;
 use App\Repositories\AuthRepository;
 use App\Repositories\SettingsRepository;
 use App\Repositories\UserRepository;
+use Config\AuthProviders;
 
 class AuthService
 {
+    private const OAUTH_PROVIDERS = ['keycloak'];
+
     public function __construct(
         private readonly UserRepository $users = new UserRepository(),
         private readonly AuthRepository $authRepo = new AuthRepository(),
         private readonly SettingsRepository $settings = new SettingsRepository(),
-        private readonly PasswordService $passwords = new PasswordService()
+        private readonly PasswordService $passwords = new PasswordService(),
+        private readonly AuthProviders $providers = new AuthProviders()
     ) {
+    }
+
+    public function localLoginEnabled(): bool
+    {
+        return (int) $this->settings->get()->enable_local_login === 1;
     }
 
     public function localLogin(string $email, string $password, string $ip): array
     {
-        $setting = $this->settings->get();
-        if ((int) $setting->enable_local_login !== 1) {
+        if (! $this->localLoginEnabled()) {
             throw new \RuntimeException('Lokal innlogging er deaktivert.');
         }
 
@@ -40,24 +48,35 @@ class AuthService
 
         return [
             'user_id' => (int) $user->id,
-            'name'    => (string) $user->name,
+            'name' => (string) $user->name,
             'first_name' => (string) ($user->first_name ?? explode(' ', (string) $user->name)[0]),
             'wannabe_id' => $user->wannabe_id !== null ? (int) $user->wannabe_id : null,
-            'roles'   => $this->users->rolesForUser((int) $user->id),
+            'roles' => $this->users->rolesForUser((int) $user->id),
         ];
     }
 
     public function keycloakEnabled(): bool
     {
-        return (int) $this->settings->get()->enable_keycloak_login === 1;
+        return (int) $this->settings->get()->enable_keycloak_login === 1
+            && $this->providers->keycloakBaseUrl !== ''
+            && $this->providers->keycloakRealm !== ''
+            && $this->providers->keycloakClientId !== ''
+            && $this->providers->keycloakClientSecret !== ''
+            && $this->providers->keycloakRedirectUri !== '';
     }
 
-    public function discordEnabled(): bool
+    public function ensureProviderEnabled(string $provider): void
     {
-        return (int) $this->settings->get()->enable_discord_login === 1;
+        if (! in_array($provider, self::OAUTH_PROVIDERS, true)) {
+            throw new \RuntimeException('Ukjent OAuth-provider.');
+        }
+
+        if (! $this->keycloakEnabled()) {
+            throw new \RuntimeException('Keycloak-innlogging er ikke konfigurert eller er deaktivert.');
+        }
     }
 
-    public function upsertProviderUser(string $provider, string $providerId, string $email, string $name): array
+    public function upsertProviderUser(string $provider, string $providerId, string $email, string $name, ?int $wannabeId = null): array
     {
         $account = $this->authRepo->findAuthAccount($provider, $providerId);
         if ($account !== null) {
@@ -69,12 +88,20 @@ class AuthService
                 throw new \RuntimeException('Brukeren er deaktivert.');
             }
 
+            if ($wannabeId !== null && (empty($user->wannabe_id) || (int) $user->wannabe_id !== $wannabeId)) {
+                $this->users->updateById((int) $user->id, [
+                    'wannabe_id' => $wannabeId,
+                    'updated_at' => date('Y-m-d H:i:s'),
+                ]);
+                $user = $this->users->findById((int) $user->id);
+            }
+
             return [
                 'user_id' => (int) $user->id,
-                'name'    => (string) $user->name,
+                'name' => (string) $user->name,
                 'first_name' => (string) ($user->first_name ?? explode(' ', (string) $user->name)[0]),
                 'wannabe_id' => $user->wannabe_id !== null ? (int) $user->wannabe_id : null,
-                'roles'   => $this->users->rolesForUser((int) $user->id),
+                'roles' => $this->users->rolesForUser((int) $user->id),
             ];
         }
 
@@ -82,16 +109,24 @@ class AuthService
         if ($user === null) {
             [$firstName, $lastName] = $this->splitName($name);
             $userId = $this->users->create([
-                'name'          => mb_substr(trim($firstName . ' ' . $lastName), 0, 120),
-                'first_name'    => $firstName,
-                'last_name'     => $lastName,
-                'email'         => mb_substr(strtolower(trim($email)), 0, 180),
+                'name' => mb_substr(trim($firstName . ' ' . $lastName), 0, 120),
+                'first_name' => $firstName,
+                'last_name' => $lastName,
+                'email' => mb_substr(strtolower(trim($email)), 0, 180),
+                'wannabe_id' => $wannabeId,
                 'password_hash' => null,
-                'active'        => 1,
-                'created_at'    => date('Y-m-d H:i:s'),
-                'updated_at'    => date('Y-m-d H:i:s'),
+                'active' => 1,
+                'created_at' => date('Y-m-d H:i:s'),
+                'updated_at' => date('Y-m-d H:i:s'),
             ]);
+            $this->users->assignRoleByName($userId, 'bruker');
             $user = $this->users->findById($userId);
+        } elseif ($wannabeId !== null && (empty($user->wannabe_id) || (int) $user->wannabe_id !== $wannabeId)) {
+            $this->users->updateById((int) $user->id, [
+                'wannabe_id' => $wannabeId,
+                'updated_at' => date('Y-m-d H:i:s'),
+            ]);
+            $user = $this->users->findById((int) $user->id);
         }
         if ($user !== null && (int) ($user->active ?? 1) !== 1) {
             throw new \RuntimeException('Brukeren er deaktivert.');
@@ -101,10 +136,10 @@ class AuthService
 
         return [
             'user_id' => (int) $user->id,
-            'name'    => (string) $user->name,
+            'name' => (string) $user->name,
             'first_name' => (string) ($user->first_name ?? explode(' ', (string) $user->name)[0]),
             'wannabe_id' => $user->wannabe_id !== null ? (int) $user->wannabe_id : null,
-            'roles'   => $this->users->rolesForUser((int) $user->id),
+            'roles' => $this->users->rolesForUser((int) $user->id),
         ];
     }
 

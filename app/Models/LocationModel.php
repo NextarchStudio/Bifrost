@@ -11,7 +11,7 @@ class LocationModel extends Model
     protected $table = 'locations';
     protected $primaryKey = 'id';
     protected $returnType = Location::class;
-    protected $allowedFields = ['name', 'type'];
+    protected $allowedFields = ['name', 'type', 'address', 'latitude', 'longitude'];
     protected $useTimestamps = false;
 }
 

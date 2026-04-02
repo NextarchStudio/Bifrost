@@ -4,6 +4,22 @@
 
 <div class="grid">
     <div class="card">
+        <div style="display:flex; align-items:center; gap:1rem; margin-bottom:1rem; flex-wrap:wrap;">
+            <?php if (! empty($profilePictureUrl)): ?>
+                <img src="<?= esc((string) $profilePictureUrl) ?>" alt="Profilbilde" style="width:96px; height:96px; border-radius:999px; object-fit:cover; border:1px solid #334155; background:#0f172a;" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-flex';">
+                <span style="display:none; align-items:center; justify-content:center; width:96px; height:96px; border-radius:999px; border:1px solid #334155; background:#0f172a; color:#e2e8f0; font-size:2rem;">
+                    <i class="fa-solid fa-user"></i>
+                </span>
+            <?php else: ?>
+                <span style="display:inline-flex; align-items:center; justify-content:center; width:96px; height:96px; border-radius:999px; border:1px solid #334155; background:#0f172a; color:#e2e8f0; font-size:2rem;">
+                    <i class="fa-solid fa-user"></i>
+                </span>
+            <?php endif; ?>
+            <div>
+                <h3 style="margin:0 0 .25rem;"><?= esc((string) $user->name) ?></h3>
+                <div class="muted">Wannabe-ID: <?= esc((string) ($user->wannabe_id ?? '-')) ?></div>
+            </div>
+        </div>
         <h3>Brukerinfo</h3>
         <table>
             <tr><th>Navn</th><td><?= esc((string) $user->name) ?></td></tr>
@@ -30,6 +46,23 @@
 </div>
 
 <div class="card">
+    <h3><?= ! empty($isOwnProfile) ? 'Mine aktive kjøretøylån' : 'Aktive kjøretøylån' ?></h3>
+    <table>
+        <tr><th>ID</th><th>Kjøretøy</th><th>Regnr</th><th>Status</th><th>Utstedt</th></tr>
+        <?php foreach (($vehicleLoans ?? []) as $loan): ?>
+            <?php if ((string) $loan->status !== 'active'): continue; endif; ?>
+            <tr>
+                <td><?= esc((string) $loan->id) ?></td>
+                <td><?= esc((string) $loan->vehicle_name) ?></td>
+                <td><?= esc((string) ($loan->registration_number ?? '-')) ?></td>
+                <td><span class="badge <?= esc((string) $loan->status) ?>"><?= esc((string) $loan->status) ?></span></td>
+                <td><?= esc(format_norwegian_datetime($loan->issued_at)) ?></td>
+            </tr>
+        <?php endforeach; ?>
+    </table>
+</div>
+
+<div class="card">
     <h3><?= ! empty($isOwnProfile) ? 'Mine aktive utlån' : 'Aktive utlån' ?></h3>
     <table>
         <tr><th>ID</th><th>Utstyr</th><th>Serienummer</th><th>Antall</th><th>Status</th><th>Utstedt</th></tr>
@@ -41,7 +74,7 @@
                 <td><?= esc((string) ($loan->serial_number ?? '-')) ?></td>
                 <td><?= esc((string) ($loan->quantity ?? 1)) ?></td>
                 <td><span class="badge <?= esc((string) $loan->status) ?>"><?= esc((string) $loan->status) ?></span></td>
-                <td><?= esc((string) $loan->issued_at) ?></td>
+                <td><?= esc(format_norwegian_datetime($loan->issued_at)) ?></td>
             </tr>
         <?php endforeach; ?>
     </table>
@@ -57,7 +90,7 @@
                 <td><?= esc(! empty($loan['set_id']) ? 'Sett: ' . (string) ($loan['set_name'] ?? '-') : 'Enkeltutstyr') ?></td>
                 <td><?= esc((string) ($loan['items_summary'] ?? '-')) ?></td>
                 <td><?= esc((string) ($loan['total_items'] ?? 0)) ?></td>
-                <td><?= esc((string) $loan['issued_at']) ?></td>
+                <td><?= esc(format_norwegian_datetime($loan['issued_at'])) ?></td>
             </tr>
         <?php endforeach; ?>
     </table>

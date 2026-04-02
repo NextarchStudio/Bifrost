@@ -8,9 +8,12 @@ use CodeIgniter\Entity\Entity;
 class Location extends Entity
 {
     protected $attributes = [
-        'id'   => null,
+        'id' => null,
         'name' => null,
         'type' => null,
+        'address' => null,
+        'latitude' => null,
+        'longitude' => null,
     ];
 }
 

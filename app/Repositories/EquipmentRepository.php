@@ -11,9 +11,9 @@ class EquipmentRepository
     {
     }
 
-    public function allWithContext(): array
+    public function allWithContext(?string $search = null): array
     {
-        return $this->equipment
+        $builder = $this->equipment
             ->select('equipment.*, pallet_slots.slot_number, pallets.name AS pallet_name, locations.id AS location_id, locations.name AS location_name')
             ->select('(SELECT COALESCE(SUM(el.quantity), 0)
                 FROM equipment_loans el
@@ -27,7 +27,14 @@ class EquipmentRepository
                 WHERE e2.name = equipment.name AND l2.name IS NOT NULL) AS location_names', false)
             ->join('pallet_slots', 'pallet_slots.id = equipment.pallet_slot_id', 'left')
             ->join('pallets', 'pallets.id = pallet_slots.pallet_id', 'left')
-            ->join('locations', 'locations.id = pallets.location_id', 'left')
+            ->join('locations', 'locations.id = pallets.location_id', 'left');
+
+        $search = trim((string) $search);
+        if ($search !== '') {
+            $builder->like('equipment.name', $search);
+        }
+
+        return $builder
             ->orderBy('equipment.name', 'ASC')
             ->findAll();
     }
@@ -128,25 +135,129 @@ class EquipmentRepository
             ->countAllResults();
     }
 
-    public function countLoanReferences(int $equipmentId): int
+    public function countBlockingLoanReferences(int $equipmentId): int
     {
         return (int) $this->equipment->db
             ->table('equipment_loans')
             ->where('equipment_id', $equipmentId)
+            ->where('status !=', 'returned')
             ->countAllResults();
     }
 
-    public function countRequestReferences(int $equipmentId): int
+    public function countBlockingRequestReferences(int $equipmentId): int
     {
         return (int) $this->equipment->db
-            ->table('equipment_request_items')
-            ->where('equipment_id', $equipmentId)
+            ->table('equipment_request_items eri')
+            ->join('equipment_requests er', 'er.id = eri.request_id', 'inner')
+            ->where('eri.equipment_id', $equipmentId)
+            ->whereNotIn('er.status', ['returned', 'rejected'])
             ->countAllResults();
     }
 
+    public function deleteReturnedLoanReferences(int $equipmentId): bool
+    {
+        return $this->equipment->db
+            ->table('equipment_loans')
+            ->where('equipment_id', $equipmentId)
+            ->where('status', 'returned')
+            ->delete();
+    }
+
+    public function deleteReturnedRequestReferences(int $equipmentId): bool
+    {
+        $requestIds = array_map(
+            static fn (array $row): int => (int) $row['request_id'],
+            $this->equipment->db
+                ->table('equipment_request_items eri')
+                ->select('eri.request_id')
+                ->join('equipment_requests er', 'er.id = eri.request_id', 'inner')
+                ->where('eri.equipment_id', $equipmentId)
+                ->where('er.status', 'returned')
+                ->get()
+                ->getResultArray()
+        );
+
+        if ($requestIds === []) {
+            return true;
+        }
+
+        $this->equipment->db
+            ->table('equipment_request_items')
+            ->where('equipment_id', $equipmentId)
+            ->whereIn('request_id', $requestIds)
+            ->delete();
+
+        return true;
+    }
+
+    public function deleteRejectedRequestReferences(int $equipmentId): bool
+    {
+        $requestIds = array_map(
+            static fn (array $row): int => (int) $row['request_id'],
+            $this->equipment->db
+                ->table('equipment_request_items eri')
+                ->select('eri.request_id')
+                ->join('equipment_requests er', 'er.id = eri.request_id', 'inner')
+                ->where('eri.equipment_id', $equipmentId)
+                ->where('er.status', 'rejected')
+                ->get()
+                ->getResultArray()
+        );
+
+        if ($requestIds === []) {
+            return true;
+        }
+
+        $this->equipment->db
+            ->table('equipment_request_items')
+            ->where('equipment_id', $equipmentId)
+            ->whereIn('request_id', $requestIds)
+            ->delete();
+
+        return true;
+    }
     public function deleteById(int $id): bool
     {
         return $this->equipment->delete($id);
+    }
+
+    public function findBySerialPrefix(string $prefix): array
+    {
+        $prefix = strtoupper(trim($prefix));
+        if ($prefix === '') {
+            return [];
+        }
+
+        return $this->equipment
+            ->select('id, name, serial_number, quantity, status')
+            ->where('serial_number IS NOT NULL', null, false)
+            ->like('serial_number', $prefix, 'after')
+            ->orderBy('serial_number', 'ASC')
+            ->findAll();
+    }
+
+    public function serialRangeByPrefix(string $prefix): array
+    {
+        $prefix = strtoupper(trim($prefix));
+        if ($prefix === '') {
+            return [
+                'lowest_serial' => null,
+                'highest_serial' => null,
+            ];
+        }
+
+        $row = $this->equipment->db
+            ->table('equipment')
+            ->select('MIN(serial_number) AS lowest_serial, MAX(serial_number) AS highest_serial', false)
+            ->where('serial_number IS NOT NULL', null, false)
+            ->like('serial_number', $prefix, 'after')
+            ->get()
+            ->getFirstRow('array');
+
+        return [
+            'lowest_serial' => $row['lowest_serial'] ?? null,
+            'highest_serial' => $row['highest_serial'] ?? null,
+        ];
     }
 
     public function belongsToLocation(int $equipmentId, int $locationId): bool
@@ -166,3 +277,7 @@ class EquipmentRepository
         return $row !== null;
     }
 }
+
+
+
+

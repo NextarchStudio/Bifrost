@@ -1,21 +1,21 @@
 # TG Logistics CMS
 
-Internt logistikk-CMS bygget med CodeIgniter 4 for administrasjon av utstyr, lager, transport, samband, kjoretoy og interne arbeidsflyter.
+Internt logistikk-CMS bygget med CodeIgniter 4 for administrasjon av utstyr, lager, transport, samband, kjøretøy og interne arbeidsflyter.
 
 ## Oversikt
 
 Prosjektet samler logistikkrelaterte prosesser i ett system. Applikasjonen har blant annet moduler for:
 
-- autentisering med lokal innlogging og OIDC/Keycloak-stotte
+- autentisering med lokal innlogging og OIDC/Keycloak-støtte
 - rollebasert tilgangskontroll
 - lager og lokasjoner
 - utstyr, kategorier og strekkoder
-- utlan og retur
+- utlån og retur
 - samband og sambandssett
 - private utstyrsregistreringer
-- kjoretoy og kompetansekrav
-- transportoppdrag og persontransportforesporsler
-- utstyrsforesporsler med godkjenning
+- kjøretøy og kompetansekrav
+- transportoppdrag og persontransportforespørsler
+- utstyrsforespørsler med godkjenning
 - feedback og varsler
 - oppgaver
 - adminpanel for brukere og systeminnstillinger
@@ -51,9 +51,9 @@ Tilgang styres videre per modul via `auth`- og `role`-filtre.
 composer install
 ```
 
-### 2. Opprett lokal miljoefil
+### 2. Opprett lokal miljøfil
 
-Kopier `env` til `.env` og tilpass verdiene for ditt lokale miljo:
+Kopier `env` til `.env` og tilpass verdiene for ditt lokale miljø:
 
 ```bash
 copy env .env
@@ -70,7 +70,7 @@ database.default.DBDriver = MySQLi
 database.default.port = 3306
 ```
 
-### 3. Kjor migreringer
+### 3. Kjør migreringer
 
 ```bash
 php spark migrate
@@ -89,7 +89,7 @@ Standard adminbruker fra seederen:
 - e-post: `admin@tg-logistics.local`
 - passord: `ChangeMe1234!`
 
-Endre passordet umiddelbart i lokale eller delte miljoer.
+Endre passordet umiddelbart i lokale eller delte miljøer.
 
 ### 5. Start utviklingsserver
 
@@ -97,7 +97,7 @@ Endre passordet umiddelbart i lokale eller delte miljoer.
 php spark serve
 ```
 
-Applikasjonen blir normalt tilgjengelig pa `http://localhost:8080`.
+Applikasjonen blir normalt tilgjengelig på `http://localhost:8080`.
 
 ## Nyttig utviklerinfo
 
@@ -107,16 +107,16 @@ Applikasjonen blir normalt tilgjengelig pa `http://localhost:8080`.
 composer test
 ```
 
-### Base URL og miljo
+### Base URL og miljø
 
 - applikasjonen bruker `http://localhost/` eller `http://127.0.0.1/` som lokal base URL avhengig av host
 - `https://tg.legacyh.dev/` behandles som et kjent hostnavn i appkonfigurasjonen
-- standardsprak er `nb`
+- standardspråk er `nb`
 - standard tidssone er `Europe/Oslo`
 
 ### Autentisering og integrasjoner
 
-Miljofilen har plassholdere for OIDC/Keycloak:
+Miljøfilen har plassholdere for OIDC/Keycloak:
 
 - `auth.keycloak.baseUrl`
 - `auth.keycloak.realm`
@@ -124,10 +124,10 @@ Miljofilen har plassholdere for OIDC/Keycloak:
 - `auth.keycloak.clientSecret`
 - `auth.keycloak.redirectUri`
 
-Databasen og systeminnstillingene i prosjektet har ogsa stotte for blant annet:
+Databasen og systeminnstillingene i prosjektet har også støtte for blant annet:
 
 - SMTP-oppsett for e-post
-- Google Maps API-nokkel
+- Google Maps API-nøkkel
 - OSRM base URL
 - Statens vegvesen-relaterte innstillinger
 - crew API/cache-innstillinger
@@ -159,10 +159,10 @@ Koden er satt opp med flere grunnleggende tiltak:
 - CSRF-filter globalt
 - `invalidchars`-filter globalt
 - sikre headere etter respons
-- autentiserings- og rollefiltre pa beskyttede ruter
+- autentiserings- og rollefiltre på beskyttede ruter
 
 ## Lisens
 
-Prosjektspesifikk kode i dette repoet er proprietaer og lisensiert for intern bruk og intern videreutvikling i TG. Se [LICENSE](c:/Users/Mathias/Desktop/TG-Logistics-CMS/LICENSE) for vilkar.
+Prosjektspesifikk kode i dette repoet er proprietær og lisensiert for intern bruk og intern videreutvikling i TG. Se [LICENSE](c:/Users/Mathias/Desktop/TG-Logistics-CMS/LICENSE) for vilkår.
 
 Tredjepartskomponenter, inkludert CodeIgniter og andre avhengigheter, er fortsatt underlagt sine egne lisenser.

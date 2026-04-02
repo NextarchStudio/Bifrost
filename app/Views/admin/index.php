@@ -11,7 +11,7 @@ $roleLabel = static function (string $role): string {
         'sambandsansvarlig' => 'Sambandsansvarlig',
         'skiftleder' => 'Skiftleder',
         'transport_ansvarlig' => 'Transport Ansvarlig',
-        'ingen_tilbakemeldinger' => 'Ingen tilbakemeldinger',
+        'ingen_tilbakemeldinger' => 'Felles Bruker',
         default => $role,
     };
 };

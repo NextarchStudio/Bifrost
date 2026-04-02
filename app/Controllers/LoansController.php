@@ -6,6 +6,7 @@ namespace App\Controllers;
 use App\Services\LoanService;
 use App\Services\CrewDirectoryService;
 use App\Services\PrivateEquipmentService;
+use App\Services\ProfileService;
 use App\Repositories\UserRepository;
 
 class LoansController extends BaseController
@@ -14,6 +15,7 @@ class LoansController extends BaseController
         private readonly LoanService $loans = new LoanService(),
         private readonly PrivateEquipmentService $privateEquipment = new PrivateEquipmentService(),
         private readonly CrewDirectoryService $crewDirectory = new CrewDirectoryService(),
+        private readonly ProfileService $profiles = new ProfileService(),
         private readonly UserRepository $users = new UserRepository()
     ) {
     }
@@ -95,7 +97,9 @@ class LoansController extends BaseController
             'crew' => $crew,
             'role' => $role,
             'displayName' => $name !== '' ? $name : ($nick !== '' ? $nick : ('Wannabe ' . $wannabeId)),
-            'pictureUrl' => $this->crewDirectory->pictureUrlByWannabeId($wannabeId),
+            'pictureUrl' => $this->profiles->canShowPictureForWannabeId($wannabeId)
+                ? $this->crewDirectory->pictureUrlByWannabeId($wannabeId)
+                : null,
         ]);
     }
 
@@ -142,7 +146,9 @@ class LoansController extends BaseController
             'crew' => $crew,
             'role' => $role,
             'displayName' => $name !== '' ? $name : ($nick !== '' ? $nick : ($wannabeId > 0 ? ('Wannabe ' . $wannabeId) : 'Ukjent bruker')),
-            'pictureUrl' => $wannabeId > 0 ? $this->crewDirectory->pictureUrlByWannabeId($wannabeId) : null,
+            'pictureUrl' => ($wannabeId > 0 && $this->profiles->canShowPictureForWannabeId($wannabeId))
+                ? $this->crewDirectory->pictureUrlByWannabeId($wannabeId)
+                : null,
         ]);
     }
 

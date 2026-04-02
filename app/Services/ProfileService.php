@@ -12,7 +12,7 @@ use Config\Database;
 
 class ProfileService
 {
-    private const PICTURE_BLOCKED_ROLES = ['sperret'];
+    private const PICTURE_BLOCKED_ROLES = ['sperret', 'ingen_tilbakemeldinger'];
 
     public function __construct(
         private readonly UserRepository $users = new UserRepository(),

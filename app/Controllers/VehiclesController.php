@@ -5,6 +5,7 @@ namespace App\Controllers;
 
 use App\Services\VehicleService;
 use App\Services\CrewDirectoryService;
+use App\Services\ProfileService;
 use App\Repositories\UserRepository;
 
 class VehiclesController extends BaseController
@@ -12,6 +13,7 @@ class VehiclesController extends BaseController
     public function __construct(
         private readonly VehicleService $vehicles = new VehicleService(),
         private readonly CrewDirectoryService $crewDirectory = new CrewDirectoryService(),
+        private readonly ProfileService $profiles = new ProfileService(),
         private readonly UserRepository $users = new UserRepository()
     )
     {
@@ -91,7 +93,9 @@ class VehiclesController extends BaseController
                 'crew' => $crew,
                 'role' => $role,
                 'displayName' => $name !== '' ? $name : ($nick !== '' ? $nick : ('Wannabe ' . $wannabeId)),
-                'pictureUrl' => $this->crewDirectory->pictureUrlByWannabeId($wannabeId),
+                'pictureUrl' => $this->profiles->canShowPictureForWannabeId($wannabeId)
+                    ? $this->crewDirectory->pictureUrlByWannabeId($wannabeId)
+                    : null,
             ]);
         } catch (\Throwable $e) {
             return $this->response->setStatusCode(400)->setJSON([
@@ -141,7 +145,9 @@ class VehiclesController extends BaseController
                 'crew' => $crew,
                 'role' => $role,
                 'displayName' => $name !== '' ? $name : ($nick !== '' ? $nick : ($wannabeId > 0 ? ('Wannabe ' . $wannabeId) : 'Ukjent bruker')),
-                'pictureUrl' => $wannabeId > 0 ? $this->crewDirectory->pictureUrlByWannabeId($wannabeId) : null,
+                'pictureUrl' => ($wannabeId > 0 && $this->profiles->canShowPictureForWannabeId($wannabeId))
+                    ? $this->crewDirectory->pictureUrlByWannabeId($wannabeId)
+                    : null,
             ]);
         } catch (\Throwable $e) {
             return $this->response->setStatusCode(400)->setJSON([

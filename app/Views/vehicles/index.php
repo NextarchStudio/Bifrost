@@ -392,6 +392,18 @@ $competencyLabel = static fn (string $code): string => $competencyRequirementOpt
     let crewLookupTimer = null;
     let activeCrewLookupController = null;
     let lastCrewLookupValue = '';
+    let keepLoanFormFocusTimer = null;
+
+    const focusWannabeInput = (selectText = false) => {
+        if (!(wannabeInput instanceof HTMLInputElement)) {
+            return;
+        }
+
+        wannabeInput.focus();
+        if (selectText) {
+            wannabeInput.select();
+        }
+    };
 
     const clearWannabeProfile = (message = '') => {
         if (wannabeProfileBox instanceof HTMLElement) {
@@ -565,6 +577,18 @@ $competencyLabel = static fn (string $code): string => $competencyRequirementOpt
 
     cancelButton?.addEventListener('click', closeModal);
 
+    vehicleSelect?.addEventListener('change', () => {
+        if (!(wannabeInput instanceof HTMLInputElement)) {
+            return;
+        }
+
+        // After picking a vehicle, move focus to the badge/Wannabe field so scanner input
+        // lands in the loan form instead of other focusable UI in the header.
+        window.setTimeout(() => {
+            focusWannabeInput(true);
+        }, 0);
+    });
+
     wannabeInput?.addEventListener('input', () => {
         cachedWannabeId = '';
         cachedProfile = null;
@@ -588,8 +612,25 @@ $competencyLabel = static fn (string $code): string => $competencyRequirementOpt
                 event.preventDefault();
             }
         });
+        window.setTimeout(() => {
+            if (document.activeElement === document.body || document.activeElement === null) {
+                focusWannabeInput();
+            }
+        }, 0);
         fetchCrewProfile(wannabeInput.value.trim());
     }
+
+    issueForm.addEventListener('pointerdown', () => {
+        if (keepLoanFormFocusTimer !== null) {
+            window.clearTimeout(keepLoanFormFocusTimer);
+        }
+
+        keepLoanFormFocusTimer = window.setTimeout(() => {
+            if (!(document.activeElement instanceof HTMLElement) || !issueForm.contains(document.activeElement)) {
+                focusWannabeInput();
+            }
+        }, 0);
+    });
 
     document.addEventListener('app:rfid-scan', (event) => {
         if (!(event instanceof CustomEvent) || !(wannabeInput instanceof HTMLInputElement)) {
@@ -601,6 +642,7 @@ $competencyLabel = static fn (string $code): string => $competencyRequirementOpt
             return;
         }
 
+        focusWannabeInput();
         wannabeInput.value = scanned;
         fetchCrewProfile(scanned);
     });

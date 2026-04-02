@@ -5,6 +5,7 @@ namespace App\Controllers;
 
 use App\Services\CommsService;
 use App\Services\CrewDirectoryService;
+use App\Services\ProfileService;
 use App\Repositories\UserRepository;
 
 class CommsController extends BaseController
@@ -12,6 +13,7 @@ class CommsController extends BaseController
     public function __construct(
         private readonly CommsService $comms = new CommsService(),
         private readonly CrewDirectoryService $crewDirectory = new CrewDirectoryService(),
+        private readonly ProfileService $profiles = new ProfileService(),
         private readonly UserRepository $users = new UserRepository()
     )
     {
@@ -126,7 +128,9 @@ class CommsController extends BaseController
                 'crew' => $crew,
                 'role' => $role,
                 'displayName' => $name !== '' ? $name : ($nick !== '' ? $nick : ('Wannabe ' . $wannabeId)),
-                'pictureUrl' => $this->crewDirectory->pictureUrlByWannabeId($wannabeId),
+                'pictureUrl' => $this->profiles->canShowPictureForWannabeId($wannabeId)
+                    ? $this->crewDirectory->pictureUrlByWannabeId($wannabeId)
+                    : null,
             ]);
         } catch (\Throwable $e) {
             return $this->response->setStatusCode(400)->setJSON([
@@ -174,7 +178,9 @@ class CommsController extends BaseController
                 'crew' => $crew,
                 'role' => $role,
                 'displayName' => $name !== '' ? $name : ($nick !== '' ? $nick : ($wannabeId > 0 ? ('Wannabe ' . $wannabeId) : 'Ukjent bruker')),
-                'pictureUrl' => $wannabeId > 0 ? $this->crewDirectory->pictureUrlByWannabeId($wannabeId) : null,
+                'pictureUrl' => ($wannabeId > 0 && $this->profiles->canShowPictureForWannabeId($wannabeId))
+                    ? $this->crewDirectory->pictureUrlByWannabeId($wannabeId)
+                    : null,
             ]);
         } catch (\Throwable $e) {
             return $this->response->setStatusCode(400)->setJSON([

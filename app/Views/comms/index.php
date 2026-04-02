@@ -192,8 +192,8 @@
             <?= csrf_field() ?>
             <input type="text" name="wannabe_id" data-role="wannabe-id" placeholder="Wannabe ID eller badge-scan" required>
             <div data-role="wannabe-profile" style="margin:-.25rem 0 .9rem;padding:.75rem 1rem;border:1px solid #1f2a44;border-radius:10px;background:rgba(15,23,42,.35);display:none;">
-                <div><strong>Navn:</strong> <span data-role="wannabe-profile-name">-</span></div>
-                <div data-role="wannabe-profile-meta" style="margin-top:.25rem;color:#94a3b8;"></div>
+                <div style="color:#e2e8f0;"><strong style="color:#e2e8f0;">Navn:</strong> <span data-role="wannabe-profile-name" style="color:#f8fafc;">-</span></div>
+                <div data-role="wannabe-profile-meta" style="margin-top:.25rem;color:#cbd5e1;"></div>
             </div>
             <div data-role="wannabe-profile-message" style="margin:-.25rem 0 .9rem;color:#94a3b8;font-size:.92rem;"></div>
             <select name="loan_type" id="loanType" required>

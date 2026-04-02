@@ -96,10 +96,10 @@ $competencyLabel = static fn (string $code): string => $competencyRequirementOpt
                     </option>
                 <?php endforeach; ?>
             </select>
-            <input type="number" min="1" name="wannabe_id" data-role="wannabe-id" placeholder="Wannabe ID" required value="<?= esc(old('wannabe_id') ?? '') ?>">
+            <input type="text" name="wannabe_id" data-role="wannabe-id" placeholder="Wannabe ID eller badge-scan" required value="<?= esc(old('wannabe_id') ?? '') ?>">
             <div data-role="wannabe-profile" style="margin:-.25rem 0 .9rem;padding:.75rem 1rem;border:1px solid #1f2a44;border-radius:10px;background:rgba(15,23,42,.35);display:none;">
-                <div><strong>Navn:</strong> <span data-role="wannabe-profile-name">-</span></div>
-                <div data-role="wannabe-profile-meta" style="margin-top:.25rem;color:#94a3b8;"></div>
+                <div style="color:#e2e8f0;"><strong style="color:#e2e8f0;">Navn:</strong> <span data-role="wannabe-profile-name" style="color:#f8fafc;">-</span></div>
+                <div data-role="wannabe-profile-meta" style="margin-top:.25rem;color:#cbd5e1;"></div>
             </div>
             <div data-role="wannabe-profile-message" style="margin:-.25rem 0 .9rem;color:#94a3b8;font-size:.92rem;"></div>
             <div data-role="competency-hidden-inputs"></div>
@@ -482,7 +482,7 @@ $competencyLabel = static fn (string $code): string => $competencyRequirementOpt
     };
 
     const fetchCrewProfile = async (wannabeId) => {
-        if (wannabeId === '' || Number(wannabeId) < 1) {
+        if (wannabeId === '') {
             lastCrewLookupValue = '';
             clearWannabeProfile('');
             return;
@@ -501,7 +501,7 @@ $competencyLabel = static fn (string $code): string => $competencyRequirementOpt
         activeCrewLookupController = new AbortController();
 
         try {
-            const response = await fetch(`/vehicles/profile/${encodeURIComponent(wannabeId)}`, {
+            const response = await fetch(`/vehicles/profile-lookup?q=${encodeURIComponent(wannabeId)}`, {
                 headers: {
                     'Accept': 'application/json',
                     'X-Requested-With': 'XMLHttpRequest',
@@ -512,10 +512,14 @@ $competencyLabel = static fn (string $code): string => $competencyRequirementOpt
             const payload = await response.json();
 
             if (!response.ok || !payload.ok) {
-                clearWannabeProfile(payload.message || 'Fant ikke navn for denne Wannabe ID-en.');
+                clearWannabeProfile(payload.message || 'Fant ikke navn for denne brukeren.');
                 return;
             }
 
+            if (wannabeInput instanceof HTMLInputElement && String(payload.id || '').trim() !== '') {
+                wannabeInput.value = String(payload.id).trim();
+                lastCrewLookupValue = String(payload.id).trim();
+            }
             renderWannabeProfile(payload);
         } catch (error) {
             if (error && error.name === 'AbortError') {
@@ -579,8 +583,27 @@ $competencyLabel = static fn (string $code): string => $competencyRequirementOpt
     });
 
     if (wannabeInput instanceof HTMLInputElement) {
+        wannabeInput.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+            }
+        });
         fetchCrewProfile(wannabeInput.value.trim());
     }
+
+    document.addEventListener('app:rfid-scan', (event) => {
+        if (!(event instanceof CustomEvent) || !(wannabeInput instanceof HTMLInputElement)) {
+            return;
+        }
+
+        const scanned = String(event.detail?.raw || '').trim();
+        if (scanned === '') {
+            return;
+        }
+
+        wannabeInput.value = scanned;
+        fetchCrewProfile(scanned);
+    });
 
     issueForm.addEventListener('submit', async (event) => {
         if (bypassSubmit) {

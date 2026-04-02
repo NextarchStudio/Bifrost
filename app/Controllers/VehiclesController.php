@@ -101,6 +101,56 @@ class VehiclesController extends BaseController
         }
     }
 
+    public function profileLookup()
+    {
+        try {
+            requireRole(['developer', 'chief', 'co-chief', 'skiftleder', 'logistikk']);
+
+            $query = trim((string) $this->request->getGet('q'));
+            if ($query === '') {
+                throw new \InvalidArgumentException('Mangler Wannabe ID eller badge-scan.');
+            }
+
+            if (ctype_digit($query)) {
+                return $this->profile((int) $query);
+            }
+
+            if (! $this->crewDirectory->isConfigured()) {
+                throw new \InvalidArgumentException('Crew-oppslag er ikke konfigurert.');
+            }
+
+            $profile = $this->crewDirectory->profileByBadge($query);
+            if ($profile === null) {
+                return $this->response->setStatusCode(404)->setJSON([
+                    'ok' => false,
+                    'message' => 'Fant ikke person for denne badge-scannen.',
+                ]);
+            }
+
+            $wannabeId = (int) ($profile['id'] ?? 0);
+            $name = trim((string) ($profile['name'] ?? ''));
+            $nick = trim((string) ($profile['nickname'] ?? $profile['nick'] ?? ''));
+            $crew = trim((string) ($profile['crew_name'] ?? $profile['crew'] ?? ''));
+            $role = trim((string) (($profile['crew_role']['title'] ?? null) ?? ($profile['role'] ?? $profile['rolle'] ?? '')));
+
+            return $this->response->setJSON([
+                'ok' => true,
+                'id' => $wannabeId,
+                'name' => $name,
+                'nick' => $nick,
+                'crew' => $crew,
+                'role' => $role,
+                'displayName' => $name !== '' ? $name : ($nick !== '' ? $nick : ($wannabeId > 0 ? ('Wannabe ' . $wannabeId) : 'Ukjent bruker')),
+                'pictureUrl' => $wannabeId > 0 ? $this->crewDirectory->pictureUrlByWannabeId($wannabeId) : null,
+            ]);
+        } catch (\Throwable $e) {
+            return $this->response->setStatusCode(400)->setJSON([
+                'ok' => false,
+                'message' => $e->getMessage(),
+            ]);
+        }
+    }
+
     public function create()
     {
         try {

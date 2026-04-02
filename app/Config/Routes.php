@@ -56,6 +56,7 @@ $routes->group('', ['filter' => 'auth'], static function (RouteCollection $route
         $routes->get('/', 'VehiclesController::index');
         $routes->get('competencies/(:num)', 'VehiclesController::competencyProfile/$1');
         $routes->get('profile/(:num)', 'VehiclesController::profile/$1');
+        $routes->get('profile-lookup', 'VehiclesController::profileLookup');
         $routes->post('create', 'VehiclesController::create');
         $routes->post('update/(:num)', 'VehiclesController::update/$1');
         $routes->post('issue', 'VehiclesController::issue');

@@ -163,4 +163,6 @@ Koden er satt opp med flere grunnleggende tiltak:
 
 ## Lisens
 
-Repoet inneholder `LICENSE` fra CodeIgniter-grunnlaget. Avklar eventuell intern eller ekstern lisensiering for prosjektspesifikk kode ved behov.
+Prosjektspesifikk kode i dette repoet er proprietaer og lisensiert for intern bruk og intern videreutvikling i TG. Se [LICENSE](c:/Users/Mathias/Desktop/TG-Logistics-CMS/LICENSE) for vilkar.
+
+Tredjepartskomponenter, inkludert CodeIgniter og andre avhengigheter, er fortsatt underlagt sine egne lisenser.

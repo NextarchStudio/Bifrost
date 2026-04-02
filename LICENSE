@@ -1,22 +1,52 @@
-The MIT License (MIT)
+TG Logistics CMS Proprietary License
 
-Copyright (c) 2014-2019 British Columbia Institute of Technology
-Copyright (c) 2019-present CodeIgniter Foundation
+Copyright (c) 2026 Nextarch Studio
+All rights reserved.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+This project and its source code are proprietary and are not open source.
 
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
+Ownership
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
+Nextarch Studio retains all right, title, and interest in and to this project,
+including the source code, custom application logic, design, documentation,
+and other project-specific materials, except for third-party components that
+are subject to their own separate licenses.
+
+Internal TG License
+
+TG is granted a non-exclusive, non-transferable, revocable license to:
+
+- use this software internally for TG operations
+- run and host the software for internal TG purposes
+- modify and further develop the software internally for TG use
+- maintain copies required for internal backup, testing, and deployment
+
+Restrictions
+
+Without prior written permission from Nextarch Studio, the software may not be:
+
+- sold, sublicensed, or redistributed to third parties
+- published publicly in source or compiled form
+- transferred to another organization or external vendor
+- reused outside TG for other organizations under this license
+
+Third-Party Software
+
+This repository may include or depend on third-party software, including
+CodeIgniter and Composer packages, which remain licensed under their own
+respective terms. This license applies only to the project-specific portions
+of TG Logistics CMS owned by Nextarch Studio and does not replace or override
+any third-party license obligations.
+
+Warranty and Liability
+
+This software is provided "as is", without warranty of any kind, express or
+implied, including but not limited to warranties of merchantability, fitness
+for a particular purpose, and noninfringement. In no event shall Nextarch
+Studio be liable for any claim, damages, or other liability arising from or in
+connection with the software or the use of the software.
+
+Contact
+
+For permissions, licensing questions, or external use, written approval must
+be obtained from Nextarch Studio.

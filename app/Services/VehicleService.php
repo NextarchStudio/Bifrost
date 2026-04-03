@@ -31,6 +31,7 @@ class VehicleService
         private readonly VehicleLoanRepository $loans = new VehicleLoanRepository(),
         private readonly WannabeCompetencyRepository $competencies = new WannabeCompetencyRepository(),
         private readonly WannabeVehicleKdoRepository $vehicleKdo = new WannabeVehicleKdoRepository(),
+        private readonly CrewDirectoryService $crewDirectory = new CrewDirectoryService(),
         private readonly AuditService $audit = new AuditService(),
         private readonly VegvesenVehicleDataService $vegvesen = new VegvesenVehicleDataService()
     ) {
@@ -44,7 +45,7 @@ class VehicleService
             $this->syncVegvesenPayload($vehicle);
         }
 
-        return $vehicles;
+        return $this->enrichVehicleLoanNames($vehicles);
     }
 
     public function activeLoans(?string $search = null): array
@@ -433,5 +434,37 @@ class VehicleService
         }
 
         return $merged;
+    }
+
+    private function enrichVehicleLoanNames(array $vehicles): array
+    {
+        if ($vehicles === [] || ! $this->crewDirectory->isConfigured()) {
+            return $vehicles;
+        }
+
+        $cache = [];
+
+        foreach ($vehicles as $vehicle) {
+            if (empty($vehicle->active_loan_id)) {
+                continue;
+            }
+
+            $existingName = trim((string) (($vehicle->wannabe_name ?? '') !== '' ? $vehicle->wannabe_name : (($vehicle->wannabe_first_name ?? '') . ' ' . ($vehicle->wannabe_last_name ?? ''))));
+            $wannabeId = (int) ($vehicle->active_wannabe_id ?? 0);
+            if ($existingName !== '' || $wannabeId < 1) {
+                continue;
+            }
+
+            if (! array_key_exists($wannabeId, $cache)) {
+                $profile = $this->crewDirectory->profileByWannabeId($wannabeId);
+                $cache[$wannabeId] = is_array($profile) ? trim((string) ($profile['name'] ?? '')) : '';
+            }
+
+            if ($cache[$wannabeId] !== '') {
+                $vehicle->wannabe_name = $cache[$wannabeId];
+            }
+        }
+
+        return $vehicles;
     }
 }

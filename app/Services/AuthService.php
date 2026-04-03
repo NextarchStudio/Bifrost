@@ -17,7 +17,8 @@ class AuthService
         private readonly AuthRepository $authRepo = new AuthRepository(),
         private readonly SettingsRepository $settings = new SettingsRepository(),
         private readonly PasswordService $passwords = new PasswordService(),
-        private readonly AuthProviders $providers = new AuthProviders()
+        private readonly AuthProviders $providers = new AuthProviders(),
+        private readonly CrewDirectoryService $crewDirectory = new CrewDirectoryService()
     ) {
     }
 
@@ -76,7 +77,7 @@ class AuthService
         }
     }
 
-    public function upsertProviderUser(string $provider, string $providerId, string $email, string $name, ?int $wannabeId = null): array
+    public function upsertProviderUser(string $provider, string $providerId, string $email, string $name, ?int $wannabeId = null, array $wannabeRoleNames = []): array
     {
         $account = $this->authRepo->findAuthAccount($provider, $providerId);
         if ($account !== null) {
@@ -95,6 +96,8 @@ class AuthService
                 ]);
                 $user = $this->users->findById((int) $user->id);
             }
+
+            $this->assignMappedWannabeRoles((int) $user->id, $wannabeId, $wannabeRoleNames);
 
             return [
                 'user_id' => (int) $user->id,
@@ -133,6 +136,7 @@ class AuthService
         }
 
         $this->authRepo->linkAuthAccount((int) $user->id, $provider, $providerId);
+        $this->assignMappedWannabeRoles((int) $user->id, $wannabeId, $wannabeRoleNames);
 
         return [
             'user_id' => (int) $user->id,
@@ -162,5 +166,28 @@ class AuthService
         $last = mb_substr(implode(' ', $parts), 0, 80);
 
         return [$first, $last];
+    }
+
+    private function assignMappedWannabeRoles(int $userId, ?int $wannabeId, array $wannabeRoleNames): void
+    {
+        $roleNames = array_values(array_unique(array_filter(array_map('strval', $wannabeRoleNames))));
+
+        if ($wannabeId !== null && $wannabeId > 0) {
+            $profile = $this->crewDirectory->profileByWannabeId($wannabeId);
+            if (is_array($profile)) {
+                foreach ([
+                    trim((string) ($profile['crew_role']['title'] ?? '')),
+                    trim((string) ($profile['crew_role']['name'] ?? '')),
+                    trim((string) ($profile['role'] ?? '')),
+                    trim((string) ($profile['rolle'] ?? '')),
+                ] as $candidate) {
+                    if ($candidate !== '') {
+                        $roleNames[] = $candidate;
+                    }
+                }
+            }
+        }
+
+        $this->users->assignRolesByWannabeRoleNames($userId, array_values(array_unique($roleNames)));
     }
 }

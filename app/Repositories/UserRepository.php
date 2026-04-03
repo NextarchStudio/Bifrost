@@ -6,6 +6,7 @@ namespace App\Repositories;
 use App\Models\RoleModel;
 use App\Models\UserModel;
 use App\Models\UserRoleModel;
+use Config\Database;
 
 class UserRepository
 {
@@ -79,6 +80,21 @@ class UserRepository
         return array_values(array_map(static fn (array $row): string => (string) $row['name'], $rows));
     }
 
+    public function roleDisplayNamesForUser(int $userId): array
+    {
+        $rows = $this->userRoles
+            ->select('roles.name, roles.display_name')
+            ->join('roles', 'roles.id = user_roles.role_id', 'inner')
+            ->where('user_roles.user_id', $userId)
+            ->findAll();
+
+        return array_values(array_map(static function (array $row): string {
+            $displayName = trim((string) ($row['display_name'] ?? ''));
+
+            return $displayName !== '' ? $displayName : (string) ($row['name'] ?? '');
+        }, $rows));
+    }
+
     public function roleIdsForUser(int $userId): array
     {
         $rows = $this->userRoles
@@ -92,6 +108,57 @@ class UserRepository
     public function allRoles(): array
     {
         return $this->roles->orderBy('name', 'ASC')->findAll();
+    }
+
+    public function findRoleById(int $roleId): ?array
+    {
+        return $this->roles->find($roleId);
+    }
+
+    public function findRoleByName(string $name): ?array
+    {
+        return $this->roles->where('name', $name)->first();
+    }
+
+    public function findRoleByWannabeRoleName(string $wannabeRoleName): ?array
+    {
+        $wannabeRoleName = trim($wannabeRoleName);
+        if ($wannabeRoleName === '' || ! Database::connect()->fieldExists('wannabe_role_name', 'roles')) {
+            return null;
+        }
+
+        return $this->roles->where('wannabe_role_name', $wannabeRoleName)->first();
+    }
+
+    public function createRole(array $data): int
+    {
+        if (! Database::connect()->fieldExists('wannabe_role_name', 'roles')) {
+            unset($data['wannabe_role_name']);
+        }
+        if (! Database::connect()->fieldExists('display_name', 'roles')) {
+            unset($data['display_name']);
+        }
+
+        $this->roles->insert($data);
+
+        return (int) $this->roles->getInsertID();
+    }
+
+    public function updateRoleById(int $roleId, array $data): bool
+    {
+        if (! Database::connect()->fieldExists('wannabe_role_name', 'roles')) {
+            unset($data['wannabe_role_name']);
+        }
+        if (! Database::connect()->fieldExists('display_name', 'roles')) {
+            unset($data['display_name']);
+        }
+
+        return $this->roles->update($roleId, $data);
+    }
+
+    public function deleteRoleById(int $roleId): bool
+    {
+        return $this->roles->delete($roleId);
     }
 
     public function assignRoleByName(int $userId, string $roleName): void
@@ -114,6 +181,28 @@ class UserRepository
             'user_id' => $userId,
             'role_id' => (int) $role['id'],
         ]);
+    }
+
+    public function assignRolesByWannabeRoleNames(int $userId, array $wannabeRoleNames): array
+    {
+        $assigned = [];
+
+        foreach ($wannabeRoleNames as $wannabeRoleName) {
+            $wannabeRoleName = trim((string) $wannabeRoleName);
+            if ($wannabeRoleName === '') {
+                continue;
+            }
+
+            $role = $this->findRoleByWannabeRoleName($wannabeRoleName);
+            if ($role === null) {
+                continue;
+            }
+
+            $this->assignRoleByName($userId, (string) ($role['name'] ?? ''));
+            $assigned[] = (string) ($role['name'] ?? '');
+        }
+
+        return array_values(array_unique(array_filter($assigned)));
     }
 
     public function syncRoles(int $userId, array $roleIds): void

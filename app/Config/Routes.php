@@ -27,6 +27,14 @@ $routes->group('', ['filter' => 'auth'], static function (RouteCollection $route
 
     $routes->group('shop', ['filter' => 'role:developer,chief,co-chief,logistikk,shop'], static function (RouteCollection $routes): void {
         $routes->get('/', 'ShopController::index');
+        $routes->get('crewtoy', 'CrewClothingController::index');
+        $routes->post('crewtoy/search', 'CrewClothingController::search');
+        $routes->post('crewtoy/inventory/save', 'CrewClothingController::saveInventory');
+        $routes->post('crewtoy/inventory/update/(:num)', 'CrewClothingController::updateInventory/$1');
+        $routes->post('crewtoy/inventory/delete/(:num)', 'CrewClothingController::deleteInventory/$1');
+        $routes->post('crewtoy/member/(:num)/update', 'CrewClothingController::updateMember/$1');
+        $routes->post('crewtoy/member/(:num)/deliver/(:segment)', 'CrewClothingController::setDelivered/$1/$2');
+        $routes->post('crewtoy/member/(:num)/deliver-both', 'CrewClothingController::setDeliveredBoth/$1');
         $routes->get('export/excel', 'ShopController::exportExcel');
         $routes->get('export/pdf', 'ShopController::exportPdf');
         $routes->post('import/excel', 'ShopController::importExcel');
@@ -156,6 +164,11 @@ $routes->group('', ['filter' => 'auth'], static function (RouteCollection $route
         $routes->get('/', 'AdminController::index');
         $routes->get('statistikk', 'AdminController::statistics');
         $routes->post('settings', 'AdminController::updateSettings', ['filter' => 'role:developer']);
+        $routes->post('roles/create', 'AdminController::createRole');
+        $routes->post('roles/update/(:num)', 'AdminController::updateRole/$1');
+        $routes->post('roles/delete/(:num)', 'AdminController::deleteRole/$1');
+        $routes->post('crew-clothing/crews/create', 'AdminController::createCrewClothingCrew');
+        $routes->post('crew-clothing/crews/update/(:num)', 'AdminController::updateCrewClothingCrew/$1');
         $routes->post('crew-cache/clear', 'AdminController::clearCrewCache', ['filter' => 'role:developer']);
         $routes->post('users/create', 'AdminController::createUser');
         $routes->get('users/inspect/(:num)', 'AdminController::inspectUser/$1');

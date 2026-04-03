@@ -1,22 +1,6 @@
 <?= $this->extend('layouts/base') ?>
 <?= $this->section('content') ?>
 <?php
-$roleLabel = static function (string $role): string {
-    return match ($role) {
-        'bruker' => 'Bruker',
-        'chief' => 'Chief',
-        'co-chief' => 'Co-Chief',
-        'developer' => 'Utvikler',
-        'logistikk' => 'Logistikk',
-        'shop' => 'Shop',
-        'innkjop' => 'Innkjøp',
-        'sambandsansvarlig' => 'Sambandsansvarlig',
-        'skiftleder' => 'Skiftleder',
-        'transport_ansvarlig' => 'Transport Ansvarlig',
-        'ingen_tilbakemeldinger' => 'Felles Bruker',
-        default => $role,
-    };
-};
 $competencyOptions = $competencyOptions ?? [];
 $canManageSystemSettings = hasRole('developer');
 ?>
@@ -172,7 +156,7 @@ $canManageSystemSettings = hasRole('developer');
                         <span class="badge rejected">Inaktiv</span>
                     <?php endif; ?>
                 </td>
-                <td><?= esc(implode(', ', array_map($roleLabel, (array) ($roleNamesByUser[(int) $user->id] ?? [])))) ?></td>
+                <td><?= esc(implode(', ', (array) ($roleDisplayNamesByUser[(int) $user->id] ?? []))) ?></td>
                 <td>
                     <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
                         <a href="/admin/users/inspect/<?= esc((string) $user->id) ?>" class="btn btn-primary">Inspiser</a>
@@ -187,6 +171,87 @@ $canManageSystemSettings = hasRole('developer');
         <?php endforeach; ?>
     </table>
 </div>
+<div class="card">
+    <h3>Roller</h3>
+    <form method="post" action="/admin/roles/create">
+        <?= csrf_field() ?>
+        <input name="name" placeholder="Lokalt rollenavn, f.eks. innkjop" required>
+        <input name="display_name" placeholder="Visningsnavn, f.eks. Innkjøp">
+        <input name="wannabe_role_name" placeholder="Rollenavn fra Wannabe, f.eks. Innkjøp">
+        <button type="submit">Opprett rolle</button>
+    </form>
+    <hr>
+    <table>
+        <tr>
+            <th>Teknisk navn</th>
+            <th>Visningsnavn</th>
+            <th>Wannabe-rollenavn</th>
+            <th>Lagre</th>
+            <th>Slett</th>
+        </tr>
+        <?php foreach (($roles ?? []) as $role): ?>
+            <tr>
+                <td>
+                    <form method="post" action="/admin/roles/update/<?= esc((string) ($role['id'] ?? 0)) ?>" style="margin:0;">
+                        <?= csrf_field() ?>
+                        <input name="name" value="<?= esc((string) ($role['name'] ?? '')) ?>" required style="margin:0;">
+                </td>
+                <td>
+                        <input name="display_name" value="<?= esc((string) ($role['display_name'] ?? '')) ?>" placeholder="F.eks. Transport Ansvarlig" style="margin:0;">
+                </td>
+                <td>
+                        <input name="wannabe_role_name" value="<?= esc((string) ($role['wannabe_role_name'] ?? '')) ?>" placeholder="Kan stå tomt" style="margin:0;">
+                </td>
+                <td>
+                        <button type="submit" class="btn btn-primary">Lagre</button>
+                    </form>
+                </td>
+                <td>
+                    <form method="post" action="/admin/roles/delete/<?= esc((string) ($role['id'] ?? 0)) ?>" data-confirm-message="Slette denne rollen? Dette fungerer bare hvis rollen ikke er i bruk." style="margin:0;">
+                        <?= csrf_field() ?>
+                        <button type="submit" class="btn btn-danger">Slett</button>
+                    </form>
+                </td>
+            </tr>
+        <?php endforeach; ?>
+    </table>
+</div>
+<div class="card">
+    <h3>Crewtøy crew</h3>
+    <form method="post" action="/admin/crew-clothing/crews/create">
+        <?= csrf_field() ?>
+        <input name="name" placeholder="Crew-navn" required>
+        <input type="number" min="0" name="tshirt_max" placeholder="Maks t-skjorter per medlem" value="1" required>
+        <input type="number" min="0" name="hoodie_max" placeholder="Maks gensere per medlem" value="1" required>
+        <button type="submit">Opprett crew</button>
+    </form>
+    <hr>
+    <table>
+        <tr>
+            <th>Crew</th>
+            <th>Medlemmer</th>
+            <th>Maks t-skjorter per medlem</th>
+            <th>Maks gensere per medlem</th>
+            <th>Lagre</th>
+        </tr>
+        <?php foreach (($crewClothingCrews ?? []) as $crewClothingCrew): ?>
+            <tr>
+                <td>
+                    <form method="post" action="/admin/crew-clothing/crews/update/<?= esc((string) ($crewClothingCrew['id'] ?? 0)) ?>" style="margin:0;">
+                        <?= csrf_field() ?>
+                        <input name="name" value="<?= esc((string) ($crewClothingCrew['name'] ?? '')) ?>" required style="margin:0;">
+                </td>
+                <td><?= esc((string) ($crewClothingCrew['members_total'] ?? 0)) ?></td>
+                <td><input type="number" min="0" name="tshirt_max" value="<?= esc((string) ($crewClothingCrew['tshirt_max'] ?? 0)) ?>" required style="margin:0;"></td>
+                <td><input type="number" min="0" name="hoodie_max" value="<?= esc((string) ($crewClothingCrew['hoodie_max'] ?? 0)) ?>" required style="margin:0;"></td>
+                <td>
+                        <button type="submit" class="btn btn-primary">Lagre</button>
+                    </form>
+                </td>
+            </tr>
+        <?php endforeach; ?>
+    </table>
+</div>
 
 <?php if (! empty($inspectedUser)): ?>
 <div class="card">
@@ -196,7 +261,7 @@ $canManageSystemSettings = hasRole('developer');
         <tr><th>Bruker</th><td><?= esc((string) $inspectedUser['user']->name) ?></td></tr>
         <tr><th>E-post</th><td><?= esc((string) $inspectedUser['user']->email) ?></td></tr>
         <tr><th>Status</th><td><?= (int) ($inspectedUser['user']->active ?? 1) === 1 ? 'Aktiv' : 'Inaktiv' ?></td></tr>
-        <tr><th>Roller</th><td><?= esc(implode(', ', array_map($roleLabel, (array) $inspectedUser['roleNames']))) ?></td></tr>
+        <tr><th>Roller</th><td><?= esc(implode(', ', (array) ($inspectedUser['roleDisplayNames'] ?? []))) ?></td></tr>
     </table>
 </div>
 <?php endif; ?>
@@ -227,7 +292,7 @@ $canManageSystemSettings = hasRole('developer');
                         value="<?= esc((string) $role['id']) ?>"
                         <?= in_array((int) $role['id'], (array) $editRoleIds, true) ? 'checked' : '' ?>
                         style="width:auto;margin:0;">
-                    <span><?= esc($roleLabel((string) $role['name'])) ?></span>
+                    <span><?= esc((string) (($role['display_name'] ?? '') !== '' ? $role['display_name'] : $role['name'])) ?></span>
                 </label>
             <?php endforeach; ?>
         </div>

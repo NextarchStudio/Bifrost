@@ -27,7 +27,7 @@
             <tr><th>Etternavn</th><td><?= esc((string) $user->last_name) ?></td></tr>
             <tr><th>E-post</th><td><?= esc((string) $user->email) ?></td></tr>
             <tr><th>Wannabe-ID</th><td><?= esc((string) ($user->wannabe_id ?? '-')) ?></td></tr>
-            <tr><th>Roller</th><td><?= esc(implode(', ', (array) ($roles ?? []))) ?></td></tr>
+            <tr><th>Roller</th><td><?= esc(implode(', ', (array) ($roleDisplayNames ?? $roles ?? []))) ?></td></tr>
         </table>
     </div>
 

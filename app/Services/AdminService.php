@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Repositories\WannabeCompetencyRepository;
+use App\Repositories\CrewClothingRepository;
 use App\Repositories\SettingsRepository;
 use App\Repositories\CrewDirectoryCacheRepository;
 use App\Repositories\UserRepository;
@@ -11,10 +12,18 @@ use Config\Database;
 
 class AdminService
 {
+    private const PROTECTED_ROLE_NAMES = [
+        'developer',
+        'chief',
+        'co-chief',
+        'bruker',
+    ];
+
     public function __construct(
         private readonly SettingsRepository $settings = new SettingsRepository(),
         private readonly UserRepository $users = new UserRepository(),
         private readonly WannabeCompetencyRepository $competencies = new WannabeCompetencyRepository(),
+        private readonly CrewClothingRepository $crewClothing = new CrewClothingRepository(),
         private readonly CrewDirectoryCacheRepository $crewCache = new CrewDirectoryCacheRepository(),
         private readonly PasswordResetService $passwordResets = new PasswordResetService(),
         private readonly CrewDirectoryService $crewDirectory = new CrewDirectoryService(),
@@ -30,6 +39,7 @@ class AdminService
         $roleNamesByUser = [];
         foreach ($users as $user) {
             $roleNamesByUser[(int) $user->id] = $this->users->rolesForUser((int) $user->id);
+            $roleDisplayNamesByUser[(int) $user->id] = $this->users->roleDisplayNamesForUser((int) $user->id);
         }
 
         return [
@@ -37,8 +47,10 @@ class AdminService
             'users' => $users,
             'roles' => $this->users->allRoles(),
             'roleNamesByUser' => $roleNamesByUser,
+            'roleDisplayNamesByUser' => $roleDisplayNamesByUser ?? [],
             'competencyOptions' => $this->competencyOptions(),
             'crewCacheEntries' => $this->crewCacheCount(),
+            'crewClothingCrews' => $this->crewClothing->crewsWithSummary(),
         ];
     }
 
@@ -165,6 +177,7 @@ class AdminService
         return [
             'user' => $user,
             'roleNames' => $this->users->rolesForUser($userId),
+            'roleDisplayNames' => $this->users->roleDisplayNamesForUser($userId),
             'roleIds' => $this->users->roleIdsForUser($userId),
             'competencies' => $user->wannabe_id !== null ? ($this->competencies->findByWannabeId((int) $user->wannabe_id) ?? []) : [],
         ];
@@ -292,6 +305,83 @@ class AdminService
         $this->audit->log($actorUserId, 'sync_roles', 'user', $userId, ['roles' => $filtered]);
     }
 
+    public function createRole(array $input, int $actorUserId): int
+    {
+        $name = $this->normalizeRoleName((string) ($input['name'] ?? ''));
+        if ($name === '') {
+            throw new \InvalidArgumentException('Rollenavn er påkrevd.');
+        }
+
+        if ($this->users->findRoleByName($name) !== null) {
+            throw new \InvalidArgumentException('Rollen finnes allerede.');
+        }
+
+        $wannabeRoleName = $this->nullableTrimmedValue($input['wannabe_role_name'] ?? null, 150);
+        $displayName = $this->nullableTrimmedValue($input['display_name'] ?? null, 100);
+
+        $roleId = $this->users->createRole([
+            'name' => $name,
+            'wannabe_role_name' => $wannabeRoleName,
+            'display_name' => $displayName,
+        ]);
+
+        $this->audit->log($actorUserId, 'create', 'role', $roleId, [
+            'name' => $name,
+            'wannabe_role_name' => $wannabeRoleName,
+            'display_name' => $displayName,
+        ]);
+
+        return $roleId;
+    }
+
+    public function updateRole(int $roleId, array $input, int $actorUserId): void
+    {
+        $role = $this->users->findRoleById($roleId);
+        if ($role === null) {
+            throw new \InvalidArgumentException('Rollen finnes ikke.');
+        }
+
+        $name = $this->normalizeRoleName((string) ($input['name'] ?? ''));
+        if ($name === '') {
+            throw new \InvalidArgumentException('Rollenavn er påkrevd.');
+        }
+
+        $existing = $this->users->findRoleByName($name);
+        if ($existing !== null && (int) ($existing['id'] ?? 0) !== $roleId) {
+            throw new \InvalidArgumentException('Et annet rollenavn bruker dette navnet allerede.');
+        }
+
+        $data = [
+            'name' => $name,
+            'wannabe_role_name' => $this->nullableTrimmedValue($input['wannabe_role_name'] ?? null, 150),
+            'display_name' => $this->nullableTrimmedValue($input['display_name'] ?? null, 100),
+        ];
+
+        $this->users->updateRoleById($roleId, $data);
+        $this->audit->log($actorUserId, 'update', 'role', $roleId, $data);
+    }
+
+    public function deleteRole(int $roleId, int $actorUserId): void
+    {
+        $role = $this->users->findRoleById($roleId);
+        if ($role === null) {
+            throw new \InvalidArgumentException('Rollen finnes ikke.');
+        }
+
+        $roleName = (string) ($role['name'] ?? '');
+        if (in_array($roleName, self::PROTECTED_ROLE_NAMES, true)) {
+            throw new \InvalidArgumentException('Denne rollen er beskyttet og kan ikke slettes.');
+        }
+
+        try {
+            $this->users->deleteRoleById($roleId);
+        } catch (\Throwable) {
+            throw new \InvalidArgumentException('Rollen kan ikke slettes fordi den er i bruk av en eller flere brukere.');
+        }
+
+        $this->audit->log($actorUserId, 'delete', 'role', $roleId, ['name' => $roleName]);
+    }
+
     public function updateUserActive(int $userId, bool $active, int $actorUserId): void
     {
         $user = $this->users->findById($userId);
@@ -348,13 +438,48 @@ class AdminService
         $db = Database::connect();
         $roleTable = $db->table('roles');
         $defaults = ['developer', 'chief', 'co-chief', 'transport_ansvarlig', 'skiftleder', 'sambandsansvarlig', 'logistikk', 'shop', 'innkjop', 'bruker'];
+        $hasWannabeRoleName = $db->fieldExists('wannabe_role_name', 'roles');
 
         foreach ($defaults as $name) {
             $exists = $roleTable->where('name', $name)->get()->getFirstRow();
             if ($exists === null) {
-                $roleTable->insert(['name' => $name]);
+                $payload = ['name' => $name];
+                if ($hasWannabeRoleName) {
+                    $payload['wannabe_role_name'] = null;
+                }
+                if ($db->fieldExists('display_name', 'roles')) {
+                    $payload['display_name'] = $this->defaultRoleDisplayName($name);
+                }
+                $roleTable->insert($payload);
             }
         }
+    }
+
+    private function defaultRoleDisplayName(string $roleName): string
+    {
+        return match ($roleName) {
+            'bruker' => 'Bruker',
+            'chief' => 'Chief',
+            'co-chief' => 'Co-Chief',
+            'developer' => 'Utvikler',
+            'logistikk' => 'Logistikk',
+            'shop' => 'Shop',
+            'innkjop' => 'Innkjøp',
+            'sambandsansvarlig' => 'Sambandsansvarlig',
+            'skiftleder' => 'Skiftleder',
+            'transport_ansvarlig' => 'Transport Ansvarlig',
+            'ingen_tilbakemeldinger' => 'Felles Bruker',
+            default => $roleName,
+        };
+    }
+
+    private function normalizeRoleName(string $value): string
+    {
+        $clean = mb_strtolower(trim(strip_tags($value)));
+        $clean = preg_replace('/\s+/', '_', $clean) ?? $clean;
+        $clean = preg_replace('/[^a-z0-9_-]/', '', $clean) ?? $clean;
+
+        return mb_substr($clean, 0, 50);
     }
 
     private function nullableTrimmedValue(mixed $value, int $maxLength): ?string
@@ -420,6 +545,7 @@ class AdminService
         return array_map(static function (array $row): array {
             return [
                 'name' => (string) ($row['name'] ?? ''),
+                'display_name' => trim((string) ($row['display_name'] ?? '')) !== '' ? (string) $row['display_name'] : (string) ($row['name'] ?? ''),
                 'total' => (int) ($row['total'] ?? 0),
             ];
         }, $rows);

@@ -809,7 +809,8 @@
     $path = trim(service('uri')->getPath(), '/');
     $path = $path === '' ? 'dashboard' : $path;
     $segment = explode('/', $path)[0];
-    $operationsSegments = ['shop', 'warehouse', 'categories', 'locations', 'samband', 'requests', 'transport', 'tasks'];
+    $isCrewClothingPage = $path === 'shop/crewtoy' || str_starts_with($path, 'shop/crewtoy/');
+    $operationsSegments = ['shop', 'crewtoy', 'warehouse', 'categories', 'locations', 'samband', 'requests', 'transport', 'tasks'];
     $assetSegments = ['equipment', 'loans', 'vehicles'];
     $toolsSegments = ['strekkoder', 'privat-utstyr', 'feedback', 'admin', 'statistikk'];
     $profileLink = session('wannabe_id') !== null ? base_url('profil/' . (int) session('wannabe_id')) : base_url('profile');
@@ -914,9 +915,12 @@
                         </button>
                         <ul class="list-unstyled menu-group__items">
                             <?php if (hasRole(['developer', 'chief', 'co-chief', 'logistikk', 'shop'])): ?>
-                                <li class="menu <?= $segment === 'shop' ? 'active' : '' ?>">
-                                    <a href="<?= base_url('shop') ?>"><i class="fa-solid fa-store me-2"></i><span class="nav-text">Shop</span></a>
-                                </li>
+                            <li class="menu <?= $segment === 'shop' && ! $isCrewClothingPage ? 'active' : '' ?>">
+                                <a href="<?= base_url('shop') ?>"><i class="fa-solid fa-store me-2"></i><span class="nav-text">Shop</span></a>
+                            </li>
+                            <li class="menu <?= $isCrewClothingPage ? 'active' : '' ?>">
+                                <a href="<?= base_url('shop/crewtoy') ?>"><i class="fa-solid fa-shirt me-2"></i><span class="nav-text">Crewtøy</span></a>
+                            </li>
                             <?php endif; ?>
                             <?php if (hasRole(['developer', 'chief', 'co-chief', 'logistikk'])): ?>
                                 <li class="menu <?= $segment === 'warehouse' ? 'active' : '' ?>">

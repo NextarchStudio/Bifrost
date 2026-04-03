@@ -129,7 +129,8 @@ class AuthController extends BaseController
                 $profile['provider_id'],
                 $profile['email'],
                 $profile['name'],
-                $profile['wannabe_id'] ?? null
+                $profile['wannabe_id'] ?? null,
+                (array) ($profile['wannabe_role_names'] ?? [])
             );
             $this->completeLogin($result);
 

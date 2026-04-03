@@ -4,10 +4,14 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Services\AdminService;
+use App\Services\CrewClothingService;
 
 class AdminController extends BaseController
 {
-    public function __construct(private readonly AdminService $admin = new AdminService())
+    public function __construct(
+        private readonly AdminService $admin = new AdminService(),
+        private readonly CrewClothingService $crewClothing = new CrewClothingService()
+    )
     {
     }
 
@@ -42,6 +46,61 @@ class AdminController extends BaseController
         try {
             $this->admin->createUser($this->request->getPost(), (int) $this->session->get('user_id'));
             return redirect()->to('/admin')->with('message', 'Bruker opprettet og e-post med passordlenke er sendt.');
+        } catch (\Throwable $e) {
+            return redirect()->back()->withInput()->with('error', $e->getMessage());
+        }
+    }
+
+    public function createCrewClothingCrew()
+    {
+        try {
+            $this->crewClothing->createCrew($this->request->getPost(), (int) $this->session->get('user_id'));
+
+            return redirect()->to('/admin')->with('message', 'Crew opprettet.');
+        } catch (\Throwable $e) {
+            return redirect()->back()->withInput()->with('error', $e->getMessage());
+        }
+    }
+
+    public function createRole()
+    {
+        try {
+            $this->admin->createRole($this->request->getPost(), (int) $this->session->get('user_id'));
+
+            return redirect()->to('/admin')->with('message', 'Rolle opprettet.');
+        } catch (\Throwable $e) {
+            return redirect()->back()->withInput()->with('error', $e->getMessage());
+        }
+    }
+
+    public function updateRole(int $roleId)
+    {
+        try {
+            $this->admin->updateRole($roleId, $this->request->getPost(), (int) $this->session->get('user_id'));
+
+            return redirect()->to('/admin')->with('message', 'Rolle oppdatert.');
+        } catch (\Throwable $e) {
+            return redirect()->back()->withInput()->with('error', $e->getMessage());
+        }
+    }
+
+    public function deleteRole(int $roleId)
+    {
+        try {
+            $this->admin->deleteRole($roleId, (int) $this->session->get('user_id'));
+
+            return redirect()->to('/admin')->with('message', 'Rolle slettet.');
+        } catch (\Throwable $e) {
+            return redirect()->back()->with('error', $e->getMessage());
+        }
+    }
+
+    public function updateCrewClothingCrew(int $crewId)
+    {
+        try {
+            $this->crewClothing->updateCrew($crewId, $this->request->getPost(), (int) $this->session->get('user_id'));
+
+            return redirect()->to('/admin')->with('message', 'Crew oppdatert.');
         } catch (\Throwable $e) {
             return redirect()->back()->withInput()->with('error', $e->getMessage());
         }

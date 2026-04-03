@@ -102,6 +102,7 @@ class OidcService
             'email' => $email,
             'name' => (string) ($userData['name'] ?? 'OIDC User'),
             'wannabe_id' => $wannabeId,
+            'wannabe_role_names' => $this->extractRoleNames($claimSource),
         ];
     }
 
@@ -188,5 +189,44 @@ class OidcService
         $data = json_decode($decoded, true);
 
         return is_array($data) ? $data : [];
+    }
+
+    private function extractRoleNames(array $userData): array
+    {
+        $values = [];
+
+        foreach ([
+            $userData['role'] ?? null,
+            $userData['roles'] ?? null,
+            $userData['crew_role'] ?? null,
+            $userData['crewRole'] ?? null,
+            $userData['crew_role_name'] ?? null,
+            $userData['crew_role_title'] ?? null,
+        ] as $candidate) {
+            if (is_string($candidate)) {
+                $candidate = trim($candidate);
+                if ($candidate !== '') {
+                    $values[] = $candidate;
+                }
+                continue;
+            }
+
+            if (is_array($candidate)) {
+                foreach ($candidate as $entry) {
+                    if (is_string($entry) && trim($entry) !== '') {
+                        $values[] = trim($entry);
+                    } elseif (is_array($entry)) {
+                        foreach (['title', 'name'] as $key) {
+                            $value = trim((string) ($entry[$key] ?? ''));
+                            if ($value !== '') {
+                                $values[] = $value;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return array_values(array_unique($values));
     }
 }

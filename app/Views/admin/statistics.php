@@ -301,7 +301,7 @@ $warehouseStats = $warehouseStats ?? [];
             <tr><th>Rolle</th><th>Antall</th></tr>
             <?php foreach ($roleStats as $role): ?>
                 <tr>
-                    <td><?= esc($roleLabel((string) ($role['name'] ?? ''))) ?></td>
+                    <td><?= esc((string) (($role['display_name'] ?? '') !== '' ? $role['display_name'] : $roleLabel((string) ($role['name'] ?? '')))) ?></td>
                     <td><?= esc((string) ($role['total'] ?? 0)) ?></td>
                 </tr>
             <?php endforeach; ?>

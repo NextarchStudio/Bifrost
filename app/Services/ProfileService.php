@@ -61,10 +61,12 @@ class ProfileService
         }
 
         $targetRoles = $this->users->rolesForUser((int) $targetUser->id);
+        $targetRoleDisplayNames = $this->users->roleDisplayNamesForUser((int) $targetUser->id);
 
         return [
             'user' => $targetUser,
             'roles' => $targetRoles,
+            'roleDisplayNames' => $targetRoleDisplayNames,
             'isOwnProfile' => $isOwnProfile,
             'canViewRequests' => $canViewRequests,
             'profilePictureUrl' => ($targetWannabeId > 0 && ! $this->isPictureBlockedForRoles($targetRoles))

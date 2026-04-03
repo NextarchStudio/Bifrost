@@ -43,6 +43,11 @@ class CrewDirectoryService
             return $cached;
         }
 
+        $fetched = $this->fetchProfile('sn', $scanNumber);
+        if ($this->hasUsableProfile($fetched)) {
+            return $fetched;
+        }
+
         $user = $this->users->findByBadgeScanNumber($scanNumber);
         if ($user !== null) {
             $name = trim((string) ($user->name ?? (($user->first_name ?? '') . ' ' . ($user->last_name ?? ''))));
@@ -60,7 +65,7 @@ class CrewDirectoryService
             }
         }
 
-        return $this->fetchProfile('sn', $scanNumber);
+        return null;
     }
 
     public function profileByWannabeId(int $wannabeId): ?array

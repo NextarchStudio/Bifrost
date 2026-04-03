@@ -5,12 +5,11 @@ namespace App\Models;
 
 use CodeIgniter\Model;
 
-class RoleModel extends Model
+class CrewClothingInventoryModel extends Model
 {
-    protected $table = 'roles';
+    protected $table = 'crew_clothing_inventory';
     protected $primaryKey = 'id';
     protected $returnType = 'array';
-    protected $allowedFields = ['name', 'wannabe_role_name', 'display_name'];
+    protected $allowedFields = ['item_type', 'size', 'quantity', 'created_at', 'updated_at'];
     protected $useTimestamps = false;
 }
-

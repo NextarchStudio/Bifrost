@@ -51,8 +51,14 @@
     <h3>Varelager</h3>
     <div style="display:flex;gap:.75rem;flex-wrap:wrap;margin-bottom:1rem;">
         <a href="/shop/export/pdf" class="btn btn-outline-light">Last ned PDF</a>
-        <a href="/shop/export/excel" class="btn btn-outline-light">Last ned Excel</a>
+        <a href="/shop/export/excel" class="btn btn-outline-light">Last ned CSV</a>
+        <form method="post" action="/shop/import/excel" enctype="multipart/form-data" style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;margin:0;">
+            <?= csrf_field() ?>
+            <input type="file" name="inventory_file" accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv" required style="width:auto;min-width:240px;margin:0;">
+            <button type="submit" class="btn btn-outline-light" style="margin:0;">Import CSV</button>
+        </form>
     </div>
+    <p style="margin:-.35rem 0 1rem;color:#94a3b8;">Importer varetelling fra CSV. Systemet justerer lageret med innsjekk og utsjekk på brukeren som importerer.</p>
     <table>
         <tr>
             <th>ID</th>
@@ -60,6 +66,7 @@
             <th>Kategori</th>
             <th>Størrelse</th>
             <th>Antall</th>
+            <th>Status</th>
             <th>Notater</th>
             <th>Utsjekk</th>
             <th>Innsjekk</th>
@@ -72,12 +79,19 @@
                 <td><?= esc((string) $item->category_name) ?></td>
                 <td><?= esc((string) ($item->size ?: '-')) ?></td>
                 <td><strong><?= esc((string) $item->quantity) ?></strong></td>
+                <td>
+                    <?php if ((string) ($item->status ?? 'active') === 'discontinued'): ?>
+                        <span class="badge rejected">Utgår</span>
+                    <?php else: ?>
+                        <span class="badge active">Aktiv</span>
+                    <?php endif; ?>
+                </td>
                 <td><?= esc((string) ($item->notes ?: '-')) ?></td>
                 <td>
                     <form method="post" action="/shop/checkout/<?= esc((string) $item->id) ?>">
                         <?= csrf_field() ?>
                         <input type="number" min="1" max="<?= esc((string) max(1, (int) $item->quantity)) ?>" name="quantity" placeholder="Antall" value="1" required>
-                        <input name="notes" placeholder="Hvem/hvorfor">
+                        <input name="notes" value="<?= esc((string) ($checkoutNote ?? '')) ?>" readonly>
                         <button type="submit" <?= (int) $item->quantity < 1 ? 'disabled' : '' ?>>Sjekk ut</button>
                     </form>
                 </td>
@@ -85,7 +99,7 @@
                     <form method="post" action="/shop/checkin/<?= esc((string) $item->id) ?>">
                         <?= csrf_field() ?>
                         <input type="number" min="1" name="quantity" placeholder="Antall" value="1" required>
-                        <input name="notes" placeholder="Kommentar">
+                        <input name="notes" value="<?= esc((string) ($checkinNote ?? '')) ?>" readonly>
                         <button type="submit">Sjekk inn</button>
                     </form>
                 </td>

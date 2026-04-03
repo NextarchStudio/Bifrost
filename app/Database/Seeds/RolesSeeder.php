@@ -9,7 +9,7 @@ class RolesSeeder extends Seeder
 {
     public function run(): void
     {
-        $roles = ['developer', 'chief', 'co-chief', 'transport_ansvarlig', 'skiftleder', 'sambandsansvarlig', 'logistikk', 'bruker', 'ingen_tilbakemeldinger'];
+        $roles = ['developer', 'chief', 'co-chief', 'transport_ansvarlig', 'skiftleder', 'sambandsansvarlig', 'logistikk', 'shop', 'innkjop', 'bruker', 'ingen_tilbakemeldinger'];
         foreach ($roles as $name) {
             $exists = $this->db->table('roles')->where('name', $name)->get()->getFirstRow();
             if ($exists === null) {

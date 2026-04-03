@@ -22,6 +22,11 @@ class AdminController extends BaseController
         return view('admin/index', $data);
     }
 
+    public function statistics()
+    {
+        return view('admin/statistics', $this->admin->statisticsData());
+    }
+
     public function updateSettings()
     {
         try {

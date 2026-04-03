@@ -4,8 +4,22 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, shrink-to-fit=no">
-    <title><?= esc($title ?? 'TG Logistics CMS') ?></title>
-    <link rel="icon" type="image/x-icon" href="<?= base_url('admintemplate/src/assets/img/favicon.ico') ?>"/>
+    <?php
+    $baseSettingsRepository = new \App\Repositories\SettingsRepository();
+    $baseSettings = $baseSettingsRepository->get();
+    $baseAppName = trim((string) ($baseSettings->app_name ?? ''));
+    if ($baseAppName === '') {
+        $baseAppName = 'Bifrost';
+    }
+    ?>
+    <title><?= esc($title ?? $baseAppName) ?></title>
+    <?php
+    $baseFaviconUrl = trim((string) ($baseSettings->favicon_url ?? ''));
+    if ($baseFaviconUrl === '') {
+        $baseFaviconUrl = base_url('admintemplate/src/assets/img/favicon.ico');
+    }
+    ?>
+    <link rel="icon" type="image/x-icon" href="<?= esc($baseFaviconUrl) ?>"/>
     <link href="https://fonts.googleapis.com/css?family=Nunito:400,600,700" rel="stylesheet">
 
     <link href="<?= base_url('admintemplate/src/bootstrap/css/bootstrap.min.css') ?>" rel="stylesheet" type="text/css"/>
@@ -771,22 +785,33 @@
 <?php if (session()->get('user_id')): ?>
 <?php
     $settingsRepository = new \App\Repositories\SettingsRepository();
-    $feedbackService = new \App\Services\FeedbackService();
     $appSettings = $settingsRepository->get();
     $feedbackBlocked = hasRole('ingen_tilbakemeldinger');
-    $notificationPayload = $feedbackService->notificationPayload((int) session('user_id'));
-    $feedbackAnnouncements = (array) ($notificationPayload['items'] ?? []);
-    $feedbackUnreadCount = (int) ($notificationPayload['unreadCount'] ?? 0);
+    $feedbackAnnouncements = [];
+    $feedbackUnreadCount = 0;
+
+    try {
+        $feedbackService = new \App\Services\FeedbackService();
+        $notificationPayload = $feedbackService->notificationPayload((int) session('user_id'));
+        $feedbackAnnouncements = (array) ($notificationPayload['items'] ?? []);
+        $feedbackUnreadCount = (int) ($notificationPayload['unreadCount'] ?? 0);
+    } catch (\Throwable $e) {
+        log_message('error', 'Kunne ikke hente feedback-varsler i layout: {message}', [
+            'message' => $e->getMessage(),
+        ]);
+    }
+
     $appLogoUrl = trim((string) ($appSettings->logo_url ?? ''));
-    if ($appLogoUrl === '') {
-        $appLogoUrl = 'https://www.tg.no/tg26/tg26_horizontal.svg';
+    $appName = trim((string) ($appSettings->app_name ?? ''));
+    if ($appName === '') {
+        $appName = 'Bifrost';
     }
     $path = trim(service('uri')->getPath(), '/');
     $path = $path === '' ? 'dashboard' : $path;
     $segment = explode('/', $path)[0];
     $operationsSegments = ['shop', 'warehouse', 'categories', 'locations', 'samband', 'requests', 'transport', 'tasks'];
     $assetSegments = ['equipment', 'loans', 'vehicles'];
-    $toolsSegments = ['strekkoder', 'privat-utstyr', 'feedback', 'admin'];
+    $toolsSegments = ['strekkoder', 'privat-utstyr', 'feedback', 'admin', 'statistikk'];
     $profileLink = session('wannabe_id') !== null ? base_url('profil/' . (int) session('wannabe_id')) : base_url('profile');
     $profilePictureUrl = (! empty(session('can_show_profile_picture')) && session('wannabe_id') !== null)
         ? base_url('profile/picture/' . (int) session('wannabe_id'))
@@ -800,7 +825,7 @@
         </button>
         <a href="<?= base_url('dashboard') ?>" class="navbar-brand d-flex align-items-center gap-2">
             <img src="<?= esc($appLogoUrl) ?>" class="navbar-logo" alt="TG logo" style="height:28px;">
-            <span class="text-white fw-bold">TG Logistics</span>
+            <span class="text-white fw-bold"><?= esc($appName) ?></span>
         </a>
         <ul class="navbar-item flex-row ms-lg-auto ms-0">
             <li class="nav-item notification-item" data-role="notification-menu" data-fetch-url="<?= esc(base_url('feedback/notifications')) ?>" data-read-url="<?= esc(base_url('feedback/notifications/read')) ?>" data-csrf-name="<?= esc(csrf_token()) ?>" data-csrf-hash="<?= esc(csrf_hash()) ?>">
@@ -862,7 +887,7 @@
                 <li class="menu <?= $segment === 'dashboard' ? 'active' : '' ?>">
                     <a href="<?= base_url('dashboard') ?>"><i class="fa-solid fa-gauge-high me-2"></i><span class="nav-text">Dashbord</span></a>
                 </li>
-                <?php if (hasRole(['developer', 'chief', 'co-chief', 'logistikk'])): ?>
+                <?php if (hasRole(['developer', 'chief', 'co-chief', 'logistikk', 'bruker'])): ?>
                     <li class="menu-group <?= in_array($segment, $assetSegments, true) ? 'is-open' : '' ?>" data-menu-group>
                         <button type="button" class="menu-group__toggle" data-menu-group-toggle aria-expanded="<?= in_array($segment, $assetSegments, true) ? 'true' : 'false' ?>">
                             <span><i class="fa-solid fa-boxes-stacked me-2"></i>Utstyr og utlån</span>
@@ -881,17 +906,19 @@
                         </ul>
                     </li>
                 <?php endif; ?>
-                <?php if (hasRole(['developer', 'chief', 'co-chief', 'logistikk', 'sambandsansvarlig'])): ?>
+                <?php if (hasRole(['developer', 'chief', 'co-chief', 'logistikk', 'shop', 'innkjop', 'sambandsansvarlig'])): ?>
                     <li class="menu-group <?= in_array($segment, $operationsSegments, true) ? 'is-open' : '' ?>" data-menu-group>
                         <button type="button" class="menu-group__toggle" data-menu-group-toggle aria-expanded="<?= in_array($segment, $operationsSegments, true) ? 'true' : 'false' ?>">
                             <span><i class="fa-solid fa-truck-ramp-box me-2"></i>Drift og logistikk</span>
                             <i class="fa-solid fa-chevron-down menu-group__toggle-icon"></i>
                         </button>
                         <ul class="list-unstyled menu-group__items">
-                            <?php if (hasRole(['developer', 'chief', 'co-chief', 'logistikk'])): ?>
+                            <?php if (hasRole(['developer', 'chief', 'co-chief', 'logistikk', 'shop'])): ?>
                                 <li class="menu <?= $segment === 'shop' ? 'active' : '' ?>">
                                     <a href="<?= base_url('shop') ?>"><i class="fa-solid fa-store me-2"></i><span class="nav-text">Shop</span></a>
                                 </li>
+                            <?php endif; ?>
+                            <?php if (hasRole(['developer', 'chief', 'co-chief', 'logistikk'])): ?>
                                 <li class="menu <?= $segment === 'warehouse' ? 'active' : '' ?>">
                                     <a href="<?= base_url('warehouse') ?>"><i class="fa-solid fa-warehouse me-2"></i><span class="nav-text">Lager</span></a>
                                 </li>
@@ -919,26 +946,31 @@
                         </ul>
                     </li>
                 <?php endif; ?>
-                <?php if (hasRole(['developer', 'chief', 'co-chief', 'logistikk'])): ?>
+                <?php if (hasRole(['developer', 'chief', 'co-chief', 'logistikk', 'shop'])): ?>
                     <li class="menu-group <?= in_array($segment, $toolsSegments, true) ? 'is-open' : '' ?>" data-menu-group>
                         <button type="button" class="menu-group__toggle" data-menu-group-toggle aria-expanded="<?= in_array($segment, $toolsSegments, true) ? 'true' : 'false' ?>">
                             <span><i class="fa-solid fa-screwdriver-wrench me-2"></i>Verktøy</span>
                             <i class="fa-solid fa-chevron-down menu-group__toggle-icon"></i>
                         </button>
                         <ul class="list-unstyled menu-group__items">
+                            <?php if (hasRole(['developer', 'chief', 'co-chief', 'logistikk'])): ?>
                             <li class="menu <?= $segment === 'strekkoder' ? 'active' : '' ?>">
                                 <a href="<?= base_url('strekkoder') ?>"><i class="fa-solid fa-barcode me-2"></i><span class="nav-text">Strekkoder</span></a>
                             </li>
                             <li class="menu <?= $segment === 'privat-utstyr' ? 'active' : '' ?>">
                                 <a href="<?= base_url('privat-utstyr') ?>"><i class="fa-solid fa-user-lock me-2"></i><span class="nav-text">Privat Utstyr</span></a>
                             </li>
+                            <?php endif; ?>
                             <?php if (! hasRole('ingen_tilbakemeldinger')): ?>
                             <li class="menu <?= $segment === 'feedback' ? 'active' : '' ?>">
                                 <a href="<?= base_url('feedback') ?>"><i class="fa-solid fa-bug me-2"></i><span class="nav-text">Tilbakemeldinger</span></a>
                             </li>
                             <?php endif; ?>
                             <?php if (hasRole(['developer', 'chief', 'co-chief'])): ?>
-                                <li class="menu <?= $segment === 'admin' ? 'active' : '' ?>">
+                                <li class="menu <?= $path === 'admin/statistikk' ? 'active' : '' ?>">
+                                    <a href="<?= base_url('admin/statistikk') ?>"><i class="fa-solid fa-chart-line me-2"></i><span class="nav-text">Statistikk</span></a>
+                                </li>
+                                <li class="menu <?= $path === 'admin' ? 'active' : '' ?>">
                                     <a href="<?= base_url('admin') ?>"><i class="fa-solid fa-user-shield me-2"></i><span class="nav-text">Administrasjon</span></a>
                                 </li>
                             <?php endif; ?>

@@ -25,10 +25,11 @@ $routes->group('auth', static function (RouteCollection $routes): void {
 $routes->group('', ['filter' => 'auth'], static function (RouteCollection $routes): void {
     $routes->get('dashboard', 'DashboardController::index');
 
-    $routes->group('shop', ['filter' => 'role:developer,chief,co-chief,logistikk'], static function (RouteCollection $routes): void {
+    $routes->group('shop', ['filter' => 'role:developer,chief,co-chief,logistikk,shop'], static function (RouteCollection $routes): void {
         $routes->get('/', 'ShopController::index');
         $routes->get('export/excel', 'ShopController::exportExcel');
         $routes->get('export/pdf', 'ShopController::exportPdf');
+        $routes->post('import/excel', 'ShopController::importExcel');
         $routes->post('categories/create', 'ShopController::createCategory');
         $routes->post('items/create', 'ShopController::createItem');
         $routes->post('checkout/(:num)', 'ShopController::checkOut/$1');
@@ -118,7 +119,7 @@ $routes->group('', ['filter' => 'auth'], static function (RouteCollection $route
         $routes->post('return/(:num)', 'CommsController::returnLoan/$1');
     });
 
-    $routes->group('transport', static function (RouteCollection $routes): void {
+    $routes->group('transport', ['filter' => 'role:developer,chief,co-chief,logistikk,innkjop'], static function (RouteCollection $routes): void {
         $routes->get('/', 'TransportController::index');
         $routes->get('inspect/(:num)', 'TransportController::inspect/$1');
         $routes->post('request-people', 'TransportController::requestPeople');
@@ -153,6 +154,7 @@ $routes->group('', ['filter' => 'auth'], static function (RouteCollection $route
 
     $routes->group('admin', ['filter' => 'role:developer,chief,co-chief'], static function (RouteCollection $routes): void {
         $routes->get('/', 'AdminController::index');
+        $routes->get('statistikk', 'AdminController::statistics');
         $routes->post('settings', 'AdminController::updateSettings', ['filter' => 'role:developer']);
         $routes->post('crew-cache/clear', 'AdminController::clearCrewCache', ['filter' => 'role:developer']);
         $routes->post('users/create', 'AdminController::createUser');

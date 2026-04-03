@@ -10,14 +10,21 @@ use Config\Services;
 class RoutingService
 {
     private CURLRequest $http;
+    private string $appName;
 
     public function __construct(
         private readonly SettingsRepository $settings = new SettingsRepository()
     ) {
+        $settings = $this->settings->get();
+        $this->appName = trim((string) ($settings->app_name ?? ''));
+        if ($this->appName === '') {
+            $this->appName = 'Bifrost';
+        }
+
         $this->http = Services::curlrequest([
             'timeout' => 15,
             'headers' => [
-                'User-Agent' => 'TG Logistics CMS/1.0',
+                'User-Agent' => $this->appName . '/1.0',
                 'Accept' => 'application/json',
                 'Content-Type' => 'application/json',
             ],

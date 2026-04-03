@@ -42,6 +42,34 @@ class AdminService
         ];
     }
 
+    public function statisticsData(): array
+    {
+        $db = Database::connect();
+
+        return [
+            'userStats' => [
+                'total' => (int) $db->table('users')->countAllResults(),
+                'active' => (int) $db->table('users')->where('active', 1)->countAllResults(),
+                'inactive' => (int) $db->table('users')->where('active', 0)->countAllResults(),
+                'with_wannabe_id' => (int) $db->table('users')->where('wannabe_id IS NOT NULL', null, false)->countAllResults(),
+                'with_badge_scan' => (int) $db->table('users')->where('badge_scan_number IS NOT NULL', null, false)->countAllResults(),
+                'cached' => $this->crewCacheCount(),
+            ],
+            'roleStats' => $this->roleStatistics($db),
+            'feedbackStats' => $this->feedbackStatistics($db),
+            'equipmentStats' => $this->equipmentStatistics($db),
+            'commsStats' => $this->commsStatistics($db),
+            'vehicleStats' => $this->vehicleStatistics($db),
+            'requestStats' => $this->requestStatistics($db),
+            'transportStats' => $this->transportStatistics($db),
+            'taskStats' => $this->taskStatistics($db),
+            'shopStats' => $this->shopStatistics($db),
+            'privateEquipmentStats' => $this->privateEquipmentStatistics($db),
+            'locationStats' => $this->locationStatistics($db),
+            'warehouseStats' => $this->warehouseStatistics($db),
+        ];
+    }
+
     public function clearCrewCache(int $actorUserId): void
     {
         $db = Database::connect();
@@ -175,6 +203,7 @@ class AdminService
     {
         $current = $this->settings->get();
         $data = [
+            'app_name' => $this->nullableTrimmedValue($input['app_name'] ?? null, 180) ?? 'Bifrost',
             'enable_local_login' => isset($input['enable_local_login']) ? 1 : 0,
             'enable_keycloak_login' => isset($input['enable_keycloak_login']) ? 1 : 0,
             'logo_url' => $this->nullableTrimmedValue($input['logo_url'] ?? null, 255),
@@ -185,6 +214,7 @@ class AdminService
             'smtp_user' => $this->nullableTrimmedValue($input['smtp_user'] ?? null, 180),
             'smtp_crypto' => $this->normalizeSmtpCrypto((string) ($input['smtp_crypto'] ?? 'tls')),
             'osrm_base_url' => $this->nullableTrimmedValue($input['osrm_base_url'] ?? null, 255),
+            'favicon_url' => $this->nullableTrimmedValue($input['favicon_url'] ?? null, 255),
             'vegvesen_api_key' => $this->nullableTrimmedValue($input['vegvesen_api_key'] ?? null, 255),
             'keycloak_base_url' => $this->nullableTrimmedValue($input['keycloak_base_url'] ?? null, 255),
             'keycloak_realm' => $this->nullableTrimmedValue($input['keycloak_realm'] ?? null, 180),
@@ -317,7 +347,7 @@ class AdminService
     {
         $db = Database::connect();
         $roleTable = $db->table('roles');
-        $defaults = ['developer', 'chief', 'co-chief', 'transport_ansvarlig', 'skiftleder', 'sambandsansvarlig', 'logistikk', 'bruker'];
+        $defaults = ['developer', 'chief', 'co-chief', 'transport_ansvarlig', 'skiftleder', 'sambandsansvarlig', 'logistikk', 'shop', 'innkjop', 'bruker'];
 
         foreach ($defaults as $name) {
             $exists = $roleTable->where('name', $name)->get()->getFirstRow();
@@ -374,5 +404,324 @@ class AdminService
     private function crewCacheCount(): int
     {
         return (int) Database::connect()->table('crew_directory_cache')->countAllResults();
+    }
+
+    private function roleStatistics(\CodeIgniter\Database\BaseConnection $db): array
+    {
+        $rows = $db->table('user_roles ur')
+            ->select('roles.name, COUNT(*) AS total')
+            ->join('roles', 'roles.id = ur.role_id', 'inner')
+            ->groupBy('roles.name')
+            ->orderBy('total', 'DESC')
+            ->orderBy('roles.name', 'ASC')
+            ->get()
+            ->getResultArray();
+
+        return array_map(static function (array $row): array {
+            return [
+                'name' => (string) ($row['name'] ?? ''),
+                'total' => (int) ($row['total'] ?? 0),
+            ];
+        }, $rows);
+    }
+
+    private function feedbackStatistics(\CodeIgniter\Database\BaseConnection $db): array
+    {
+        $statusRows = $db->table('feedback_entries')
+            ->select('status, COUNT(*) AS total')
+            ->groupBy('status')
+            ->get()
+            ->getResultArray();
+
+        $typeRows = $db->table('feedback_entries')
+            ->select('type, COUNT(*) AS total')
+            ->groupBy('type')
+            ->get()
+            ->getResultArray();
+
+        $statusMap = [];
+        foreach ($statusRows as $row) {
+            $statusMap[(string) ($row['status'] ?? '')] = (int) ($row['total'] ?? 0);
+        }
+
+        $typeMap = [];
+        foreach ($typeRows as $row) {
+            $typeMap[(string) ($row['type'] ?? '')] = (int) ($row['total'] ?? 0);
+        }
+
+        return [
+            'total' => (int) $db->table('feedback_entries')->countAllResults(),
+            'pending' => (int) ($statusMap['pending'] ?? 0),
+            'approved' => (int) ($statusMap['approved'] ?? 0),
+            'on_hold' => (int) ($statusMap['on_hold'] ?? 0),
+            'in_progress' => (int) ($statusMap['in_progress'] ?? 0),
+            'implemented' => (int) ($statusMap['added'] ?? 0),
+            'fixed' => (int) ($statusMap['fixed'] ?? 0),
+            'completed_total' => (int) (($statusMap['added'] ?? 0) + ($statusMap['fixed'] ?? 0)),
+            'rejected' => (int) ($statusMap['rejected'] ?? 0),
+            'needs_database_fix' => (int) $db->table('feedback_entries')->where('needs_database_fix', 1)->countAllResults(),
+            'feature_total' => (int) ($typeMap['feature'] ?? 0),
+            'bug_total' => (int) ($typeMap['bug'] ?? 0),
+        ];
+    }
+
+    private function equipmentStatistics(\CodeIgniter\Database\BaseConnection $db): array
+    {
+        $statusRows = $db->table('equipment')
+            ->select('status, COUNT(*) AS total_rows, COALESCE(SUM(quantity), 0) AS total_quantity')
+            ->groupBy('status')
+            ->get()
+            ->getResultArray();
+
+        $categoryRows = $db->table('equipment')
+            ->select('category, COUNT(*) AS total_rows, COALESCE(SUM(quantity), 0) AS total_quantity')
+            ->groupBy('category')
+            ->orderBy('total_quantity', 'DESC')
+            ->orderBy('category', 'ASC')
+            ->get()
+            ->getResultArray();
+
+        $statusMap = [];
+        foreach ($statusRows as $row) {
+            $status = (string) ($row['status'] ?? '');
+            $statusMap[$status] = [
+                'rows' => (int) ($row['total_rows'] ?? 0),
+                'quantity' => (int) ($row['total_quantity'] ?? 0),
+            ];
+        }
+
+        return [
+            'total_items' => (int) $db->table('equipment')->countAllResults(),
+            'total_quantity' => (int) ($db->table('equipment')->select('COALESCE(SUM(quantity), 0) AS total')->get()->getRowArray()['total'] ?? 0),
+            'available_quantity' => (int) ($statusMap['available']['quantity'] ?? 0),
+            'loaned_quantity' => (int) ($statusMap['loaned']['quantity'] ?? 0),
+            'maintenance_quantity' => (int) ($statusMap['maintenance']['quantity'] ?? 0),
+            'active_loans' => (int) $db->table('equipment_loans')->where('status', 'active')->countAllResults(),
+            'loaned_out_quantity' => (int) ($db->table('equipment_loans')->select('COALESCE(SUM(quantity), 0) AS total')->where('status', 'active')->get()->getRowArray()['total'] ?? 0),
+            'returned_loans' => (int) $db->table('equipment_loans')->where('status', 'returned')->countAllResults(),
+            'returned_quantity' => (int) ($db->table('equipment_loans')->select('COALESCE(SUM(quantity), 0) AS total')->where('status', 'returned')->get()->getRowArray()['total'] ?? 0),
+            'loan_events_total' => (int) $db->table('equipment_loans')->countAllResults(),
+            'categories' => array_map(static function (array $row): array {
+                return [
+                    'name' => (string) ($row['category'] ?? 'Ukjent'),
+                    'rows' => (int) ($row['total_rows'] ?? 0),
+                    'quantity' => (int) ($row['total_quantity'] ?? 0),
+                ];
+            }, $categoryRows),
+        ];
+    }
+
+    private function commsStatistics(\CodeIgniter\Database\BaseConnection $db): array
+    {
+        $typeRows = $db->table('comms_items')
+            ->select('type, COUNT(*) AS total_rows, COALESCE(SUM(quantity), 0) AS total_quantity')
+            ->groupBy('type')
+            ->orderBy('total_quantity', 'DESC')
+            ->orderBy('type', 'ASC')
+            ->get()
+            ->getResultArray();
+
+        $statusRows = $db->table('comms_items')
+            ->select('status, COALESCE(SUM(quantity), 0) AS total_quantity')
+            ->groupBy('status')
+            ->get()
+            ->getResultArray();
+
+        $statusMap = [];
+        foreach ($statusRows as $row) {
+            $statusMap[(string) ($row['status'] ?? '')] = (int) ($row['total_quantity'] ?? 0);
+        }
+
+        return [
+            'total_items' => (int) $db->table('comms_items')->countAllResults(),
+            'total_quantity' => (int) ($db->table('comms_items')->select('COALESCE(SUM(quantity), 0) AS total')->get()->getRowArray()['total'] ?? 0),
+            'available_quantity' => (int) ($statusMap['available'] ?? 0),
+            'loaned_quantity' => (int) ($statusMap['loaned'] ?? 0),
+            'total_sets' => (int) $db->table('comms_sets')->countAllResults(),
+            'active_loans' => (int) $db->table('comms_loans')->where('status', 'active')->countAllResults(),
+            'returned_loans' => (int) $db->table('comms_loans')->where('status', 'returned')->countAllResults(),
+            'loaned_out_quantity' => (int) ($db->table('comms_loan_items cli')
+                ->select('COALESCE(SUM(cli.quantity), 0) AS total')
+                ->join('comms_loans cl', 'cl.id = cli.loan_id', 'inner')
+                ->where('cl.status', 'active')
+                ->get()
+                ->getRowArray()['total'] ?? 0),
+            'returned_quantity' => (int) ($db->table('comms_loan_items cli')
+                ->select('COALESCE(SUM(cli.quantity), 0) AS total')
+                ->join('comms_loans cl', 'cl.id = cli.loan_id', 'inner')
+                ->where('cl.status', 'returned')
+                ->get()
+                ->getRowArray()['total'] ?? 0),
+            'loan_events_total' => (int) $db->table('comms_loans')->countAllResults(),
+            'types' => array_map(static function (array $row): array {
+                return [
+                    'name' => (string) ($row['type'] ?? 'Ukjent'),
+                    'rows' => (int) ($row['total_rows'] ?? 0),
+                    'quantity' => (int) ($row['total_quantity'] ?? 0),
+                ];
+            }, $typeRows),
+        ];
+    }
+
+    private function vehicleStatistics(\CodeIgniter\Database\BaseConnection $db): array
+    {
+        $statusRows = $db->table('vehicles')
+            ->select('status, COUNT(*) AS total')
+            ->groupBy('status')
+            ->get()
+            ->getResultArray();
+
+        $statusMap = [];
+        foreach ($statusRows as $row) {
+            $statusMap[(string) ($row['status'] ?? '')] = (int) ($row['total'] ?? 0);
+        }
+
+        return [
+            'total' => (int) $db->table('vehicles')->countAllResults(),
+            'available' => (int) ($statusMap['available'] ?? 0),
+            'loaned' => (int) ($statusMap['loaned'] ?? 0),
+            'maintenance' => (int) ($statusMap['maintenance'] ?? 0),
+            'active_loans' => (int) $db->table('vehicle_loans')->where('status', 'active')->countAllResults(),
+            'returned_loans' => (int) $db->table('vehicle_loans')->where('status', 'returned')->countAllResults(),
+            'loan_events_total' => (int) $db->table('vehicle_loans')->countAllResults(),
+            'assigned_transport_jobs' => (int) $db->table('transport_jobs')->where('assigned_vehicle_id IS NOT NULL', null, false)->countAllResults(),
+        ];
+    }
+
+    private function requestStatistics(\CodeIgniter\Database\BaseConnection $db): array
+    {
+        $statusRows = $db->table('equipment_requests')
+            ->select('status, COUNT(*) AS total')
+            ->groupBy('status')
+            ->get()
+            ->getResultArray();
+
+        $statusMap = [];
+        foreach ($statusRows as $row) {
+            $statusMap[(string) ($row['status'] ?? '')] = (int) ($row['total'] ?? 0);
+        }
+
+        return [
+            'total' => (int) $db->table('equipment_requests')->countAllResults(),
+            'pending' => (int) ($statusMap['pending'] ?? 0),
+            'partial' => (int) ($statusMap['partial'] ?? 0),
+            'fulfilled' => (int) ($statusMap['fulfilled'] ?? 0),
+            'returned' => (int) ($statusMap['returned'] ?? 0),
+            'rejected' => (int) ($statusMap['rejected'] ?? 0),
+            'requested_quantity' => (int) ($db->table('equipment_request_items')->select('COALESCE(SUM(quantity), 0) AS total')->get()->getRowArray()['total'] ?? 0),
+            'request_lines' => (int) $db->table('equipment_request_items')->countAllResults(),
+        ];
+    }
+
+    private function transportStatistics(\CodeIgniter\Database\BaseConnection $db): array
+    {
+        $statusRows = $db->table('transport_jobs')
+            ->select('status, COUNT(*) AS total')
+            ->groupBy('status')
+            ->get()
+            ->getResultArray();
+
+        $statusMap = [];
+        foreach ($statusRows as $row) {
+            $statusMap[(string) ($row['status'] ?? '')] = (int) ($row['total'] ?? 0);
+        }
+
+        return [
+            'total' => (int) $db->table('transport_jobs')->countAllResults(),
+            'open' => (int) ($statusMap['open'] ?? 0),
+            'assigned' => (int) ($statusMap['assigned'] ?? 0),
+            'in_progress' => (int) ($statusMap['in_progress'] ?? 0),
+            'completed' => (int) ($statusMap['completed'] ?? 0),
+            'people_transport' => (int) $db->table('transport_jobs')->where('transport_type', 'people')->countAllResults(),
+            'equipment_transport' => (int) $db->table('transport_jobs')->where('transport_type', 'equipment')->countAllResults(),
+        ];
+    }
+
+    private function taskStatistics(\CodeIgniter\Database\BaseConnection $db): array
+    {
+        $statusRows = $db->table('tasks')
+            ->select('status, COUNT(*) AS total')
+            ->groupBy('status')
+            ->get()
+            ->getResultArray();
+
+        $statusMap = [];
+        foreach ($statusRows as $row) {
+            $statusMap[(string) ($row['status'] ?? '')] = (int) ($row['total'] ?? 0);
+        }
+
+        return [
+            'total' => (int) $db->table('tasks')->countAllResults(),
+            'not_started' => (int) ($statusMap['not_started'] ?? 0),
+            'in_progress' => (int) ($statusMap['in_progress'] ?? 0),
+            'blocked' => (int) ($statusMap['blocked'] ?? 0),
+            'completed' => (int) ($statusMap['completed'] ?? 0),
+            'linked_to_transport' => (int) $db->table('tasks')->where('transport_job_id IS NOT NULL', null, false)->countAllResults(),
+        ];
+    }
+
+    private function shopStatistics(\CodeIgniter\Database\BaseConnection $db): array
+    {
+        $movementRows = $db->table('shop_movements')
+            ->select('movement_type, COUNT(*) AS total_rows, COALESCE(SUM(quantity), 0) AS total_quantity')
+            ->groupBy('movement_type')
+            ->get()
+            ->getResultArray();
+
+        $movementMap = [];
+        foreach ($movementRows as $row) {
+            $movementMap[(string) ($row['movement_type'] ?? '')] = [
+                'rows' => (int) ($row['total_rows'] ?? 0),
+                'quantity' => (int) ($row['total_quantity'] ?? 0),
+            ];
+        }
+
+        return [
+            'categories' => (int) $db->table('shop_categories')->countAllResults(),
+            'items' => (int) $db->table('shop_items')->countAllResults(),
+            'total_quantity' => (int) ($db->table('shop_items')->select('COALESCE(SUM(quantity), 0) AS total')->get()->getRowArray()['total'] ?? 0),
+            'checkout_count' => (int) ($movementMap['checkout']['rows'] ?? 0),
+            'checkout_quantity' => (int) ($movementMap['checkout']['quantity'] ?? 0),
+            'checkin_count' => (int) ($movementMap['checkin']['rows'] ?? 0),
+            'checkin_quantity' => (int) ($movementMap['checkin']['quantity'] ?? 0),
+            'movements_total' => (int) $db->table('shop_movements')->countAllResults(),
+        ];
+    }
+
+    private function privateEquipmentStatistics(\CodeIgniter\Database\BaseConnection $db): array
+    {
+        return [
+            'prefix_rules' => (int) $db->table('private_equipment_prefixes')->countAllResults(),
+        ];
+    }
+
+    private function locationStatistics(\CodeIgniter\Database\BaseConnection $db): array
+    {
+        $typeRows = $db->table('locations')
+            ->select('type, COUNT(*) AS total')
+            ->groupBy('type')
+            ->orderBy('total', 'DESC')
+            ->get()
+            ->getResultArray();
+
+        return [
+            'total' => (int) $db->table('locations')->countAllResults(),
+            'with_address' => (int) $db->table('locations')->where('address IS NOT NULL', null, false)->where('address !=', '')->countAllResults(),
+            'types' => array_map(static function (array $row): array {
+                return [
+                    'name' => (string) ($row['type'] ?? 'Ukjent'),
+                    'total' => (int) ($row['total'] ?? 0),
+                ];
+            }, $typeRows),
+        ];
+    }
+
+    private function warehouseStatistics(\CodeIgniter\Database\BaseConnection $db): array
+    {
+        return [
+            'pallets' => (int) $db->table('pallets')->countAllResults(),
+            'slots' => (int) $db->table('pallet_slots')->countAllResults(),
+            'occupied_slots' => (int) $db->table('equipment')->where('pallet_slot_id IS NOT NULL', null, false)->distinct()->select('pallet_slot_id')->countAllResults(),
+        ];
     }
 }

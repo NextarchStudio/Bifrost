@@ -10,6 +10,6 @@ class ShopItemModel extends Model
     protected $table = 'shop_items';
     protected $primaryKey = 'id';
     protected $returnType = 'object';
-    protected $allowedFields = ['category_id', 'name', 'size', 'quantity', 'notes', 'created_at', 'updated_at'];
+    protected $allowedFields = ['category_id', 'name', 'size', 'quantity', 'status', 'discontinued_at', 'notes', 'created_at', 'updated_at'];
     protected $useTimestamps = false;
 }

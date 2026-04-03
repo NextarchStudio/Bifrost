@@ -13,35 +13,38 @@ class ShopController extends BaseController
 
     public function index()
     {
-        return view('shop/index', $this->shop->data());
+        $data = $this->shop->data();
+        $data['checkoutNote'] = $this->shop->checkoutLabelForUser((int) $this->session->get('user_id'));
+        $data['checkinNote'] = $this->shop->checkinLabelForUser((int) $this->session->get('user_id'));
+
+        return view('shop/index', $data);
     }
 
     public function exportExcel()
     {
         $items = $this->shop->data()['items'] ?? [];
-        $filename = 'varelager-' . date('Y-m-d-His') . '.xls';
-
-        $html = '<html><head><meta charset="UTF-8"></head><body>';
-        $html .= '<table border="1">';
-        $html .= '<tr><th>ID</th><th>Vare</th><th>Kategori</th><th>Storrelse</th><th>Antall</th><th>Notater</th></tr>';
+        $filename = 'varelager-' . date('Y-m-d-His') . '.csv';
+        $lines = [
+            $this->csvLine(['ID', 'Vare', 'Kategori', 'Storrelse', 'Antall', 'Notater']),
+        ];
 
         foreach ($items as $item) {
-            $html .= '<tr>';
-            $html .= '<td>' . esc((string) $item->id) . '</td>';
-            $html .= '<td>' . esc((string) $item->name) . '</td>';
-            $html .= '<td>' . esc((string) $item->category_name) . '</td>';
-            $html .= '<td>' . esc((string) ($item->size ?: '-')) . '</td>';
-            $html .= '<td>' . esc((string) $item->quantity) . '</td>';
-            $html .= '<td>' . esc((string) ($item->notes ?: '-')) . '</td>';
-            $html .= '</tr>';
+            $lines[] = $this->csvLine([
+                (string) $item->id,
+                (string) $item->name,
+                (string) $item->category_name,
+                (string) ($item->size ?: '-'),
+                (string) $item->quantity,
+                (string) ($item->notes ?: '-'),
+            ]);
         }
 
-        $html .= '</table></body></html>';
+        $csv = implode("\r\n", $lines) . "\r\n";
 
         return $this->response
-            ->setHeader('Content-Type', 'application/vnd.ms-excel; charset=UTF-8')
+            ->setHeader('Content-Type', 'text/csv; charset=UTF-8')
             ->setHeader('Content-Disposition', 'attachment; filename="' . $filename . '"')
-            ->setBody("\xEF\xBB\xBF" . $html);
+            ->setBody("\xEF\xBB\xBF" . $csv);
     }
 
     public function exportPdf()
@@ -94,6 +97,26 @@ class ShopController extends BaseController
         }
     }
 
+    public function importExcel()
+    {
+        try {
+            $summary = $this->shop->importExcel(
+                $this->request->getFile('inventory_file'),
+                (int) $this->session->get('user_id')
+            );
+
+            return redirect()->to('/shop')->with('message', sprintf(
+                'Import fullført. %d nye varer, %d innsjekker, %d utsjekker, %d uendrede.',
+                $summary['created'],
+                $summary['checked_in'],
+                $summary['checked_out'],
+                $summary['unchanged']
+            ));
+        } catch (\Throwable $e) {
+            return redirect()->back()->withInput()->with('error', $e->getMessage());
+        }
+    }
+
     public function checkOut(int $itemId)
     {
         try {
@@ -139,6 +162,17 @@ class ShopController extends BaseController
             : $value;
     }
 
+    private function csvLine(array $values): string
+    {
+        $escaped = array_map(static function (string $value): string {
+            $value = str_replace('"', '""', $value);
+
+            return '"' . $value . '"';
+        }, $values);
+
+        return implode(';', $escaped);
+    }
+
     private function buildSimplePdf(array $lines): string
     {
         $pageHeight = 842;
@@ -148,7 +182,7 @@ class ShopController extends BaseController
         $chunks = array_chunk($lines, $linesPerPage);
         $objects = [];
 
-        $objects[] = '<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>';
+        $objects[] = '<< /Type /Font /Subtype /Type1 /BaseFont /Courier /Encoding /WinAnsiEncoding >>';
 
         $pageIds = [];
         $contentIds = [];

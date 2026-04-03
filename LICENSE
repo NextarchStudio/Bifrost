@@ -1,41 +1,41 @@
-TG Logistics CMS Proprietary License
+Bifrost (TG Logistics CMS) Proprietary License
 
-Copyright (c) 2026 Nextarch Studio
+Copyright (c) 2026 Angel Knutsen Aune
 All rights reserved.
 
 This project and its source code are proprietary and are not open source.
 
 Ownership
 
-Nextarch Studio retains all right, title, and interest in and to this project,
+Angel Knutsen Aune retains all right, title, and interest in and to this project,
 including the source code, custom application logic, design, documentation,
 and other project-specific materials, except for third-party components that
 are subject to their own separate licenses.
 
-Internal TG License
+Internal The Gathering License
 
-TG is granted a non-exclusive, non-transferable, revocable license to:
+The Gathering is granted a non-exclusive, non-transferable, revocable license to:
 
-- use this software internally for TG operations
-- run and host the software for internal TG purposes
-- modify and further develop the software internally for TG use
+- use this software internally for The Gathering operations
+- run and host the software for internal The Gathering purposes
+- modify and further develop the software internally for The Gathering use
 - maintain copies required for internal backup, testing, and deployment
 
 Restrictions
 
-Without prior written permission from Nextarch Studio, the software may not be:
+Without prior written permission from Angel Knutsen Aune, the software may not be:
 
 - sold, sublicensed, or redistributed to third parties
 - published publicly in source or compiled form
 - transferred to another organization or external vendor
-- reused outside TG for other organizations under this license
+- reused outside The Gathering for other organizations under this license
 
 Third-Party Software
 
 This repository may include or depend on third-party software, including
 CodeIgniter and Composer packages, which remain licensed under their own
 respective terms. This license applies only to the project-specific portions
-of TG Logistics CMS owned by Nextarch Studio and does not replace or override
+of Bifrost (TG Logistics CMS) owned by Angel Knutsen Aune and does not replace or override
 any third-party license obligations.
 
 Warranty and Liability
@@ -49,4 +49,4 @@ connection with the software or the use of the software.
 Contact
 
 For permissions, licensing questions, or external use, written approval must
-be obtained from Nextarch Studio.
+be obtained from Angel Knutsen Aune.

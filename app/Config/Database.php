@@ -28,7 +28,7 @@ class Database extends Config
     public array $default = [
         'DSN'          => '',
         'hostname'     => '127.0.0.1',
-        'username'     => 'root',
+        'username'     => 'tg_logistics_cms',
         'password'     => '',
         'database'     => 'tg_logistics_cms',
         'DBDriver'     => 'MySQLi',

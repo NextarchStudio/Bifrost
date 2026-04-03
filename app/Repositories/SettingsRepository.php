@@ -17,6 +17,7 @@ class SettingsRepository
         if ($row === null) {
             $this->settings->insert([
                 'id' => 1,
+                'app_name' => 'Bifrost',
                 'enable_local_login' => 1,
                 'enable_keycloak_login' => 1,
                 'smtp_from_email' => null,
@@ -28,7 +29,8 @@ class SettingsRepository
                 'smtp_crypto' => 'tls',
                 'google_maps_api_key' => null,
                 'osrm_base_url' => 'http://localhost:5000',
-                'logo_url' => 'https://www.tg.no/tg26/tg26_horizontal.svg',
+                'logo_url' => null,
+                'favicon_url' => null,
                 'vegvesen_api_key' => null,
                 'keycloak_base_url' => null,
                 'keycloak_realm' => null,

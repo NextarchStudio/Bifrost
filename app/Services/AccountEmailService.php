@@ -21,8 +21,13 @@ class AccountEmailService
 
         $smtpUser = trim((string) $settings->smtp_user);
         $replyToEmail = trim((string) ($settings->smtp_from_email ?? ''));
-        $replyToName = trim((string) ($settings->smtp_from_name ?? 'TG Logistics CMS'));
-        $fromName = $replyToName !== '' ? $replyToName : 'TG Logistics CMS';
+        $appName = trim((string) ($settings->app_name ?? ''));
+        if ($appName === '') {
+            $appName = 'Bifrost';
+        }
+
+        $replyToName = trim((string) ($settings->smtp_from_name ?? $appName));
+        $fromName = $replyToName !== '' ? $replyToName : $appName;
 
         $email = service('email', null, false);
         $email->initialize([
@@ -44,11 +49,11 @@ class AccountEmailService
         }
 
         $email->setTo($emailAddress);
-        $email->setSubject($purpose === 'invite' ? 'Velg passord for TG Logistics CMS' : 'Tilbakestill passord for TG Logistics CMS');
+        $email->setSubject($purpose === 'invite' ? 'Velg passord for ' . $appName : 'Tilbakestill passord for ' . $appName);
 
         $intro = $purpose === 'invite'
-            ? 'En bruker er opprettet til deg i TG Logistics CMS. Klikk på lenken under for å velge passord og aktivere lokal innlogging.'
-            : 'Vi mottok en forespørsel om å tilbakestille passordet ditt i TG Logistics CMS. Klikk på lenken under for å velge nytt passord.';
+            ? 'En bruker er opprettet til deg i ' . $appName . '. Klikk på lenken under for å velge passord og aktivere lokal innlogging.'
+            : 'Vi mottok en forespørsel om å tilbakestille passordet ditt i ' . $appName . '. Klikk på lenken under for å velge nytt passord.';
 
         $message = implode("\n\n", [
             'Hei ' . trim($name) . ',',

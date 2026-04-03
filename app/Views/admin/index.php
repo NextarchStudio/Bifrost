@@ -8,6 +8,8 @@ $roleLabel = static function (string $role): string {
         'co-chief' => 'Co-Chief',
         'developer' => 'Utvikler',
         'logistikk' => 'Logistikk',
+        'shop' => 'Shop',
+        'innkjop' => 'Innkjøp',
         'sambandsansvarlig' => 'Sambandsansvarlig',
         'skiftleder' => 'Skiftleder',
         'transport_ansvarlig' => 'Transport Ansvarlig',
@@ -68,10 +70,12 @@ $canManageSystemSettings = hasRole('developer');
             <div class="settings-grid">
                 <div class="settings-card">
                     <h4>Generelt</h4>
-                    <p>Logo og hvilke innloggingsmetoder som skal være aktive.</p>
+                    <p>Navn, logo og hvilke innloggingsmetoder som skal være aktive.</p>
+                    <input type="text" name="app_name" placeholder="Navn på løsningen" value="<?= esc((string) ($settings->app_name ?? 'Bifrost')) ?>">
                     <label><input type="checkbox" name="enable_local_login" value="1" <?= (int) $settings->enable_local_login === 1 ? 'checked' : '' ?>> Lokal innlogging</label>
                     <label><input type="checkbox" name="enable_keycloak_login" value="1" <?= (int) $settings->enable_keycloak_login === 1 ? 'checked' : '' ?>> SSO-innlogging</label>
-                    <input type="url" name="logo_url" placeholder="Logo URL" value="<?= esc((string) ($settings->logo_url ?? 'https://www.tg.no/tg26/tg26_horizontal.svg')) ?>">
+                    <input type="url" name="logo_url" placeholder="Logo URL" value="<?= esc((string) ($settings->logo_url ?? '')) ?>">
+                    <input type="url" name="favicon_url" placeholder="Favicon URL" value="<?= esc((string) ($settings->favicon_url ?? '')) ?>">
                 </div>
                 <div class="settings-card">
                     <h4>Keycloak / SSO</h4>
@@ -126,10 +130,13 @@ $canManageSystemSettings = hasRole('developer');
                         </button>
                     </div>
                     <p style="margin-top:.75rem;">Cachede crew-oppslag: <strong><?= esc((string) ($crewCacheEntries ?? 0)) ?></strong><br>Cache-år: <strong><?= esc((string) ($settings->crew_cache_year ?? date('Y'))) ?></strong></p>
-                    <form method="post" action="/admin/crew-cache/clear" style="margin:0;" data-confirm-message="Tømme crew-cachen, slette alle brukere unntatt id 2, og nullstille crew-relaterte brukerdata?">
-                        <?= csrf_field() ?>
-                        <button type="submit" class="btn btn-danger">Tøm crew-cache og brukere</button>
-                    </form>
+                    <button
+                        type="submit"
+                        class="btn btn-danger"
+                        formaction="/admin/crew-cache/clear"
+                        formmethod="post"
+                        onclick="return confirm('Tømme crew-cachen, slette alle brukere unntatt id 2, og nullstille crew-relaterte brukerdata?');"
+                    >Tøm crew-cache og brukere</button>
                 </div>
             </div>
             <button type="submit">Lagre innstillinger</button>

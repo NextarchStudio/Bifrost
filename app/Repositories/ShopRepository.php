@@ -48,6 +48,7 @@ class ShopRepository
         return $this->items
             ->select('shop_items.*, shop_categories.name AS category_name')
             ->join('shop_categories', 'shop_categories.id = shop_items.category_id', 'inner')
+            ->orderBy('shop_items.status = "discontinued"', 'ASC', false)
             ->orderBy('shop_categories.name', 'ASC')
             ->orderBy('shop_items.name', 'ASC')
             ->orderBy('shop_items.size', 'ASC')
@@ -57,6 +58,21 @@ class ShopRepository
     public function findItemById(int $id): ?object
     {
         return $this->items->find($id);
+    }
+
+    public function findItemBySignature(int $categoryId, string $name, ?string $size): ?object
+    {
+        $builder = $this->items
+            ->where('category_id', $categoryId)
+            ->where('name', $name);
+
+        if ($size === null) {
+            $builder->where('size', null);
+        } else {
+            $builder->where('size', $size);
+        }
+
+        return $builder->first();
     }
 
     public function createItem(array $data): int
@@ -88,6 +104,15 @@ class ShopRepository
     public function deleteItemById(int $id): bool
     {
         return $this->items->delete($id);
+    }
+
+    public function oldDiscontinuedItems(string $cutoff): array
+    {
+        return $this->items
+            ->where('status', 'discontinued')
+            ->where('discontinued_at IS NOT NULL', null, false)
+            ->where('discontinued_at <=', $cutoff)
+            ->findAll();
     }
 
     public function insertMovement(array $data): int

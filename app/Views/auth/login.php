@@ -4,8 +4,9 @@
 $settingsRepository = new \App\Repositories\SettingsRepository();
 $appSettings = $settingsRepository->get();
 $appLogoUrl = trim((string) ($appSettings->logo_url ?? ''));
-if ($appLogoUrl === '') {
-    $appLogoUrl = 'https://www.tg.no/tg26/tg26_horizontal.svg';
+$appName = trim((string) ($appSettings->app_name ?? ''));
+if ($appName === '') {
+    $appName = 'Bifrost';
 }
 ?>
 <div class="row justify-content-center">
@@ -34,8 +35,10 @@ if ($appLogoUrl === '') {
                     }
                 </style>
                 <div class="text-center mb-4">
-                    <img src="<?= esc($appLogoUrl) ?>" alt="TG logo" style="height:40px;">
-                    <h4 class="mt-3 mb-0">TG Logistics CMS</h4>
+                    <?php if ($appLogoUrl !== ''): ?>
+                        <img src="<?= esc($appLogoUrl) ?>" alt="<?= esc($appName) ?> logo" style="height:40px;">
+                    <?php endif; ?>
+                    <h4 class="mt-3 mb-0"><?= esc($appName) ?></h4>
                     <p class="text-muted">Logg inn for å fortsette</p>
                 </div>
                 <?php if ($localLoginEnabled): ?>

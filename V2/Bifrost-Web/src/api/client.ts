@@ -1,4 +1,4 @@
-import type { CurrentUser, EquipmentListResponse, EquipmentMutationResponse } from "@bifrost/contracts";
+import type { CurrentUser, EquipmentCategory, EquipmentListResponse, EquipmentMutationResponse } from "@bifrost/contracts";
 
 const apiUrl = (import.meta.env.VITE_API_URL || "http://localhost:3001").replace(/\/$/, "");
 
@@ -32,6 +32,12 @@ export async function createEquipment(
   });
   if (!response.ok) throw new Error(`Kunne ikke opprette utstyr (${response.status}).`);
   return response.json() as Promise<EquipmentMutationResponse>;
+}
+
+export async function getEquipmentCategories(accessToken: string): Promise<EquipmentCategory[]> {
+  const response = await fetch(`${apiUrl}/api/v1/equipment-categories`, { headers: createHeaders(accessToken) });
+  if (!response.ok) throw new Error(`Kunne ikke hente kategorier (${response.status}).`);
+  return response.json() as Promise<EquipmentCategory[]>;
 }
 
 export function getApiUrl(): string {

@@ -81,3 +81,8 @@ export interface EquipmentMutationResponse {
   id: number;
   merged: boolean;
 }
+
+export interface EquipmentCategory {
+  id: number;
+  name: string;
+}

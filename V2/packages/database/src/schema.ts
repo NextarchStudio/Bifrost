@@ -61,6 +61,13 @@ export const equipment = mysqlTable("equipment", {
   updatedAt: datetime("updated_at", { mode: "date" }).notNull(),
 });
 
+export const equipmentCategories = mysqlTable("equipment_categories", {
+  id: int({ unsigned: true }).primaryKey().autoincrement(),
+  name: varchar({ length: 80 }).notNull(),
+  createdAt: datetime("created_at", { mode: "date" }).notNull(),
+  updatedAt: datetime("updated_at", { mode: "date" }).notNull(),
+}, (table) => [uniqueIndex("equipment_categories_name_unique").on(table.name)]);
+
 export const locations = mysqlTable("locations", {
   id: int({ unsigned: true }).primaryKey().autoincrement(),
   name: varchar({ length: 120 }).notNull(),

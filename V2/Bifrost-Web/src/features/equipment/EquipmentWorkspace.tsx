@@ -1,6 +1,6 @@
-import type { CurrentUser, EquipmentListResponse } from "@bifrost/contracts";
+import type { CurrentUser, EquipmentCategory, EquipmentListResponse } from "@bifrost/contracts";
 import { useEffect, useState } from "react";
-import { createEquipment, getEquipment } from "../../api/client";
+import { createEquipment, getEquipment, getEquipmentCategories } from "../../api/client";
 
 export function EquipmentWorkspace({ user, accessToken }: { user: CurrentUser; accessToken: string }) {
   const [search, setSearch] = useState("");
@@ -9,6 +9,11 @@ export function EquipmentWorkspace({ user, accessToken }: { user: CurrentUser; a
   const [error, setError] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [refresh, setRefresh] = useState(0);
+  const [categories, setCategories] = useState<EquipmentCategory[]>([]);
+
+  useEffect(() => {
+    void getEquipmentCategories(accessToken).then(setCategories).catch(() => setCategories([]));
+  }, [accessToken]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -70,12 +75,12 @@ export function EquipmentWorkspace({ user, accessToken }: { user: CurrentUser; a
           </div>
         )}
       </div>
-      {showCreate && <CreateEquipmentPanel accessToken={accessToken} onClose={() => setShowCreate(false)} onCreated={() => { setShowCreate(false); setRefresh((value) => value + 1); }} />}
+      {showCreate && <CreateEquipmentPanel accessToken={accessToken} categories={categories} onClose={() => setShowCreate(false)} onCreated={() => { setShowCreate(false); setRefresh((value) => value + 1); }} />}
     </section>
   );
 }
 
-function CreateEquipmentPanel({ accessToken, onClose, onCreated }: { accessToken: string; onClose: () => void; onCreated: () => void }) {
+function CreateEquipmentPanel({ accessToken, categories, onClose, onCreated }: { accessToken: string; categories: EquipmentCategory[]; onClose: () => void; onCreated: () => void }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -96,7 +101,7 @@ function CreateEquipmentPanel({ accessToken, onClose, onCreated }: { accessToken
         <div className="flex items-start justify-between"><div><p className="text-sm text-emerald-300">Lager</p><h2 id="create-equipment-title" className="mt-1 text-2xl font-semibold">Registrer utstyr</h2></div><button type="button" className="text-slate-500 hover:text-slate-200" onClick={onClose}>Lukk</button></div>
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
           <Field label="Navn" name="name" required />
-          <Field label="Kategori" name="category" required />
+          <label><span className="mb-2 block text-sm text-slate-400">Kategori</span><select name="category" required className="w-full rounded-xl border border-white/10 bg-[#091421] px-3 py-2.5 outline-none focus:border-emerald-300/60"><option value="">Velg kategori</option>{categories.map((category) => <option key={category.id} value={category.name}>{category.name}</option>)}</select></label>
           <Field label="Serienummer" name="serialNumber" required />
           <Field label="Antall" name="quantity" type="number" min="1" defaultValue="1" required />
           <label className="sm:col-span-2"><span className="mb-2 block text-sm text-slate-400">Notater</span><textarea name="notes" rows={3} className="w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 outline-none focus:border-emerald-300/60" /></label>

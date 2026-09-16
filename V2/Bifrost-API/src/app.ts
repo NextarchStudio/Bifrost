@@ -6,12 +6,15 @@ import { registerAuthRoutes } from "./modules/auth/routes.js";
 import type { AuthService } from "./modules/auth/service.js";
 import { registerEquipmentRoutes } from "./modules/equipment/routes.js";
 import type { EquipmentService } from "./modules/equipment/service.js";
+import { registerCategoryRoutes } from "./modules/categories/routes.js";
+import type { CategoryService } from "./modules/categories/service.js";
 
 export interface AppDependencies {
   checkDatabase: () => Promise<void>;
   version?: string;
   auth?: AuthService;
   equipment?: EquipmentService;
+  categories?: CategoryService;
 }
 
 export function buildApp(dependencies: AppDependencies): FastifyInstance {
@@ -45,6 +48,7 @@ export function buildApp(dependencies: AppDependencies): FastifyInstance {
 
   if (dependencies.auth) void registerAuthRoutes(app, dependencies.auth);
   if (dependencies.auth && dependencies.equipment) void registerEquipmentRoutes(app, dependencies.auth, dependencies.equipment);
+  if (dependencies.auth && dependencies.categories) void registerCategoryRoutes(app, dependencies.auth, dependencies.categories);
 
   app.setNotFoundHandler((request, reply) => {
     const body: ApiError = { error: { code: "NOT_FOUND", message: "Ressursen finnes ikke.", requestId: request.id } };

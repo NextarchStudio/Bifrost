@@ -2,11 +2,13 @@ import { buildApp } from "./app.js";
 import { createDatabase, readDatabaseConfig } from "@bifrost/database";
 import { createAuthService } from "./modules/auth/service.js";
 import { createEquipmentService } from "./modules/equipment/service.js";
+import { createCategoryService } from "./modules/categories/service.js";
 
 const database = createDatabase(readDatabaseConfig());
 const app = buildApp({
   auth: createAuthService(database),
   equipment: createEquipmentService(database),
+  categories: createCategoryService(database),
   checkDatabase: async () => {
     const connection = await database.pool.getConnection();
     try {

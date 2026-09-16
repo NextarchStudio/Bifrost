@@ -181,3 +181,22 @@ test("returns conflict when equipment cannot be deleted", async () => {
   assert.equal(response.json().error.code, "CONFLICT");
   await app.close();
 });
+
+test("lists equipment categories for logistics users", async () => {
+  const app = buildApp({
+    checkDatabase: async () => undefined,
+    auth: {
+      getPublicConfig: async () => { throw new Error("not called"); },
+      authenticate: async () => ({ id: 9, name: "Lager", firstName: "Lager", lastName: "", email: "lager@example.test", wannabeId: null, roles: ["logistikk"] }),
+    },
+    categories: {
+      list: async () => [{ id: 1, name: "Kabel" }],
+      create: async (name) => ({ id: 2, name }),
+      delete: async () => undefined,
+    },
+  });
+  const response = await app.inject({ method: "GET", url: "/api/v1/equipment-categories", headers: { authorization: "Bearer valid" } });
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.json()[0].name, "Kabel");
+  await app.close();
+});

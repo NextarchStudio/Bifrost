@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { buildApp } from "./app.js";
+import { AuthenticationError } from "./modules/auth/service.js";
 import type { EquipmentService } from "./modules/equipment/service.js";
 import { EquipmentDomainError } from "./modules/equipment/service.js";
 import type { LocationService } from "./modules/locations/service.js";
@@ -140,6 +141,21 @@ test("denies equipment to users without a logistics role", async () => {
   });
   assert.equal(response.statusCode, 403);
   assert.equal(response.json().error.code, "FORBIDDEN");
+  await app.close();
+});
+
+test("preserves an OIDC configuration error on protected routes", async () => {
+  const app = buildApp({
+    checkDatabase: async () => undefined,
+    auth: {
+      getPublicConfig: async () => { throw new Error("not called"); },
+      authenticate: async () => { throw new AuthenticationError("Keycloak/OIDC er ikke konfigurert.", 503); },
+    },
+    equipment: equipmentStub(),
+  });
+  const response = await app.inject({ method: "GET", url: "/api/v1/equipment", headers: { authorization: "Bearer token" } });
+  assert.equal(response.statusCode, 503);
+  assert.equal(response.json().error.code, "OIDC_NOT_CONFIGURED");
   await app.close();
 });
 

@@ -1,5 +1,6 @@
 import type { ApiError } from "@bifrost/contracts";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import { authenticationErrorCode, requireAuthenticated } from "../../http/authorization.js";
 import { AuthenticationError, type AuthService } from "./service.js";
 
 export async function registerAuthRoutes(app: FastifyInstance, auth: AuthService): Promise<void> {
@@ -13,9 +14,7 @@ export async function registerAuthRoutes(app: FastifyInstance, auth: AuthService
 
   app.get("/api/v1/me", async (request, reply) => {
     try {
-      const header = request.headers.authorization;
-      if (!header?.startsWith("Bearer ")) throw new AuthenticationError("Bearer-token mangler.");
-      return await auth.authenticate(header.slice("Bearer ".length));
+      return await requireAuthenticated(request, auth);
     } catch (error) {
       return sendAuthError(error, request, reply);
     }
@@ -28,7 +27,7 @@ function sendAuthError(error: unknown, request: FastifyRequest, reply: FastifyRe
     : new AuthenticationError("Token kunne ikke valideres.");
   const body: ApiError = {
     error: {
-      code: authError.statusCode === 403 ? "FORBIDDEN" : authError.statusCode === 503 ? "OIDC_NOT_CONFIGURED" : "UNAUTHORIZED",
+      code: authenticationErrorCode(authError),
       message: authError.message,
       requestId: request.id,
     },

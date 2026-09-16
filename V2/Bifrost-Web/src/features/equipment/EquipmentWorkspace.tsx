@@ -1,6 +1,14 @@
-import type { CurrentUser, EquipmentCategory, EquipmentListResponse } from "@bifrost/contracts";
+import type { CurrentUser, EquipmentCategory, EquipmentListItem, EquipmentListResponse } from "@bifrost/contracts";
 import { useEffect, useState } from "react";
-import { createEquipment, getEquipment, getEquipmentCategories } from "../../api/client";
+import {
+  createEquipment,
+  deleteEquipment,
+  getEquipment,
+  getEquipmentCategories,
+  moveEquipment,
+  updateEquipmentDetails,
+  updateEquipmentStatus,
+} from "../../api/client";
 
 export function EquipmentWorkspace({ user, accessToken }: { user: CurrentUser; accessToken: string }) {
   const [search, setSearch] = useState("");
@@ -8,8 +16,10 @@ export function EquipmentWorkspace({ user, accessToken }: { user: CurrentUser; a
   const [data, setData] = useState<EquipmentListResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
+  const [selectedEquipment, setSelectedEquipment] = useState<EquipmentListItem | null>(null);
   const [refresh, setRefresh] = useState(0);
   const [categories, setCategories] = useState<EquipmentCategory[]>([]);
+  const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
     void getEquipmentCategories(accessToken).then(setCategories).catch(() => setCategories([]));
@@ -43,15 +53,16 @@ export function EquipmentWorkspace({ user, accessToken }: { user: CurrentUser; a
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/[.025]">
+        {notice && <div className="border-b border-emerald-300/20 bg-emerald-300/10 px-5 py-4 text-sm text-emerald-200">{notice}</div>}
         {error && <div className="border-b border-rose-400/20 bg-rose-400/10 px-5 py-4 text-sm text-rose-200">{error}</div>}
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[760px] text-left text-sm">
+          <table className="w-full min-w-[860px] text-left text-sm">
             <thead className="border-b border-white/10 text-xs uppercase tracking-wider text-slate-500">
-              <tr><th className="px-5 py-4">Utstyr</th><th className="px-5 py-4">Kategori</th><th className="px-5 py-4">Plassering</th><th className="px-5 py-4">Antall</th><th className="px-5 py-4">Status</th></tr>
+              <tr><th className="px-5 py-4">Utstyr</th><th className="px-5 py-4">Kategori</th><th className="px-5 py-4">Plassering</th><th className="px-5 py-4">Antall</th><th className="px-5 py-4">Status</th><th className="px-5 py-4"><span className="sr-only">Handlinger</span></th></tr>
             </thead>
             <tbody className="divide-y divide-white/[.06]">
-              {!data && !error && <tr><td colSpan={5} className="px-5 py-12 text-center text-slate-500">Henter utstyr …</td></tr>}
-              {data?.items.length === 0 && <tr><td colSpan={5} className="px-5 py-12 text-center text-slate-500">Ingen utstyr matcher søket.</td></tr>}
+              {!data && !error && <tr><td colSpan={6} className="px-5 py-12 text-center text-slate-500">Henter utstyr …</td></tr>}
+              {data?.items.length === 0 && <tr><td colSpan={6} className="px-5 py-12 text-center text-slate-500">Ingen utstyr matcher søket.</td></tr>}
               {data?.items.map((item) => (
                 <tr key={item.id} className="hover:bg-white/[.025]">
                   <td className="px-5 py-4"><p className="font-medium text-slate-200">{item.name}</p><p className="mt-1 text-xs text-slate-600">{item.serialNumber}</p></td>
@@ -59,6 +70,7 @@ export function EquipmentWorkspace({ user, accessToken }: { user: CurrentUser; a
                   <td className="px-5 py-4 text-slate-400">{item.locationName ?? "Ikke plassert"}{item.palletName ? ` · ${item.palletName}` : ""}</td>
                   <td className="px-5 py-4"><span className="text-slate-200">{item.quantity}</span>{item.loanedQuantity > 0 && <span className="ml-2 text-xs text-amber-300">{item.loanedQuantity} utlånt</span>}</td>
                   <td className="px-5 py-4"><StatusBadge status={item.status} /></td>
+                  <td className="px-5 py-4 text-right"><button className="rounded-lg border border-white/10 px-3 py-2 text-xs font-medium text-slate-300 hover:border-emerald-300/40 hover:text-emerald-200" onClick={() => { setNotice(null); setSelectedEquipment(item); }}>Administrer</button></td>
                 </tr>
               ))}
             </tbody>
@@ -76,7 +88,93 @@ export function EquipmentWorkspace({ user, accessToken }: { user: CurrentUser; a
         )}
       </div>
       {showCreate && <CreateEquipmentPanel accessToken={accessToken} categories={categories} onClose={() => setShowCreate(false)} onCreated={() => { setShowCreate(false); setRefresh((value) => value + 1); }} />}
+      {selectedEquipment && (
+        <ManageEquipmentPanel
+          accessToken={accessToken}
+          equipment={selectedEquipment}
+          onClose={() => setSelectedEquipment(null)}
+          onChanged={(message) => {
+            setSelectedEquipment(null);
+            setNotice(message);
+            setRefresh((value) => value + 1);
+          }}
+        />
+      )}
     </section>
+  );
+}
+
+function ManageEquipmentPanel({ accessToken, equipment, onClose, onChanged }: { accessToken: string; equipment: EquipmentListItem; onClose: () => void; onChanged: (message: string) => void }) {
+  const [activeAction, setActiveAction] = useState<"details" | "status" | "move" | "delete" | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const runAction = (action: Exclude<typeof activeAction, null>, operation: Promise<void>, message: string) => {
+    setActiveAction(action);
+    setError(null);
+    void operation.then(() => onChanged(message)).catch((reason) => {
+      setError(reason instanceof Error ? reason.message : "Handlingen kunne ikke fullføres.");
+      setActiveAction(null);
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 z-20 grid place-items-center overflow-y-auto bg-black/70 p-5 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="manage-equipment-title">
+      <div className="my-auto w-full max-w-2xl rounded-2xl border border-white/10 bg-[#0d1927] p-6 shadow-2xl">
+        <div className="flex items-start justify-between gap-5">
+          <div><p className="text-sm text-emerald-300">Utstyr #{equipment.id}</p><h2 id="manage-equipment-title" className="mt-1 text-2xl font-semibold">Administrer {equipment.name}</h2><p className="mt-2 text-sm text-slate-500">Endringer lagres direkte i den eksisterende V1-databasen og føres i audit-loggen.</p></div>
+          <button type="button" className="shrink-0 text-slate-500 hover:text-slate-200" onClick={onClose}>Lukk</button>
+        </div>
+
+        <form className="mt-6 rounded-xl border border-white/10 bg-black/10 p-4" onSubmit={(event) => {
+          event.preventDefault();
+          const form = new FormData(event.currentTarget);
+          runAction("details", updateEquipmentDetails(accessToken, equipment.id, {
+            name: String(form.get("name") ?? ""),
+            serialNumber: String(form.get("serialNumber") ?? ""),
+            quantity: Number(form.get("quantity") ?? 0),
+          }), "Utstyret ble oppdatert.");
+        }}>
+          <h3 className="font-medium text-slate-200">Detaljer og lagerantall</h3>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <Field label="Navn" name="name" defaultValue={equipment.name} required />
+            <Field label="Serienummer" name="serialNumber" defaultValue={equipment.serialNumber} required />
+            <Field label="Antall" name="quantity" type="number" min="0" defaultValue={String(equipment.quantity)} required />
+          </div>
+          <div className="mt-4 flex justify-end"><ActionButton busy={activeAction === "details"} disabled={activeAction !== null}>Lagre detaljer</ActionButton></div>
+        </form>
+
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
+          <form className="rounded-xl border border-white/10 bg-black/10 p-4" onSubmit={(event) => {
+            event.preventDefault();
+            const form = new FormData(event.currentTarget);
+            runAction("status", updateEquipmentStatus(accessToken, equipment.id, String(form.get("status") ?? "")), "Status ble oppdatert.");
+          }}>
+            <h3 className="font-medium text-slate-200">Status</h3>
+            <label className="mt-4 block"><span className="mb-2 block text-sm text-slate-400">Lagerstatus</span><select name="status" defaultValue={equipment.status} className="w-full rounded-xl border border-white/10 bg-[#091421] px-3 py-2.5 outline-none focus:border-emerald-300/60"><option value="available">Tilgjengelig</option><option value="loaned">Utlånt</option><option value="maintenance">Vedlikehold</option>{!["available", "loaned", "maintenance"].includes(equipment.status) && <option value={equipment.status}>{equipment.status}</option>}</select></label>
+            <div className="mt-4 flex justify-end"><ActionButton busy={activeAction === "status"} disabled={activeAction !== null}>Lagre status</ActionButton></div>
+          </form>
+
+          <form className="rounded-xl border border-white/10 bg-black/10 p-4" onSubmit={(event) => {
+            event.preventDefault();
+            const form = new FormData(event.currentTarget);
+            runAction("move", moveEquipment(accessToken, equipment.id, String(form.get("palletQrCode") ?? "")), "Utstyret ble flyttet til pallen.");
+          }}>
+            <h3 className="font-medium text-slate-200">Flytt til palle</h3>
+            <div className="mt-4"><Field label="Pallens strekkode" name="palletQrCode" required /></div>
+            <div className="mt-4 flex justify-end"><ActionButton busy={activeAction === "move"} disabled={activeAction !== null}>Flytt utstyr</ActionButton></div>
+          </form>
+        </div>
+
+        {error && <p className="mt-4 rounded-xl border border-rose-400/20 bg-rose-400/10 px-4 py-3 text-sm text-rose-200">{error}</p>}
+
+        <div className="mt-4 flex flex-col gap-3 rounded-xl border border-rose-400/20 bg-rose-400/[.06] p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div><h3 className="font-medium text-rose-200">Slett utstyr</h3><p className="mt-1 text-xs text-slate-500">Aktive utlån eller forespørsler blokkerer sletting.</p></div>
+          <button type="button" disabled={activeAction !== null} className="rounded-xl border border-rose-400/30 px-4 py-2.5 text-sm font-medium text-rose-200 hover:bg-rose-400/10 disabled:opacity-50" onClick={() => {
+            if (window.confirm(`Er du sikker på at du vil slette ${equipment.name}?`)) runAction("delete", deleteEquipment(accessToken, equipment.id), "Utstyret ble slettet.");
+          }}>{activeAction === "delete" ? "Sletter …" : "Slett utstyr"}</button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -116,6 +214,10 @@ function CreateEquipmentPanel({ accessToken, categories, onClose, onCreated }: {
 function Field(props: { label: string; name: string; type?: string; min?: string; defaultValue?: string; required?: boolean }) {
   const { label, ...inputProps } = props;
   return <label><span className="mb-2 block text-sm text-slate-400">{label}</span><input {...inputProps} className="w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 outline-none focus:border-emerald-300/60" /></label>;
+}
+
+function ActionButton({ busy, disabled, children }: { busy: boolean; disabled: boolean; children: string }) {
+  return <button disabled={disabled} className="rounded-xl bg-emerald-300 px-4 py-2.5 text-sm font-semibold text-slate-950 hover:bg-emerald-200 disabled:opacity-50">{busy ? "Lagrer …" : children}</button>;
 }
 
 function StatusBadge({ status }: { status: string }) {

@@ -12,6 +12,8 @@ import { registerLocationRoutes } from "./modules/locations/routes.js";
 import type { LocationService } from "./modules/locations/service.js";
 import { registerWarehouseRoutes } from "./modules/warehouse/routes.js";
 import type { WarehouseService } from "./modules/warehouse/service.js";
+import { registerLoanRoutes } from "./modules/loans/routes.js";
+import type { LoanService } from "./modules/loans/service.js";
 
 export interface AppDependencies {
   checkDatabase: () => Promise<void>;
@@ -21,6 +23,7 @@ export interface AppDependencies {
   categories?: CategoryService;
   locations?: LocationService;
   warehouse?: WarehouseService;
+  loans?: LoanService;
 }
 
 export function buildApp(dependencies: AppDependencies): FastifyInstance {
@@ -57,6 +60,7 @@ export function buildApp(dependencies: AppDependencies): FastifyInstance {
   if (dependencies.auth && dependencies.categories) void registerCategoryRoutes(app, dependencies.auth, dependencies.categories);
   if (dependencies.auth && dependencies.locations) void registerLocationRoutes(app, dependencies.auth, dependencies.locations);
   if (dependencies.auth && dependencies.warehouse) void registerWarehouseRoutes(app, dependencies.auth, dependencies.warehouse);
+  if (dependencies.auth && dependencies.loans) void registerLoanRoutes(app, dependencies.auth, dependencies.loans);
 
   app.setNotFoundHandler((request, reply) => {
     const body: ApiError = { error: { code: "NOT_FOUND", message: "Ressursen finnes ikke.", requestId: request.id } };

@@ -96,6 +96,7 @@ export const equipmentLoans = mysqlTable("equipment_loans", {
   equipmentId: bigint("equipment_id", { mode: "number", unsigned: true }).notNull(),
   wannabeId: bigint("wannabe_id", { mode: "number", unsigned: true }).notNull(),
   quantity: int({ unsigned: true }).notNull().default(1),
+  requestId: bigint("request_id", { mode: "number", unsigned: true }),
   issuedByUserId: bigint("issued_by_user_id", { mode: "number", unsigned: true }).notNull(),
   issuedAt: datetime("issued_at", { mode: "date" }).notNull(),
   returnedAt: datetime("returned_at", { mode: "date" }),

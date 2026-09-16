@@ -7,6 +7,8 @@ import { EquipmentDomainError } from "./modules/equipment/service.js";
 import type { LocationService } from "./modules/locations/service.js";
 import type { WarehouseService } from "./modules/warehouse/service.js";
 import { WarehouseDomainError } from "./modules/warehouse/service.js";
+import type { LoanService } from "./modules/loans/service.js";
+import { LoanDomainError } from "./modules/loans/service.js";
 
 const locationStub = (overrides: Partial<LocationService> = {}): LocationService => ({
   list: async () => [],
@@ -24,6 +26,13 @@ const warehouseStub = (overrides: Partial<WarehouseService> = {}): WarehouseServ
   addEquipmentByBarcode: async () => undefined,
   movePallet: async () => undefined,
   deletePallet: async () => undefined,
+  ...overrides,
+});
+
+const loanStub = (overrides: Partial<LoanService> = {}): LoanService => ({
+  listActive: async (query) => ({ items: [], pagination: { ...query, total: 0, pageCount: 0 } }),
+  issue: async () => ({ loanIds: [1] }),
+  returnLoan: async (id, quantity) => ({ loanId: id, returnedQuantity: quantity, remainingQuantity: 0, status: "returned" }),
   ...overrides,
 });
 
@@ -320,5 +329,39 @@ test("moves equipment to a pallet by barcode", async () => {
   const response = await app.inject({ method: "POST", url: "/api/v1/pallets/equipment", headers: { authorization: "Bearer valid" }, payload: { palletQrCode: "PAL-12", equipmentBarcode: "EQ-99" } });
   assert.equal(response.statusCode, 204);
   assert.equal(scanned, "PAL-12:EQ-99");
+  await app.close();
+});
+
+test("issues multiple loan lines atomically through the service", async () => {
+  let actor = 0;
+  let lineCount = 0;
+  const app = buildApp({
+    checkDatabase: async () => undefined,
+    auth: {
+      getPublicConfig: async () => { throw new Error("not called"); },
+      authenticate: async () => ({ id: 21, name: "Lager", firstName: "Lager", lastName: "", email: "lager@example.test", wannabeId: null, roles: ["logistikk"] }),
+    },
+    loans: loanStub({ issue: async (input, actorUserId) => { actor = actorUserId; lineCount = input.lines.length; return { loanIds: [10, 11] }; } }),
+  });
+  const response = await app.inject({ method: "POST", url: "/api/v1/loans", headers: { authorization: "Bearer valid" }, payload: { wannabeId: 12345, lines: [{ barcode: "EQ-1", quantity: 1 }, { barcode: "EQ-2", quantity: 2 }] } });
+  assert.equal(response.statusCode, 201);
+  assert.deepEqual(response.json().loanIds, [10, 11]);
+  assert.equal(actor, 21);
+  assert.equal(lineCount, 2);
+  await app.close();
+});
+
+test("rejects returning more equipment than is on the loan", async () => {
+  const app = buildApp({
+    checkDatabase: async () => undefined,
+    auth: {
+      getPublicConfig: async () => { throw new Error("not called"); },
+      authenticate: async () => ({ id: 21, name: "Lager", firstName: "Lager", lastName: "", email: "lager@example.test", wannabeId: null, roles: ["logistikk"] }),
+    },
+    loans: loanStub({ returnLoan: async () => { throw new LoanDomainError("Du kan ikke returnere flere enn det som er lånt ut.", "CONFLICT"); } }),
+  });
+  const response = await app.inject({ method: "POST", url: "/api/v1/loans/10/return", headers: { authorization: "Bearer valid" }, payload: { quantity: 4 } });
+  assert.equal(response.statusCode, 409);
+  assert.equal(response.json().error.code, "CONFLICT");
   await app.close();
 });

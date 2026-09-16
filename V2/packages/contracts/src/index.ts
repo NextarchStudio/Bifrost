@@ -117,3 +117,38 @@ export interface PalletInspection {
   pallet: Pallet;
   rows: PalletInspectionRow[];
 }
+
+export interface EquipmentLoanListItem {
+  id: number;
+  equipmentId: number;
+  equipmentName: string;
+  serialNumber: string;
+  wannabeId: number;
+  borrowerName: string | null;
+  quantity: number;
+  requestId: number | null;
+  issuedByUserId: number;
+  issuedAt: string;
+  status: string;
+}
+
+export interface EquipmentLoanListResponse {
+  items: EquipmentLoanListItem[];
+  pagination: {
+    page: number;
+    pageSize: number;
+    total: number;
+    pageCount: number;
+  };
+}
+
+export interface EquipmentLoanIssueResponse {
+  loanIds: number[];
+}
+
+export interface EquipmentLoanReturnResponse {
+  loanId: number;
+  returnedQuantity: number;
+  remainingQuantity: number;
+  status: "active" | "returned";
+}

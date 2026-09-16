@@ -5,6 +5,7 @@ import { createEquipmentService } from "./modules/equipment/service.js";
 import { createCategoryService } from "./modules/categories/service.js";
 import { createLocationService } from "./modules/locations/service.js";
 import { createWarehouseService } from "./modules/warehouse/service.js";
+import { createLoanService } from "./modules/loans/service.js";
 
 const database = createDatabase(readDatabaseConfig());
 const app = buildApp({
@@ -13,6 +14,7 @@ const app = buildApp({
   categories: createCategoryService(database),
   locations: createLocationService(database),
   warehouse: createWarehouseService(database),
+  loans: createLoanService(database),
   checkDatabase: async () => {
     const connection = await database.pool.getConnection();
     try {

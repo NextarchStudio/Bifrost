@@ -1,4 +1,4 @@
-import type { ApiError, CurrentUser, EquipmentCategory, EquipmentListResponse, EquipmentMutationResponse, Location, Pallet, PalletInspection } from "@bifrost/contracts";
+import type { ApiError, CurrentUser, EquipmentCategory, EquipmentListResponse, EquipmentLoanIssueResponse, EquipmentLoanListResponse, EquipmentLoanReturnResponse, EquipmentMutationResponse, Location, Pallet, PalletInspection } from "@bifrost/contracts";
 
 const apiUrl = (import.meta.env.VITE_API_URL || "http://localhost:3001").replace(/\/$/, "");
 
@@ -145,6 +145,36 @@ export async function createPalletSlot(accessToken: string, palletId: number, in
 export async function deletePallet(accessToken: string, palletId: number): Promise<void> {
   const response = await fetch(`${apiUrl}/api/v1/pallets/${palletId}`, { method: "DELETE", headers: createHeaders(accessToken) });
   if (!response.ok) throw await createApiError(response, "Kunne ikke slette pallen.");
+}
+
+export async function getEquipmentLoans(
+  accessToken: string,
+  query: { page: number; pageSize?: number; search?: string },
+): Promise<EquipmentLoanListResponse> {
+  const params = new URLSearchParams({ page: String(query.page), pageSize: String(query.pageSize ?? 25) });
+  if (query.search) params.set("search", query.search);
+  const response = await fetch(`${apiUrl}/api/v1/loans?${params}`, { headers: createHeaders(accessToken) });
+  if (!response.ok) throw await createApiError(response, "Kunne ikke hente aktive lån.");
+  return response.json() as Promise<EquipmentLoanListResponse>;
+}
+
+export async function issueEquipmentLoans(
+  accessToken: string,
+  input: { wannabeId: number; lines: Array<{ barcode: string; quantity: number }> },
+): Promise<EquipmentLoanIssueResponse> {
+  const headers = createHeaders(accessToken);
+  headers.set("Content-Type", "application/json");
+  const response = await fetch(`${apiUrl}/api/v1/loans`, { method: "POST", headers, body: JSON.stringify(input) });
+  if (!response.ok) throw await createApiError(response, "Kunne ikke registrere lånet.");
+  return response.json() as Promise<EquipmentLoanIssueResponse>;
+}
+
+export async function returnEquipmentLoan(accessToken: string, loanId: number, quantity: number): Promise<EquipmentLoanReturnResponse> {
+  const headers = createHeaders(accessToken);
+  headers.set("Content-Type", "application/json");
+  const response = await fetch(`${apiUrl}/api/v1/loans/${loanId}/return`, { method: "POST", headers, body: JSON.stringify({ quantity }) });
+  if (!response.ok) throw await createApiError(response, "Kunne ikke returnere utstyret.");
+  return response.json() as Promise<EquipmentLoanReturnResponse>;
 }
 
 async function sendApiMutation(

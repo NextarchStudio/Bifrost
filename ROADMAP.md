@@ -34,7 +34,8 @@ V1 er i dag en CodeIgniter 4-applikasjon med PHP 8.2+, MariaDB, server-renderte 
 | Fase 1 – fundament | Nær ferdig | pnpm-monorepo, strict TypeScript, Fastify, React/Vite/Tailwind, Drizzle, health/readiness, PM2-oppsett og samlet kvalitetssjekk er på plass. CI og lokal databasecontainer gjenstår. |
 | Fase 2 – identitet | Pågår | Obligatorisk Keycloak/OIDC med PKCE, JWT/JWKS-validering, automatisk V1-brukerprovisjonering og eksisterende roller er på plass. Audit av innlogging og full tilgangsmatrise gjenstår. |
 | Fase 3 – lager og utstyr | Nær ferdig | Utstyr, kategoriadministrasjon, lokasjoner, paller, palleplasser, strekkodeflyt, inspeksjon, flytting, slettingsvern, audit og nytt React-design er implementert. Playwright og paritetstest mot representativ V1-database gjenstår. |
-| Fase 4–7 | Ikke startet | Utlån/retur og forespørsler er neste funksjonelle hovedmilepæl etter at fase 3 er verifisert. |
+| Fase 4 – utlån og forespørsler | Pågår | Grunnflyt for transaksjonelt flerlinje-utlån, aktive lån, delretur og full retur er implementert i API og Web. Person-/badge-oppslag, private utstyrsvarsler, kjøretøy og utstyrsforespørsler gjenstår. |
+| Fase 5–7 | Ikke startet | Transport, samband, shop, øvrig admin og produksjonssetting følger etter fase 4. |
 
 Teknisk fundament kjører som `Bifrost-API`, `Bifrost-Web` og `Bifrost-Worker`. V1-tabellene brukes direkte. Nye tekniske tabeller for kryptert konfigurasjon og jobbkø har `bifrost_`-prefiks. Hele V2 kan verifiseres med `pnpm check`.
 
@@ -44,7 +45,7 @@ Teknisk fundament kjører som `Bifrost-API`, `Bifrost-Web` og `Bifrost-Worker`. 
 2. Kjør V2 mot en anonymisert kopi av eksisterende database og dokumenter V1/V2-avvik.
 3. Legg til Playwright-flyt for opprett utstyr → opprett palle → flytt → inspiser.
 4. Verifiser Keycloak-klient, redirect URI, roller og token-claims i staging.
-5. Start fase 4 med utstyrslån og retur som første transaksjonelle modul.
+5. Fortsett fase 4 med person-/badge-oppslag og utstyrsforespørsler.
 
 ## 2. Omfanget i V1
 

@@ -2,6 +2,8 @@ import type { CurrentUser, EquipmentCategory, EquipmentListItem, EquipmentListRe
 import { useEffect, useState } from "react";
 import {
   createEquipment,
+  createEquipmentCategory,
+  deleteEquipmentCategory,
   deleteEquipment,
   getEquipment,
   getEquipmentCategories,
@@ -16,14 +18,16 @@ export function EquipmentWorkspace({ user, accessToken }: { user: CurrentUser; a
   const [data, setData] = useState<EquipmentListResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
+  const [showCategories, setShowCategories] = useState(false);
   const [selectedEquipment, setSelectedEquipment] = useState<EquipmentListItem | null>(null);
   const [refresh, setRefresh] = useState(0);
   const [categories, setCategories] = useState<EquipmentCategory[]>([]);
+  const [categoryRefresh, setCategoryRefresh] = useState(0);
   const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
     void getEquipmentCategories(accessToken).then(setCategories).catch(() => setCategories([]));
-  }, [accessToken]);
+  }, [accessToken, categoryRefresh]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -43,11 +47,12 @@ export function EquipmentWorkspace({ user, accessToken }: { user: CurrentUser; a
           <h1 className="mt-2 text-3xl font-semibold tracking-tight">Utstyr</h1>
           <p className="mt-2 text-sm text-slate-500">{user.name} · {user.roles.join(", ")}</p>
         </div>
-        <div className="flex w-full gap-3 md:w-auto">
+        <div className="flex w-full flex-wrap gap-3 md:w-auto">
           <label className="relative block min-w-0 flex-1 md:w-80">
             <span className="sr-only">Søk etter utstyr</span>
             <input className="w-full rounded-xl border border-white/10 bg-white/[.04] px-4 py-3 text-sm text-slate-100 outline-none placeholder:text-slate-600 focus:border-emerald-300/60" placeholder="Søk etter navn …" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} />
           </label>
+          <button className="rounded-xl border border-white/10 px-4 py-3 text-sm font-medium text-slate-300 hover:border-emerald-300/40 hover:text-emerald-200" onClick={() => { setNotice(null); setShowCategories(true); }}>Kategorier</button>
           <button className="rounded-xl bg-emerald-300 px-4 py-3 text-sm font-semibold text-slate-950 hover:bg-emerald-200" onClick={() => setShowCreate(true)}>Nytt utstyr</button>
         </div>
       </div>
@@ -88,6 +93,7 @@ export function EquipmentWorkspace({ user, accessToken }: { user: CurrentUser; a
         )}
       </div>
       {showCreate && <CreateEquipmentPanel accessToken={accessToken} categories={categories} onClose={() => setShowCreate(false)} onCreated={() => { setShowCreate(false); setRefresh((value) => value + 1); }} />}
+      {showCategories && <CategoryManagementPanel accessToken={accessToken} categories={categories} onClose={() => setShowCategories(false)} onChanged={(message) => { setNotice(message); setCategoryRefresh((value) => value + 1); }} />}
       {selectedEquipment && (
         <ManageEquipmentPanel
           accessToken={accessToken}
@@ -101,6 +107,36 @@ export function EquipmentWorkspace({ user, accessToken }: { user: CurrentUser; a
         />
       )}
     </section>
+  );
+}
+
+function CategoryManagementPanel({ accessToken, categories, onClose, onChanged }: { accessToken: string; categories: EquipmentCategory[]; onClose: () => void; onChanged: (message: string) => void }) {
+  const [activeAction, setActiveAction] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const runAction = (action: string, operation: Promise<unknown>, message: string, form?: HTMLFormElement) => {
+    setActiveAction(action); setError(null);
+    void operation.then(() => { form?.reset(); onChanged(message); }).catch((reason) => {
+      setError(reason instanceof Error ? reason.message : "Handlingen kunne ikke fullføres.");
+    }).finally(() => setActiveAction(null));
+  };
+
+  return (
+    <div className="fixed inset-0 z-20 grid place-items-center bg-black/70 p-5 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="categories-title">
+      <div className="w-full max-w-lg rounded-2xl border border-white/10 bg-[#0d1927] p-6 shadow-2xl">
+        <div className="flex items-start justify-between gap-5"><div><p className="text-sm text-emerald-300">Utstyr</p><h2 id="categories-title" className="mt-1 text-2xl font-semibold">Kategorier</h2><p className="mt-2 text-sm leading-6 text-slate-500">Kategorier som brukes av utstyr kan ikke slettes.</p></div><button type="button" className="text-slate-500 hover:text-slate-200" onClick={onClose}>Lukk</button></div>
+        <form className="mt-6 flex gap-3" onSubmit={(event) => {
+          event.preventDefault();
+          const formElement = event.currentTarget;
+          const name = String(new FormData(formElement).get("name") ?? "");
+          runAction("create", createEquipmentCategory(accessToken, name), "Kategorien ble opprettet.", formElement);
+        }}><div className="min-w-0 flex-1"><Field label="Ny kategori" name="name" required /></div><button disabled={activeAction !== null} className="mt-7 rounded-xl bg-emerald-300 px-4 py-2.5 text-sm font-semibold text-slate-950 disabled:opacity-50">{activeAction === "create" ? "Lagrer …" : "Opprett"}</button></form>
+        {error && <p className="mt-4 rounded-xl border border-rose-400/20 bg-rose-400/10 px-4 py-3 text-sm text-rose-200">{error}</p>}
+        <div className="mt-5 max-h-80 overflow-y-auto rounded-xl border border-white/10"><ul className="divide-y divide-white/[.06]">{categories.length === 0 && <li className="px-4 py-8 text-center text-sm text-slate-500">Ingen kategorier er registrert.</li>}{categories.map((category) => <li key={category.id} className="flex items-center justify-between gap-4 px-4 py-3"><span className="text-sm text-slate-300">{category.name}</span><button type="button" disabled={activeAction !== null} className="rounded-lg border border-rose-400/20 px-3 py-2 text-xs text-rose-300 hover:bg-rose-400/10 disabled:opacity-40" onClick={() => {
+          if (window.confirm(`Er du sikker på at du vil slette kategorien ${category.name}?`)) runAction(`delete-${category.id}`, deleteEquipmentCategory(accessToken, category.id), "Kategorien ble slettet.");
+        }}>{activeAction === `delete-${category.id}` ? "Sletter …" : "Slett"}</button></li>)}</ul></div>
+      </div>
+    </div>
   );
 }
 

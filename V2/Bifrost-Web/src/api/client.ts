@@ -64,6 +64,19 @@ export async function getEquipmentCategories(accessToken: string): Promise<Equip
   return response.json() as Promise<EquipmentCategory[]>;
 }
 
+export async function createEquipmentCategory(accessToken: string, name: string): Promise<EquipmentCategory> {
+  const headers = createHeaders(accessToken);
+  headers.set("Content-Type", "application/json");
+  const response = await fetch(`${apiUrl}/api/v1/equipment-categories`, { method: "POST", headers, body: JSON.stringify({ name }) });
+  if (!response.ok) throw await createApiError(response, "Kunne ikke opprette kategorien.");
+  return response.json() as Promise<EquipmentCategory>;
+}
+
+export async function deleteEquipmentCategory(accessToken: string, categoryId: number): Promise<void> {
+  const response = await fetch(`${apiUrl}/api/v1/equipment-categories/${categoryId}`, { method: "DELETE", headers: createHeaders(accessToken) });
+  if (!response.ok) throw await createApiError(response, "Kunne ikke slette kategorien.");
+}
+
 export async function getLocations(accessToken: string): Promise<Location[]> {
   const response = await fetch(`${apiUrl}/api/v1/locations`, { headers: createHeaders(accessToken) });
   if (!response.ok) throw await createApiError(response, "Kunne ikke hente lokasjoner.");

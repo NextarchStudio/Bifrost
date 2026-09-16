@@ -1,15 +1,26 @@
 import type { ApiError, HealthResponse, ReadyResponse } from "@bifrost/contracts";
+import cors from "@fastify/cors";
+import helmet from "@fastify/helmet";
 import Fastify, { type FastifyInstance } from "fastify";
+import { registerAuthRoutes } from "./modules/auth/routes.js";
+import type { AuthService } from "./modules/auth/service.js";
 
 export interface AppDependencies {
   checkDatabase: () => Promise<void>;
   version?: string;
+  auth?: AuthService;
 }
 
 export function buildApp(dependencies: AppDependencies): FastifyInstance {
   const app = Fastify({
     logger: true,
     genReqId: (request) => request.headers["x-request-id"]?.toString() ?? crypto.randomUUID(),
+  });
+
+  void app.register(helmet);
+  void app.register(cors, {
+    origin: [/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/],
+    allowedHeaders: ["Authorization", "Content-Type", "X-Bifrost-Client", "X-Request-Id"],
   });
 
   app.get("/health", async (): Promise<HealthResponse> => ({
@@ -28,6 +39,8 @@ export function buildApp(dependencies: AppDependencies): FastifyInstance {
       return { service: "bifrost-api", status: "not_ready", database: "unavailable", timestamp: new Date().toISOString() };
     }
   });
+
+  if (dependencies.auth) void registerAuthRoutes(app, dependencies.auth);
 
   app.setNotFoundHandler((request, reply) => {
     const body: ApiError = { error: { code: "NOT_FOUND", message: "Ressursen finnes ikke.", requestId: request.id } };

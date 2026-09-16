@@ -42,6 +42,10 @@ export const systemSettings = mysqlTable("system_settings", {
   keycloakClientId: varchar("keycloak_client_id", { length: 180 }),
   keycloakClientSecret: varchar("keycloak_client_secret", { length: 255 }),
   keycloakRedirectUri: varchar("keycloak_redirect_uri", { length: 255 }),
+  smtpPass: varchar("smtp_pass", { length: 255 }),
+  googleMapsApiKey: varchar("google_maps_api_key", { length: 255 }),
+  vegvesenApiKey: varchar("vegvesen_api_key", { length: 255 }),
+  crewApiBearerToken: text("crew_api_bearer_token"),
 });
 
 export const equipment = mysqlTable("equipment", {

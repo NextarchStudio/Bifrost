@@ -35,3 +35,20 @@ export interface ApiError {
     requestId: string;
   };
 }
+
+export interface OidcPublicConfig {
+  authority: string;
+  clientId: string;
+  redirectUri: string;
+  scope: "openid profile email";
+}
+
+export interface CurrentUser {
+  id: number;
+  name: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  wannabeId: number | null;
+  roles: string[];
+}

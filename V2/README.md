@@ -54,6 +54,14 @@ V1-tabellene beholdes. Drizzle-definisjonene i `packages/database` mapper mot ek
 
 Kjør migreringen i `database/migrations/0001_bifrost_v2_foundation.sql` eksplisitt mot korrekt database før funksjoner som krever V2-jobbkø eller sikker konfigurasjon tas i bruk. Ta backup og verifiser restore først.
 
+Etter tabellmigreringen kan eksisterende V1-hemmeligheter kopieres til kryptert V2-lagring:
+
+```bash
+pnpm --filter @bifrost/api migrate:secrets
+```
+
+Kommandoen oppretter en lokal master key i `V2/var/secrets/settings.key` og kopierer hemmelighetene til `bifrost_secure_settings`. Nøkkelfilen og databasebackupen må sikres separat. Kommandoen fjerner ikke V1-feltene, fordi V1 må fortsette å fungere under parallell drift.
+
 ## PM2
 
 ```bash

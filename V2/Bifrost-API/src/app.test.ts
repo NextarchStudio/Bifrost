@@ -4,12 +4,25 @@ import { buildApp } from "./app.js";
 import type { EquipmentService } from "./modules/equipment/service.js";
 import { EquipmentDomainError } from "./modules/equipment/service.js";
 import type { LocationService } from "./modules/locations/service.js";
+import type { WarehouseService } from "./modules/warehouse/service.js";
+import { WarehouseDomainError } from "./modules/warehouse/service.js";
 
 const locationStub = (overrides: Partial<LocationService> = {}): LocationService => ({
   list: async () => [],
   create: async (input) => ({ id: 1, address: input.address ?? null, ...input }),
   update: async () => undefined,
   delete: async () => undefined,
+  ...overrides,
+});
+
+const warehouseStub = (overrides: Partial<WarehouseService> = {}): WarehouseService => ({
+  listPallets: async () => [],
+  inspectPallet: async () => { throw new Error("not called"); },
+  createPallet: async (input) => ({ id: 1, locationName: "Lager", ...input }),
+  createSlot: async () => ({ id: 1 }),
+  addEquipmentByBarcode: async () => undefined,
+  movePallet: async () => undefined,
+  deletePallet: async () => undefined,
   ...overrides,
 });
 
@@ -241,5 +254,55 @@ test("rejects an invalid location payload", async () => {
   const response = await app.inject({ method: "POST", url: "/api/v1/locations", headers: { authorization: "Bearer valid" }, payload: { name: "", type: "Lager" } });
   assert.equal(response.statusCode, 400);
   assert.equal(response.json().error.code, "INVALID_BODY");
+  await app.close();
+});
+
+test("creates a pallet with actor context", async () => {
+  let actor = 0;
+  const app = buildApp({
+    checkDatabase: async () => undefined,
+    auth: {
+      getPublicConfig: async () => { throw new Error("not called"); },
+      authenticate: async () => ({ id: 18, name: "Lager", firstName: "Lager", lastName: "", email: "lager@example.test", wannabeId: null, roles: ["logistikk"] }),
+    },
+    warehouse: warehouseStub({
+      createPallet: async (input, actorUserId) => { actor = actorUserId; return { id: 5, locationName: "Varemottak", ...input }; },
+    }),
+  });
+  const response = await app.inject({ method: "POST", url: "/api/v1/pallets", headers: { authorization: "Bearer valid" }, payload: { name: "Palle 12", qrCode: "PAL-12", locationId: 3 } });
+  assert.equal(response.statusCode, 201);
+  assert.equal(response.json().qrCode, "PAL-12");
+  assert.equal(actor, 18);
+  await app.close();
+});
+
+test("returns conflict when a pallet contains equipment", async () => {
+  const app = buildApp({
+    checkDatabase: async () => undefined,
+    auth: {
+      getPublicConfig: async () => { throw new Error("not called"); },
+      authenticate: async () => ({ id: 18, name: "Lager", firstName: "Lager", lastName: "", email: "lager@example.test", wannabeId: null, roles: ["logistikk"] }),
+    },
+    warehouse: warehouseStub({ deletePallet: async () => { throw new WarehouseDomainError("Pallen inneholder utstyr.", "CONFLICT"); } }),
+  });
+  const response = await app.inject({ method: "DELETE", url: "/api/v1/pallets/5", headers: { authorization: "Bearer valid" } });
+  assert.equal(response.statusCode, 409);
+  assert.equal(response.json().error.code, "CONFLICT");
+  await app.close();
+});
+
+test("moves equipment to a pallet by barcode", async () => {
+  let scanned = "";
+  const app = buildApp({
+    checkDatabase: async () => undefined,
+    auth: {
+      getPublicConfig: async () => { throw new Error("not called"); },
+      authenticate: async () => ({ id: 18, name: "Lager", firstName: "Lager", lastName: "", email: "lager@example.test", wannabeId: null, roles: ["logistikk"] }),
+    },
+    warehouse: warehouseStub({ addEquipmentByBarcode: async (palletQrCode, equipmentBarcode) => { scanned = `${palletQrCode}:${equipmentBarcode}`; } }),
+  });
+  const response = await app.inject({ method: "POST", url: "/api/v1/pallets/equipment", headers: { authorization: "Bearer valid" }, payload: { palletQrCode: "PAL-12", equipmentBarcode: "EQ-99" } });
+  assert.equal(response.statusCode, 204);
+  assert.equal(scanned, "PAL-12:EQ-99");
   await app.close();
 });

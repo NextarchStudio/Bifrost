@@ -5,6 +5,7 @@ import { getCurrentUser } from "./api/client";
 import { beginSignIn, completeSignIn, getSignedInUser, signOut } from "./auth/oidc";
 import { EquipmentWorkspace } from "./features/equipment/EquipmentWorkspace";
 import { LocationWorkspace } from "./features/locations/LocationWorkspace";
+import { WarehouseWorkspace } from "./features/warehouse/WarehouseWorkspace";
 import "./styles.css";
 
 type SessionState =
@@ -15,7 +16,7 @@ type SessionState =
 
 function App() {
   const [session, setSession] = useState<SessionState>({ status: "loading" });
-  const [workspace, setWorkspace] = useState<"equipment" | "locations">(window.location.pathname === "/locations" ? "locations" : "equipment");
+  const [workspace, setWorkspace] = useState<Workspace>(workspaceFromPath());
 
   useEffect(() => {
     const load = async () => {
@@ -33,12 +34,12 @@ function App() {
   }, []);
 
   useEffect(() => {
-    const handleNavigation = () => setWorkspace(window.location.pathname === "/locations" ? "locations" : "equipment");
+    const handleNavigation = () => setWorkspace(workspaceFromPath());
     window.addEventListener("popstate", handleNavigation);
     return () => window.removeEventListener("popstate", handleNavigation);
   }, []);
 
-  const navigate = (nextWorkspace: "equipment" | "locations") => {
+  const navigate = (nextWorkspace: Workspace) => {
     setWorkspace(nextWorkspace);
     window.history.pushState({}, "", `/${nextWorkspace}`);
   };
@@ -51,11 +52,11 @@ function App() {
             <div className="grid size-10 place-items-center rounded-xl bg-emerald-300 font-black text-slate-950">B</div>
             <div><p className="font-semibold">Bifrost</p><p className="text-xs text-slate-500">TG Logistics</p></div>
           </div>
-          {session.status === "authenticated" && <div className="flex flex-wrap items-center gap-2"><nav className="mr-2 flex rounded-xl border border-white/10 bg-white/[.025] p-1" aria-label="Hovednavigasjon"><NavigationButton active={workspace === "equipment"} onClick={() => navigate("equipment")}>Utstyr</NavigationButton><NavigationButton active={workspace === "locations"} onClick={() => navigate("locations")}>Lokasjoner</NavigationButton></nav><button className="rounded-lg border border-white/10 px-4 py-2 text-sm text-slate-300 hover:bg-white/5" onClick={() => void signOut()}>Logg ut</button></div>}
+          {session.status === "authenticated" && <div className="flex flex-wrap items-center gap-2"><nav className="mr-2 flex rounded-xl border border-white/10 bg-white/[.025] p-1" aria-label="Hovednavigasjon"><NavigationButton active={workspace === "equipment"} onClick={() => navigate("equipment")}>Utstyr</NavigationButton><NavigationButton active={workspace === "warehouse"} onClick={() => navigate("warehouse")}>Lager</NavigationButton><NavigationButton active={workspace === "locations"} onClick={() => navigate("locations")}>Lokasjoner</NavigationButton></nav><button className="rounded-lg border border-white/10 px-4 py-2 text-sm text-slate-300 hover:bg-white/5" onClick={() => void signOut()}>Logg ut</button></div>}
         </header>
 
         {session.status === "authenticated" ? (
-          workspace === "locations" ? <LocationWorkspace accessToken={session.accessToken} /> : <EquipmentWorkspace user={session.user} accessToken={session.accessToken} />
+          workspace === "locations" ? <LocationWorkspace accessToken={session.accessToken} /> : workspace === "warehouse" ? <WarehouseWorkspace accessToken={session.accessToken} /> : <EquipmentWorkspace user={session.user} accessToken={session.accessToken} />
         ) : <section className="grid flex-1 items-center gap-12 py-16 lg:grid-cols-[1.15fr_.85fr]">
           <div>
             <p className="mb-5 text-xs font-bold tracking-[.22em] text-emerald-300">BIFROST V2 · SIKKER LOGISTIKK</p>
@@ -79,6 +80,14 @@ function App() {
       </div>
     </main>
   );
+}
+
+type Workspace = "equipment" | "warehouse" | "locations";
+
+function workspaceFromPath(): Workspace {
+  if (window.location.pathname === "/locations") return "locations";
+  if (window.location.pathname === "/warehouse") return "warehouse";
+  return "equipment";
 }
 
 function NavigationButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: string }) {

@@ -1,4 +1,4 @@
-import type { ApiError, CurrentUser, EquipmentCategory, EquipmentListResponse, EquipmentMutationResponse, Location } from "@bifrost/contracts";
+import type { ApiError, CurrentUser, EquipmentCategory, EquipmentListResponse, EquipmentMutationResponse, Location, Pallet, PalletInspection } from "@bifrost/contracts";
 
 const apiUrl = (import.meta.env.VITE_API_URL || "http://localhost:3001").replace(/\/$/, "");
 
@@ -95,6 +95,43 @@ export async function deleteLocation(accessToken: string, locationId: number): P
     headers: createHeaders(accessToken),
   });
   if (!response.ok) throw await createApiError(response, "Kunne ikke slette lokasjonen.");
+}
+
+export async function getPallets(accessToken: string): Promise<Pallet[]> {
+  const response = await fetch(`${apiUrl}/api/v1/pallets`, { headers: createHeaders(accessToken) });
+  if (!response.ok) throw await createApiError(response, "Kunne ikke hente paller.");
+  return response.json() as Promise<Pallet[]>;
+}
+
+export async function getPalletInspection(accessToken: string, palletId: number): Promise<PalletInspection> {
+  const response = await fetch(`${apiUrl}/api/v1/pallets/${palletId}`, { headers: createHeaders(accessToken) });
+  if (!response.ok) throw await createApiError(response, "Kunne ikke inspisere pallen.");
+  return response.json() as Promise<PalletInspection>;
+}
+
+export async function createPallet(accessToken: string, input: { locationId: number; name: string; qrCode: string }): Promise<Pallet> {
+  const headers = createHeaders(accessToken);
+  headers.set("Content-Type", "application/json");
+  const response = await fetch(`${apiUrl}/api/v1/pallets`, { method: "POST", headers, body: JSON.stringify(input) });
+  if (!response.ok) throw await createApiError(response, "Kunne ikke opprette pallen.");
+  return response.json() as Promise<Pallet>;
+}
+
+export async function movePalletToLocation(accessToken: string, palletId: number, locationId: number): Promise<void> {
+  await sendApiMutation(accessToken, `/api/v1/pallets/${palletId}/location`, "PATCH", { locationId }, "Kunne ikke flytte pallen.");
+}
+
+export async function addEquipmentToPallet(accessToken: string, input: { palletQrCode: string; equipmentBarcode: string }): Promise<void> {
+  await sendApiMutation(accessToken, "/api/v1/pallets/equipment", "POST", input, "Kunne ikke legge utstyret på pallen.");
+}
+
+export async function createPalletSlot(accessToken: string, palletId: number, input: { slotNumber: number; status: string }): Promise<void> {
+  await sendApiMutation(accessToken, `/api/v1/pallets/${palletId}/slots`, "POST", input, "Kunne ikke opprette palleplassen.");
+}
+
+export async function deletePallet(accessToken: string, palletId: number): Promise<void> {
+  const response = await fetch(`${apiUrl}/api/v1/pallets/${palletId}`, { method: "DELETE", headers: createHeaders(accessToken) });
+  if (!response.ok) throw await createApiError(response, "Kunne ikke slette pallen.");
 }
 
 async function sendApiMutation(

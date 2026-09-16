@@ -93,3 +93,27 @@ export interface Location {
   type: string;
   address: string | null;
 }
+
+export interface Pallet {
+  id: number;
+  locationId: number;
+  name: string;
+  qrCode: string | null;
+  locationName: string;
+}
+
+export interface PalletInspectionRow {
+  slotId: number;
+  slotNumber: number;
+  slotStatus: string;
+  equipmentId: number | null;
+  equipmentName: string | null;
+  serialNumber: string | null;
+  quantity: number | null;
+  equipmentStatus: string | null;
+}
+
+export interface PalletInspection {
+  pallet: Pallet;
+  rows: PalletInspectionRow[];
+}

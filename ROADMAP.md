@@ -26,6 +26,26 @@ V1 er i dag en CodeIgniter 4-applikasjon med PHP 8.2+, MariaDB, server-renderte 
 - PM2 kjører API, Web og Worker.
 - Sensitive verdier krypteres; passord og verifiseringsverdier hashes og skal aldri dekrypteres.
 
+## 1.2 Implementeringsstatus per 16. september 2026
+
+| Område | Status | Levert |
+|---|---|---|
+| Fase 0 – baseline | Pågår | V1 er bevart under `V1/` og brukes som funksjonell kilde. Komplett domenematrise, anonymisert staging-database og restore-test gjenstår. |
+| Fase 1 – fundament | Nær ferdig | pnpm-monorepo, strict TypeScript, Fastify, React/Vite/Tailwind, Drizzle, health/readiness, PM2-oppsett og samlet kvalitetssjekk er på plass. CI og lokal databasecontainer gjenstår. |
+| Fase 2 – identitet | Pågår | Obligatorisk Keycloak/OIDC med PKCE, JWT/JWKS-validering, automatisk V1-brukerprovisjonering og eksisterende roller er på plass. Audit av innlogging og full tilgangsmatrise gjenstår. |
+| Fase 3 – lager og utstyr | Nær ferdig | Utstyr, kategorier i API, lokasjoner, paller, palleplasser, strekkodeflyt, inspeksjon, flytting, slettingsvern, audit og nytt React-design er implementert. Kategoriadministrasjon i Web, Playwright og paritetstest mot representativ V1-database gjenstår. |
+| Fase 4–7 | Ikke startet | Utlån/retur og forespørsler er neste funksjonelle hovedmilepæl etter at fase 3 er verifisert. |
+
+Teknisk fundament kjører som `Bifrost-API`, `Bifrost-Web` og `Bifrost-Worker`. V1-tabellene brukes direkte. Nye tekniske tabeller for kryptert konfigurasjon og jobbkø har `bifrost_`-prefiks. Hele V2 kan verifiseres med `pnpm check`.
+
+### Neste leveranseporter
+
+1. Fullfør kategoriadministrasjon i Web og konsolider tilgangskontrollen i API-et.
+2. Kjør V2 mot en anonymisert kopi av eksisterende database og dokumenter V1/V2-avvik.
+3. Legg til Playwright-flyt for opprett utstyr → opprett palle → flytt → inspiser.
+4. Verifiser Keycloak-klient, redirect URI, roller og token-claims i staging.
+5. Start fase 4 med utstyrslån og retur som første transaksjonelle modul.
+
 ## 2. Omfanget i V1
 
 Følgende områder må dekkes i V2:
@@ -210,22 +230,17 @@ Det viktigste valget er ikke rammeverket, men at domenelogikk ikke legges direkt
 ## 6. Repository- og deploystruktur
 
 ```text
-apps/
-  api/                 # Node.js API
-  web/                 # React SPA
-packages/
-  contracts/           # OpenAPI/Zod/delte typer
-  config/              # felles konfigurasjon
-  ui/                  # Tailwind-komponenter
-  eslint-config/
-  tsconfig/
-infra/
-  docker/
-  pm2/
-docs/
-  domain-matrix.md
-  api.md
-  runbooks/
+V1/                    # Eksisterende CodeIgniter-applikasjon og V1-migreringer
+V2/
+  Bifrost-API/         # Fastify API mot eksisterende MariaDB
+  Bifrost-Web/         # React SPA og separat statisk Node-server
+  Bifrost-Worker/      # ETL, synkronisering og bakgrunnsjobber
+  packages/
+    contracts/         # Delte API-typer og konstanter
+    database/          # Drizzle-kartlegging av V1 og V2-tabeller
+    security/          # Kryptering og nøkkelhåndtering
+  database/migrations/ # Eksplisitte V2-migreringer
+  ecosystem.config.cjs # PM2-konfigurasjon for alle tre prosesser
 ```
 
 PM2 bør kjøre API-et som egen prosess. Frontend bør bygges statisk og serveres av Nginx eller en tilsvarende edge-server; dersom Node serverer frontend, skal det være en separat PM2-prosess. Ikke bruk PM2 som database-, migrerings- eller backupmekanisme.
@@ -267,15 +282,23 @@ Kryptering skal bruke versjonerte nøkler og støtte key rotation. Hashing skal 
 6. Implementer health endpoint, config-validering og PM2 ecosystem-konfigurasjon.
 7. Skriv API-kontrakt for auth + read-only equipment/list før første UI-side.
 
-## 9. Beslutninger som må tas tidlig
+## 9. Avklarte beslutninger og åpne driftspunkter
 
-- Skal V2 bruke samme MariaDB-tabeller direkte, eller innføre et nytt skjema med ETL/synkronisering?
-- Er OIDC/Keycloak obligatorisk i produksjon, og skal lokal login beholdes som fallback?
-- Hvilke V1-funksjoner er fortsatt i aktiv bruk?
-- Skal filer lagres lokalt, i S3-kompatibel storage eller i eksisterende løsning?
-- Hvilke roller er autoritative, og hvilke gamle roller/alias må fases ut?
-- Hvilken deployplattform og reverse proxy skal brukes?
-- Hvilken periode med parallell drift kreves før V1 kan stenges?
+**Avklart**
+
+- V2 bruker eksisterende MariaDB/V1-tabeller direkte. Nye skjema/tabeller kan innføres for tekniske behov og dokumentert ETL/synkronisering.
+- OIDC/Keycloak er obligatorisk. Lokal V1-innlogging videreføres ikke som innloggingsmetode i V2.
+- Alle V1-funksjoner er aktive og skal videreføres.
+- Filer kan lagres lokalt med metadata, tilgangskontroll og backup.
+- Eksisterende V1-roller og rollenavn er autoritative og beholdes.
+- PM2 kjører `Bifrost-API`, `Bifrost-Web` og `Bifrost-Worker`.
+
+**Må avklares før staging/cutover**
+
+- Produksjonsserver, operativsystem, TLS/reverse proxy og domener.
+- Keycloak realm/client, redirect URI, claim-mapping og ansvar for drift av Keycloak.
+- Tilgang til anonymisert staging-database samt godkjent backup- og restore-test.
+- Lengde og ansvarsvakter for parallell V1/V2-drift før V1 kan stenges.
 
 ## 10. Definition of Done for hver modul
 

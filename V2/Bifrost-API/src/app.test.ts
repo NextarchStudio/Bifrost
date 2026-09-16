@@ -50,3 +50,59 @@ test("protects current-user endpoint with a bearer token", async () => {
   assert.equal(response.json().error.code, "UNAUTHORIZED");
   await app.close();
 });
+
+test("lists equipment for an authorized logistics user", async () => {
+  const app = buildApp({
+    checkDatabase: async () => undefined,
+    auth: {
+      getPublicConfig: async () => { throw new Error("not called"); },
+      authenticate: async () => ({
+        id: 1,
+        name: "Logistikk Bruker",
+        firstName: "Logistikk",
+        lastName: "Bruker",
+        email: "logistikk@example.test",
+        wannabeId: null,
+        roles: ["logistikk"],
+      }),
+    },
+    equipment: {
+      list: async (query) => ({ items: [], pagination: { ...query, total: 0, pageCount: 0 } }),
+    },
+  });
+  const response = await app.inject({
+    method: "GET",
+    url: "/api/v1/equipment?page=2&pageSize=10",
+    headers: { authorization: "Bearer valid" },
+  });
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.json().pagination.page, 2);
+  await app.close();
+});
+
+test("denies equipment to users without a logistics role", async () => {
+  const app = buildApp({
+    checkDatabase: async () => undefined,
+    auth: {
+      getPublicConfig: async () => { throw new Error("not called"); },
+      authenticate: async () => ({
+        id: 2,
+        name: "Vanlig Bruker",
+        firstName: "Vanlig",
+        lastName: "Bruker",
+        email: "bruker@example.test",
+        wannabeId: null,
+        roles: ["bruker"],
+      }),
+    },
+    equipment: { list: async () => { throw new Error("not called"); } },
+  });
+  const response = await app.inject({
+    method: "GET",
+    url: "/api/v1/equipment",
+    headers: { authorization: "Bearer valid" },
+  });
+  assert.equal(response.statusCode, 403);
+  assert.equal(response.json().error.code, "FORBIDDEN");
+  await app.close();
+});

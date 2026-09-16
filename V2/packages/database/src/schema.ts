@@ -61,6 +61,37 @@ export const equipment = mysqlTable("equipment", {
   updatedAt: datetime("updated_at", { mode: "date" }).notNull(),
 });
 
+export const locations = mysqlTable("locations", {
+  id: int({ unsigned: true }).primaryKey().autoincrement(),
+  name: varchar({ length: 120 }).notNull(),
+  type: varchar({ length: 50 }).notNull(),
+});
+
+export const pallets = mysqlTable("pallets", {
+  id: int({ unsigned: true }).primaryKey().autoincrement(),
+  locationId: int("location_id", { unsigned: true }).notNull(),
+  name: varchar({ length: 80 }).notNull(),
+  qrCode: varchar("qr_code", { length: 120 }),
+});
+
+export const palletSlots = mysqlTable("pallet_slots", {
+  id: int({ unsigned: true }).primaryKey().autoincrement(),
+  palletId: int("pallet_id", { unsigned: true }).notNull(),
+  slotNumber: smallint("slot_number", { unsigned: true }).notNull(),
+  status: varchar({ length: 20 }).notNull(),
+});
+
+export const equipmentLoans = mysqlTable("equipment_loans", {
+  id: bigint({ mode: "number", unsigned: true }).primaryKey().autoincrement(),
+  equipmentId: bigint("equipment_id", { mode: "number", unsigned: true }).notNull(),
+  wannabeId: bigint("wannabe_id", { mode: "number", unsigned: true }).notNull(),
+  quantity: int({ unsigned: true }).notNull().default(1),
+  issuedByUserId: bigint("issued_by_user_id", { mode: "number", unsigned: true }).notNull(),
+  issuedAt: datetime("issued_at", { mode: "date" }).notNull(),
+  returnedAt: datetime("returned_at", { mode: "date" }),
+  status: varchar({ length: 20 }).notNull(),
+});
+
 export const secureSettings = mysqlTable("bifrost_secure_settings", {
   key: varchar({ length: 120 }).primaryKey(),
   encryptedValue: text("encrypted_value").notNull(),

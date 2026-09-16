@@ -3,12 +3,13 @@ import { StrictMode, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { getCurrentUser } from "./api/client";
 import { beginSignIn, completeSignIn, getSignedInUser, signOut } from "./auth/oidc";
+import { EquipmentWorkspace } from "./features/equipment/EquipmentWorkspace";
 import "./styles.css";
 
 type SessionState =
   | { status: "loading" }
   | { status: "anonymous" }
-  | { status: "authenticated"; user: CurrentUser }
+  | { status: "authenticated"; user: CurrentUser; accessToken: string }
   | { status: "error"; message: string };
 
 function App() {
@@ -21,7 +22,7 @@ function App() {
         const oidcUser = isCallback ? await completeSignIn() : await getSignedInUser();
         if (isCallback) window.history.replaceState({}, "", "/");
         if (!oidcUser || oidcUser.expired) return setSession({ status: "anonymous" });
-        setSession({ status: "authenticated", user: await getCurrentUser(oidcUser.access_token) });
+        setSession({ status: "authenticated", user: await getCurrentUser(oidcUser.access_token), accessToken: oidcUser.access_token });
       } catch (error) {
         setSession({ status: "error", message: error instanceof Error ? error.message : "Innlogging feilet." });
       }
@@ -42,7 +43,9 @@ function App() {
           )}
         </header>
 
-        <section className="grid flex-1 items-center gap-12 py-16 lg:grid-cols-[1.15fr_.85fr]">
+        {session.status === "authenticated" ? (
+          <EquipmentWorkspace user={session.user} accessToken={session.accessToken} />
+        ) : <section className="grid flex-1 items-center gap-12 py-16 lg:grid-cols-[1.15fr_.85fr]">
           <div>
             <p className="mb-5 text-xs font-bold tracking-[.22em] text-emerald-300">BIFROST V2 · SIKKER LOGISTIKK</p>
             <h1 className="max-w-3xl text-5xl font-semibold leading-[.98] tracking-tight md:text-7xl">Alt utstyr.<br /><span className="text-slate-500">Én operativ flate.</span></h1>
@@ -59,17 +62,9 @@ function App() {
                 <button className="mt-8 w-full rounded-xl bg-emerald-300 px-5 py-3.5 font-semibold text-slate-950 hover:bg-emerald-200" onClick={() => void beginSignIn()}>Logg inn</button>
               </>
             )}
-            {session.status === "authenticated" && (
-              <>
-                <p className="text-sm font-medium text-emerald-300">Innlogget</p>
-                <h2 className="mt-3 text-2xl font-semibold">Hei, {session.user.firstName}</h2>
-                <p className="mt-2 text-slate-400">{session.user.email}</p>
-                <div className="mt-6 flex flex-wrap gap-2">{session.user.roles.map((role) => <span key={role} className="rounded-full bg-white/5 px-3 py-1 text-xs text-slate-300">{role}</span>)}</div>
-              </>
-            )}
             {session.status === "error" && <Status title="Kunne ikke koble til" detail={session.message} error />}
           </div>
-        </section>
+        </section>}
       </div>
     </main>
   );

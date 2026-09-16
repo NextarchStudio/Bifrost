@@ -52,3 +52,27 @@ export interface CurrentUser {
   wannabeId: number | null;
   roles: string[];
 }
+
+export interface EquipmentListItem {
+  id: number;
+  name: string;
+  category: string;
+  serialNumber: string;
+  quantity: number;
+  loanedQuantity: number;
+  status: string;
+  locationName: string | null;
+  palletName: string | null;
+  slotNumber: number | null;
+  updatedAt: string;
+}
+
+export interface EquipmentListResponse {
+  items: EquipmentListItem[];
+  pagination: {
+    page: number;
+    pageSize: number;
+    total: number;
+    pageCount: number;
+  };
+}

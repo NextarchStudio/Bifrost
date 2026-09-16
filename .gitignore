@@ -1,27 +1,80 @@
-# Dependencies
-vendor/
-node_modules/
-
-# Environment and local config
+# Environment and secrets (keep examples)
 .env
 .env.*
 !.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+auth.json
 
-# CodeIgniter writable/runtime
-writable/cache/*
-!writable/cache/index.html
-writable/logs/*
-!writable/logs/index.html
-writable/session/*
-!writable/session/index.html
-writable/uploads/*
-!writable/uploads/index.html
-writable/debugbar/*
-!writable/debugbar/index.html
+# Dependencies and package-manager caches
+vendor/
+node_modules/
+.pnpm-store/
+.npm/
+.yarn/
 
-# OS/Editor noise
-.DS_Store
-Thumbs.db
+# Build, test and generated output
+dist/
+build/
+coverage/
+.nyc_output/
+.vite/
+*.tsbuildinfo
+.phpunit.result.cache
+.phpunit.cache/
+
+# Runtime state: logs, sessions, cache, local files and uploads
+logs/
+tmp/
+temp/
+uploads/
+*.log
+*.pid
+*.seed
+
+# CodeIgniter V1 runtime (keep directory placeholders)
+V1/writable/cache/*
+!V1/writable/cache/index.html
+V1/writable/debugbar/*
+!V1/writable/debugbar/index.html
+V1/writable/logs/*
+!V1/writable/logs/index.html
+V1/writable/session/*
+!V1/writable/session/index.html
+V1/writable/uploads/*
+!V1/writable/uploads/index.html
+
+# Bifrost V2 runtime and locally stored files
+V2/var/
+V2/**/logs/
+V2/**/uploads/
+V2/**/tmp/
+
+# Legacy/local design resources
+AdminTemplateRoot/
+V1/AdminTemplate/
+
+# IDE, OS and local tooling
 .idea/
 .vscode/
-PHP/
+*.code-workspace
+.DS_Store
+Thumbs.db
+Desktop.ini
+ehthumbs.db
+
+# Local archives, database dumps and backups
+*.sql
+*.sql.gz
+*.dump
+*.bak
+*.backup
+*.zip
+*.7z
+*.tar
+*.tar.gz
+
+# Database migrations are source code and must remain versioned
+!V2/database/migrations/*.sql

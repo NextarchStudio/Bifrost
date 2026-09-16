@@ -1,0 +1,73 @@
+# Bifrost V2
+
+V2 er et TypeScript-monorepo med tre separate applikasjoner:
+
+- `Bifrost-API`: Fastify API mot eksisterende MariaDB
+- `Bifrost-Web`: React, Vite og Tailwind CSS
+- `Bifrost-Worker`: ETL, synkronisering og bakgrunnsjobber
+
+Delte kontrakter og database-definisjoner ligger under `packages/`.
+
+## Krav
+
+- Node.js 22+
+- pnpm 11+
+- MariaDB 10.6+
+- PM2 for produksjonsdrift
+
+## Installasjon og kvalitetssjekk
+
+```bash
+pnpm install
+pnpm check
+```
+
+`pnpm check` kjører lint, TypeScript-kontroll, tester og produksjonsbuild for hele workspace-et.
+
+## Miljøfiler
+
+Kopier `.env.example` i API, Web og Worker til `.env` i samme katalog.
+
+API og Worker bruker kun:
+
+```text
+DATABASE_HOST
+DATABASE_PORT
+DATABASE_NAME
+DATABASE_USER
+DATABASE_PASSWORD
+DATABASE_SSL
+```
+
+Web bruker kun:
+
+```text
+VITE_API_URL
+VITE_API_TOKEN
+```
+
+`VITE_API_TOKEN` er synlig i browser-bundlen og må derfor aldri være en serverhemmelighet. Brukeridentitet og tilgang skal håndheves med OIDC/Keycloak-token i API-et.
+
+## Database
+
+V1-tabellene beholdes. Drizzle-definisjonene i `packages/database` mapper mot eksisterende tabellnavn. Nye tekniske tabeller bruker `bifrost_`-prefiks.
+
+Kjør migreringen i `database/migrations/0001_bifrost_v2_foundation.sql` eksplisitt mot korrekt database før funksjoner som krever V2-jobbkø eller sikker konfigurasjon tas i bruk. Ta backup og verifiser restore først.
+
+## PM2
+
+```bash
+pnpm build
+pm2 start ecosystem.config.cjs
+pm2 status
+```
+
+Prosessene heter `bifrost-api`, `bifrost-web` og `bifrost-worker`. API lytter på `3001`, Web på `3000`.
+
+## Viktige regler
+
+- Web snakker kun med API-et.
+- Databaseskriving går gjennom API eller kontrollerte Worker-jobber.
+- Migreringer kjøres aldri automatisk ved restart.
+- Secrets, lokale filer, logger og opplastinger skal ikke committes.
+- V1-funksjoner fjernes ikke før paritet og rollback er verifisert.

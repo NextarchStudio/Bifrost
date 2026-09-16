@@ -1,0 +1,10 @@
+packages:
+  - "Bifrost-API"
+  - "Bifrost-Web"
+  - "Bifrost-Worker"
+  - "packages/*"
+
+onlyBuiltDependencies:
+  - esbuild
+allowBuilds:
+  esbuild: true

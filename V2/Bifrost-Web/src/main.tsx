@@ -7,6 +7,7 @@ import { EquipmentWorkspace } from "./features/equipment/EquipmentWorkspace";
 import { LocationWorkspace } from "./features/locations/LocationWorkspace";
 import { WarehouseWorkspace } from "./features/warehouse/WarehouseWorkspace";
 import { LoanWorkspace } from "./features/loans/LoanWorkspace";
+import { PrivateEquipmentWorkspace } from "./features/private-equipment/PrivateEquipmentWorkspace";
 import "./styles.css";
 
 type SessionState =
@@ -55,11 +56,11 @@ function App() {
             <div className="grid size-10 place-items-center rounded-xl bg-emerald-300 font-black text-slate-950">B</div>
             <div><p className="font-semibold">Bifrost</p><p className="text-xs text-slate-500">TG Logistics</p></div>
           </div>
-          {session.status === "authenticated" && <div className="flex flex-wrap items-center gap-2">{hasLogisticsAccess && <nav className="mr-2 flex flex-wrap rounded-xl border border-white/10 bg-white/[.025] p-1" aria-label="Hovednavigasjon"><NavigationButton active={workspace === "equipment"} onClick={() => navigate("equipment")}>Utstyr</NavigationButton><NavigationButton active={workspace === "warehouse"} onClick={() => navigate("warehouse")}>Lager</NavigationButton><NavigationButton active={workspace === "locations"} onClick={() => navigate("locations")}>Lokasjoner</NavigationButton><NavigationButton active={workspace === "loans"} onClick={() => navigate("loans")}>Utlån</NavigationButton></nav>}<button className="rounded-lg border border-white/10 px-4 py-2 text-sm text-slate-300 hover:bg-white/5" onClick={() => void signOut()}>Logg ut</button></div>}
+          {session.status === "authenticated" && <div className="flex flex-wrap items-center gap-2">{hasLogisticsAccess && <nav className="mr-2 flex flex-wrap rounded-xl border border-white/10 bg-white/[.025] p-1" aria-label="Hovednavigasjon"><NavigationButton active={workspace === "equipment"} onClick={() => navigate("equipment")}>Utstyr</NavigationButton><NavigationButton active={workspace === "warehouse"} onClick={() => navigate("warehouse")}>Lager</NavigationButton><NavigationButton active={workspace === "locations"} onClick={() => navigate("locations")}>Lokasjoner</NavigationButton><NavigationButton active={workspace === "loans"} onClick={() => navigate("loans")}>Utlån</NavigationButton><NavigationButton active={workspace === "private-equipment"} onClick={() => navigate("private-equipment")}>Privat utstyr</NavigationButton></nav>}<button className="rounded-lg border border-white/10 px-4 py-2 text-sm text-slate-300 hover:bg-white/5" onClick={() => void signOut()}>Logg ut</button></div>}
         </header>
 
         {session.status === "authenticated" ? (
-          !hasLogisticsAccess ? <NoAccessWorkspace user={session.user} /> : workspace === "locations" ? <LocationWorkspace accessToken={session.accessToken} /> : workspace === "warehouse" ? <WarehouseWorkspace accessToken={session.accessToken} /> : workspace === "loans" ? <LoanWorkspace accessToken={session.accessToken} /> : <EquipmentWorkspace user={session.user} accessToken={session.accessToken} />
+          !hasLogisticsAccess ? <NoAccessWorkspace user={session.user} /> : workspace === "locations" ? <LocationWorkspace accessToken={session.accessToken} /> : workspace === "warehouse" ? <WarehouseWorkspace accessToken={session.accessToken} /> : workspace === "loans" ? <LoanWorkspace accessToken={session.accessToken} /> : workspace === "private-equipment" ? <PrivateEquipmentWorkspace accessToken={session.accessToken} /> : <EquipmentWorkspace user={session.user} accessToken={session.accessToken} />
         ) : <section className="grid flex-1 items-center gap-12 py-16 lg:grid-cols-[1.15fr_.85fr]">
           <div>
             <p className="mb-5 text-xs font-bold tracking-[.22em] text-emerald-300">BIFROST V2 · SIKKER LOGISTIKK</p>
@@ -87,12 +88,13 @@ function App() {
 
 const LOGISTICS_ROLES = new Set(["developer", "chief", "co-chief", "logistikk"]);
 
-type Workspace = "equipment" | "warehouse" | "locations" | "loans";
+type Workspace = "equipment" | "warehouse" | "locations" | "loans" | "private-equipment";
 
 function workspaceFromPath(): Workspace {
   if (window.location.pathname === "/locations") return "locations";
   if (window.location.pathname === "/warehouse") return "warehouse";
   if (window.location.pathname === "/loans") return "loans";
+  if (window.location.pathname === "/private-equipment") return "private-equipment";
   return "equipment";
 }
 

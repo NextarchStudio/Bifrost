@@ -146,11 +146,19 @@ export interface EquipmentLoanIssueResponse {
   loanIds: number[];
 }
 
+export interface PrivateEquipmentNotice {
+  ownerName: string;
+  prefix: string;
+  issueMessage: string;
+  returnMessage: string;
+}
+
 export interface EquipmentLoanReturnResponse {
   loanId: number;
   returnedQuantity: number;
   remainingQuantity: number;
   status: "active" | "returned";
+  privateEquipmentNotice: PrivateEquipmentNotice | null;
 }
 
 export interface CrewProfile {
@@ -161,4 +169,21 @@ export interface CrewProfile {
   role: string;
   displayName: string;
   source: "cache" | "remote" | "local";
+}
+
+export interface PrivateEquipmentItem {
+  id: number;
+  name: string;
+  serialNumber: string;
+  quantity: number;
+  status: string;
+}
+
+export interface PrivateEquipmentRule extends PrivateEquipmentNotice {
+  id: number;
+  barcodePrefix: string;
+  equipmentCount: number;
+  lowestSerial: string | null;
+  highestSerial: string | null;
+  equipmentItems: PrivateEquipmentItem[];
 }

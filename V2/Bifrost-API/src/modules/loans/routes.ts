@@ -15,6 +15,7 @@ const issueSchema = z.object({
   lines: z.array(z.object({
     barcode: z.string().trim().min(1).max(150),
     quantity: z.coerce.number().int().min(1).max(1_000_000),
+    privateEquipmentConfirmed: z.boolean().optional(),
   })).min(1).max(50),
 });
 const returnSchema = z.object({ quantity: z.coerce.number().int().min(1).max(1_000_000) });

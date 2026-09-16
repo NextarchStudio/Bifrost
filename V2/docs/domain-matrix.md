@@ -34,8 +34,8 @@ Brukere kan ha flere roller. `ingen_tilbakemeldinger` skal behandles som en eksp
 | Lokasjoner | `developer`, `chief`, `co-chief`, `logistikk` | Paller og aktive transportoppdrag blokkerer sletting; historikk arkiveres | API og Web levert |
 | Lager, paller og palleplasser | `developer`, `chief`, `co-chief`, `logistikk` | Ingen paller på Transport-lokasjon, unik QR i tjenestelaget, slot 1 for strekkodeflyt, utstyr blokkerer sletting | API og Web levert |
 | Strekkodeeksport | `developer`, `chief`, `co-chief`, `logistikk` | Generering/eksport av strekkoder | Ikke startet |
-| Privat utstyr | `developer`, `chief`, `co-chief`, `logistikk` | Opprett/slett og regler for utlån | Ikke startet |
-| Utstyrslån og retur | `developer`, `chief`, `co-chief`, `logistikk` | Profiloppslag, antall, lagerkonsistens, utstedelse og retur | Transaksjonelt API og Web for utstedelse/delretur/full retur levert; person-/badge-oppslag med årlig V1-cache og lokal reserve levert; private utstyrsvarsler gjenstår |
+| Privat utstyr | `developer`, `chief`, `co-chief`, `logistikk` | Opprett/slett, prefikstreff, utlånsbekreftelse og returpåminnelse | API og Web levert; bekreftelsen håndheves også i API-et |
+| Utstyrslån og retur | `developer`, `chief`, `co-chief`, `logistikk` | Profiloppslag, antall, lagerkonsistens, utstedelse og retur | Transaksjonelt API og Web for utstedelse/delretur/full retur, person-/badge-oppslag og privat-utstyrsvarsler levert |
 | Kjøretøy og kjøretøylån | `developer`, `chief`, `co-chief`, `skiftleder`, `logistikk` | Redigering/sletting er snevrere for enkelte handlinger; kompetanseprofil og odometer | Ikke startet |
 | Utstyrsforespørsler | Alle innloggede; status/godkjenning: `developer`, `chief`, `co-chief`, `logistikk` | Vanlige brukere kan opprette; ledelse/logistikk og `sambandsansvarlig` blokkeres fra vanlig opprettingsflyt; delvis godkjenning og statusmaskin | Ikke startet |
 | Samband | `developer`, `chief`, `co-chief`, `logistikk`, `sambandsansvarlig` | Enheter, sett, profiloppslag, utlån og retur | Ikke startet |

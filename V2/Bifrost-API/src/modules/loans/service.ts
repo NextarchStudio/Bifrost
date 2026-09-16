@@ -1,6 +1,6 @@
-import type { EquipmentLoanIssueResponse, EquipmentLoanListResponse, EquipmentLoanReturnResponse } from "@bifrost/contracts";
-import { auditLogs, equipment, equipmentLoans, equipmentRequests, users, type DatabaseConnection } from "@bifrost/database";
-import { and, count, desc, eq, like, or, sql, type SQL } from "drizzle-orm";
+import type { EquipmentLoanIssueResponse, EquipmentLoanListResponse, EquipmentLoanReturnResponse, PrivateEquipmentNotice } from "@bifrost/contracts";
+import { auditLogs, equipment, equipmentLoans, equipmentRequests, privateEquipmentPrefixes, users, type DatabaseConnection } from "@bifrost/database";
+import { and, asc, count, desc, eq, like, or, sql, type SQL } from "drizzle-orm";
 
 export interface LoanListQuery {
   page: number;
@@ -10,11 +10,11 @@ export interface LoanListQuery {
 
 export interface LoanIssueInput {
   wannabeId: number;
-  lines: Array<{ barcode: string; quantity: number }>;
+  lines: Array<{ barcode: string; quantity: number; privateEquipmentConfirmed?: boolean }>;
 }
 
 export class LoanDomainError extends Error {
-  constructor(message: string, readonly code: "NOT_FOUND" | "CONFLICT") { super(message); }
+  constructor(message: string, readonly code: "NOT_FOUND" | "CONFLICT" | "PRIVATE_EQUIPMENT_CONFIRMATION_REQUIRED") { super(message); }
 }
 
 export interface LoanService {
@@ -70,7 +70,15 @@ export function createLoanService(database: DatabaseConnection): LoanService {
     async issue(input, actorUserId) {
       return database.db.transaction(async (tx) => {
         const loanIds: number[] = [];
+        const privateRules = await tx.select({
+          ownerName: privateEquipmentPrefixes.ownerName,
+          barcodePrefix: privateEquipmentPrefixes.barcodePrefix,
+        }).from(privateEquipmentPrefixes).orderBy(asc(privateEquipmentPrefixes.barcodePrefix));
         for (const line of input.lines) {
+          const privateNotice = privateEquipmentNoticeForBarcode(privateRules, line.barcode);
+          if (privateNotice && !line.privateEquipmentConfirmed) {
+            throw new LoanDomainError(privateNotice.issueMessage, "PRIVATE_EQUIPMENT_CONFIRMATION_REQUIRED");
+          }
           const [item] = await tx.select({
             id: equipment.id,
             quantity: equipment.quantity,
@@ -140,9 +148,14 @@ export function createLoanService(database: DatabaseConnection): LoanService {
         if (loan.status !== "active") throw new LoanDomainError("Lånet er allerede returnert.", "CONFLICT");
         if (returnQuantity > loan.quantity) throw new LoanDomainError("Du kan ikke returnere flere enn det som er lånt ut.", "CONFLICT");
 
-        const [item] = await tx.select({ quantity: equipment.quantity }).from(equipment)
+        const [item] = await tx.select({ quantity: equipment.quantity, serialNumber: equipment.serialNumber }).from(equipment)
           .where(eq(equipment.id, loan.equipmentId)).limit(1).for("update");
         if (!item) throw new LoanDomainError("Tilknyttet utstyr finnes ikke.", "NOT_FOUND");
+        const privateRules = await tx.select({
+          ownerName: privateEquipmentPrefixes.ownerName,
+          barcodePrefix: privateEquipmentPrefixes.barcodePrefix,
+        }).from(privateEquipmentPrefixes).orderBy(asc(privateEquipmentPrefixes.barcodePrefix));
+        const privateEquipmentNotice = privateEquipmentNoticeForBarcode(privateRules, item.serialNumber);
         await tx.update(equipment).set({
           quantity: item.quantity + returnQuantity,
           status: "available",
@@ -175,7 +188,7 @@ export function createLoanService(database: DatabaseConnection): LoanService {
           returned_quantity: returnQuantity,
           remaining_quantity: remaining,
         });
-        return { loanId: id, returnedQuantity: returnQuantity, remainingQuantity: remaining, status };
+        return { loanId: id, returnedQuantity: returnQuantity, remainingQuantity: remaining, status, privateEquipmentNotice };
       });
     },
   };
@@ -185,4 +198,21 @@ type AuditTransaction = Parameters<Parameters<DatabaseConnection["db"]["transact
 
 async function writeAudit(tx: AuditTransaction, actorUserId: number, action: string, entityType: string, entityId: number, diffJson: Record<string, unknown>): Promise<void> {
   await tx.insert(auditLogs).values({ actorUserId, action, entityType, entityId, diffJson, createdAt: new Date() });
+}
+
+export function privateEquipmentNoticeForBarcode(
+  rules: Array<{ ownerName: string; barcodePrefix: string }>,
+  barcode: string,
+): PrivateEquipmentNotice | null {
+  const normalized = barcode.trim().toUpperCase();
+  const rule = rules.find((candidate) => normalized.startsWith(candidate.barcodePrefix.toUpperCase()));
+  if (!rule) return null;
+  const ownerName = rule.ownerName.trim();
+  const prefix = rule.barcodePrefix.toUpperCase();
+  return {
+    ownerName,
+    prefix,
+    issueMessage: `Dette er en eiendel av ${ownerName}. Bekreft at du har blitt spurt før den lånes ut.`,
+    returnMessage: `Dette er en eiendel av ${ownerName}. Gi eiendelen til ${ownerName}.`,
+  };
 }

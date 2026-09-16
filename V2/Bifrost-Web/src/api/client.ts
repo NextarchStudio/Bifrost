@@ -1,4 +1,4 @@
-import type { ApiError, CrewProfile, CurrentUser, EquipmentCategory, EquipmentListResponse, EquipmentLoanIssueResponse, EquipmentLoanListResponse, EquipmentLoanReturnResponse, EquipmentMutationResponse, Location, Pallet, PalletInspection } from "@bifrost/contracts";
+import type { ApiError, CrewProfile, CurrentUser, EquipmentCategory, EquipmentListResponse, EquipmentLoanIssueResponse, EquipmentLoanListResponse, EquipmentLoanReturnResponse, EquipmentMutationResponse, Location, Pallet, PalletInspection, PrivateEquipmentNotice, PrivateEquipmentRule } from "@bifrost/contracts";
 
 const apiUrl = (import.meta.env.VITE_API_URL || "http://localhost:3001").replace(/\/$/, "");
 
@@ -167,7 +167,7 @@ export async function lookupCrewProfile(accessToken: string, query: string): Pro
 
 export async function issueEquipmentLoans(
   accessToken: string,
-  input: { wannabeId: number; lines: Array<{ barcode: string; quantity: number }> },
+  input: { wannabeId: number; lines: Array<{ barcode: string; quantity: number; privateEquipmentConfirmed?: boolean }> },
 ): Promise<EquipmentLoanIssueResponse> {
   const headers = createHeaders(accessToken);
   headers.set("Content-Type", "application/json");
@@ -182,6 +182,34 @@ export async function returnEquipmentLoan(accessToken: string, loanId: number, q
   const response = await fetch(`${apiUrl}/api/v1/loans/${loanId}/return`, { method: "POST", headers, body: JSON.stringify({ quantity }) });
   if (!response.ok) throw await createApiError(response, "Kunne ikke returnere utstyret.");
   return response.json() as Promise<EquipmentLoanReturnResponse>;
+}
+
+export async function getPrivateEquipment(accessToken: string): Promise<PrivateEquipmentRule[]> {
+  const response = await fetch(`${apiUrl}/api/v1/private-equipment`, { headers: createHeaders(accessToken) });
+  if (!response.ok) throw await createApiError(response, "Kunne ikke hente regler for privat utstyr.");
+  return response.json() as Promise<PrivateEquipmentRule[]>;
+}
+
+export async function getPrivateEquipmentNotices(accessToken: string): Promise<PrivateEquipmentNotice[]> {
+  const response = await fetch(`${apiUrl}/api/v1/private-equipment/notices`, { headers: createHeaders(accessToken) });
+  if (!response.ok) throw await createApiError(response, "Kunne ikke hente varsler for privat utstyr.");
+  return response.json() as Promise<PrivateEquipmentNotice[]>;
+}
+
+export async function createPrivateEquipmentRule(
+  accessToken: string,
+  input: { ownerName: string; barcodePrefix: string },
+): Promise<PrivateEquipmentRule> {
+  const headers = createHeaders(accessToken);
+  headers.set("Content-Type", "application/json");
+  const response = await fetch(`${apiUrl}/api/v1/private-equipment`, { method: "POST", headers, body: JSON.stringify(input) });
+  if (!response.ok) throw await createApiError(response, "Kunne ikke opprette privat utstyr-regelen.");
+  return response.json() as Promise<PrivateEquipmentRule>;
+}
+
+export async function deletePrivateEquipmentRule(accessToken: string, id: number): Promise<void> {
+  const response = await fetch(`${apiUrl}/api/v1/private-equipment/${id}`, { method: "DELETE", headers: createHeaders(accessToken) });
+  if (!response.ok) throw await createApiError(response, "Kunne ikke slette privat utstyr-regelen.");
 }
 
 async function sendApiMutation(

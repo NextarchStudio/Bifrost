@@ -89,6 +89,16 @@ export const equipmentCategories = mysqlTable("equipment_categories", {
   updatedAt: datetime("updated_at", { mode: "date" }).notNull(),
 }, (table) => [uniqueIndex("equipment_categories_name_unique").on(table.name)]);
 
+export const privateEquipmentPrefixes = mysqlTable("private_equipment_prefixes", {
+  id: int({ unsigned: true }).primaryKey().autoincrement(),
+  ownerName: varchar("owner_name", { length: 180 }).notNull(),
+  barcodePrefix: varchar("barcode_prefix", { length: 120 }).notNull(),
+  createdAt: datetime("created_at", { mode: "date" }),
+  updatedAt: datetime("updated_at", { mode: "date" }),
+}, (table) => [
+  uniqueIndex("private_equipment_prefixes_barcode_prefix_unique").on(table.barcodePrefix),
+]);
+
 export const locations = mysqlTable("locations", {
   id: int({ unsigned: true }).primaryKey().autoincrement(),
   name: varchar({ length: 120 }).notNull(),

@@ -1,4 +1,4 @@
-import type { ApiError, CurrentUser, EquipmentCategory, EquipmentListResponse, EquipmentLoanIssueResponse, EquipmentLoanListResponse, EquipmentLoanReturnResponse, EquipmentMutationResponse, Location, Pallet, PalletInspection } from "@bifrost/contracts";
+import type { ApiError, CrewProfile, CurrentUser, EquipmentCategory, EquipmentListResponse, EquipmentLoanIssueResponse, EquipmentLoanListResponse, EquipmentLoanReturnResponse, EquipmentMutationResponse, Location, Pallet, PalletInspection } from "@bifrost/contracts";
 
 const apiUrl = (import.meta.env.VITE_API_URL || "http://localhost:3001").replace(/\/$/, "");
 
@@ -156,6 +156,13 @@ export async function getEquipmentLoans(
   const response = await fetch(`${apiUrl}/api/v1/loans?${params}`, { headers: createHeaders(accessToken) });
   if (!response.ok) throw await createApiError(response, "Kunne ikke hente aktive lån.");
   return response.json() as Promise<EquipmentLoanListResponse>;
+}
+
+export async function lookupCrewProfile(accessToken: string, query: string): Promise<CrewProfile> {
+  const params = new URLSearchParams({ query });
+  const response = await fetch(`${apiUrl}/api/v1/crew/lookup?${params}`, { headers: createHeaders(accessToken) });
+  if (!response.ok) throw await createApiError(response, "Kunne ikke slå opp personen.");
+  return response.json() as Promise<CrewProfile>;
 }
 
 export async function issueEquipmentLoans(

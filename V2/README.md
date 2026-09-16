@@ -62,6 +62,8 @@ pnpm --filter @bifrost/api migrate:secrets
 
 Kommandoen oppretter en lokal master key i `V2/var/secrets/settings.key` og kopierer hemmelighetene til `bifrost_secure_settings`. Nøkkelfilen og databasebackupen må sikres separat. Kommandoen fjerner ikke V1-feltene, fordi V1 må fortsette å fungere under parallell drift.
 
+Crew-/badge-oppslaget leser URL og endepunkt fra V1-tabellen `system_settings`, mens bearer-tokenet leses dekryptert fra `bifrost_secure_settings`. Eksisterende `crew_directory_cache`, årlig cache-nullstilling og brukerens `badge_scan_number` gjenbrukes, slik at V1 og V2 kan kjøre parallelt.
+
 ## PM2
 
 ```bash

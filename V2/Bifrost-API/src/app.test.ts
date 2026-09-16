@@ -9,6 +9,8 @@ import type { WarehouseService } from "./modules/warehouse/service.js";
 import { WarehouseDomainError } from "./modules/warehouse/service.js";
 import type { LoanService } from "./modules/loans/service.js";
 import { LoanDomainError } from "./modules/loans/service.js";
+import type { CrewDirectoryService } from "./modules/crew/service.js";
+import { CrewDirectoryError } from "./modules/crew/service.js";
 
 const locationStub = (overrides: Partial<LocationService> = {}): LocationService => ({
   list: async () => [],
@@ -33,6 +35,11 @@ const loanStub = (overrides: Partial<LoanService> = {}): LoanService => ({
   listActive: async (query) => ({ items: [], pagination: { ...query, total: 0, pageCount: 0 } }),
   issue: async () => ({ loanIds: [1] }),
   returnLoan: async (id, quantity) => ({ loanId: id, returnedQuantity: quantity, remainingQuantity: 0, status: "returned" }),
+  ...overrides,
+});
+
+const crewStub = (overrides: Partial<CrewDirectoryService> = {}): CrewDirectoryService => ({
+  lookup: async () => ({ id: 12345, name: "Crew Member", nickname: "", crewName: "Logistics", role: "Crew", displayName: "Crew Member", source: "cache" }),
   ...overrides,
 });
 
@@ -363,5 +370,37 @@ test("rejects returning more equipment than is on the loan", async () => {
   const response = await app.inject({ method: "POST", url: "/api/v1/loans/10/return", headers: { authorization: "Bearer valid" }, payload: { quantity: 4 } });
   assert.equal(response.statusCode, 409);
   assert.equal(response.json().error.code, "CONFLICT");
+  await app.close();
+});
+
+test("looks up a crew profile by badge scan", async () => {
+  let lookupQuery = "";
+  const app = buildApp({
+    checkDatabase: async () => undefined,
+    auth: {
+      getPublicConfig: async () => { throw new Error("not called"); },
+      authenticate: async () => ({ id: 21, name: "Lager", firstName: "Lager", lastName: "", email: "lager@example.test", wannabeId: null, roles: ["logistikk"] }),
+    },
+    crew: crewStub({ lookup: async (query) => { lookupQuery = query; return { id: 12345, name: "Crew Member", nickname: "CM", crewName: "Logistics", role: "Crew", displayName: "Crew Member", source: "remote" }; } }),
+  });
+  const response = await app.inject({ method: "GET", url: "/api/v1/crew/lookup?query=BADGE-01", headers: { authorization: "Bearer valid" } });
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.json().id, 12345);
+  assert.equal(lookupQuery, "BADGE-01");
+  await app.close();
+});
+
+test("reports missing crew configuration without leaking settings", async () => {
+  const app = buildApp({
+    checkDatabase: async () => undefined,
+    auth: {
+      getPublicConfig: async () => { throw new Error("not called"); },
+      authenticate: async () => ({ id: 21, name: "Lager", firstName: "Lager", lastName: "", email: "lager@example.test", wannabeId: null, roles: ["logistikk"] }),
+    },
+    crew: crewStub({ lookup: async () => { throw new CrewDirectoryError("Crew-oppslag er ikke konfigurert.", "NOT_CONFIGURED"); } }),
+  });
+  const response = await app.inject({ method: "GET", url: "/api/v1/crew/lookup?query=12345", headers: { authorization: "Bearer valid" } });
+  assert.equal(response.statusCode, 503);
+  assert.equal(response.json().error.code, "NOT_CONFIGURED");
   await app.close();
 });

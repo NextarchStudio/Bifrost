@@ -7,6 +7,7 @@ export const users = mysqlTable("users", {
   lastName: varchar("last_name", { length: 80 }).notNull(),
   email: varchar({ length: 180 }).notNull(),
   wannabeId: bigint("wannabe_id", { mode: "number", unsigned: true }),
+  badgeScanNumber: varchar("badge_scan_number", { length: 64 }),
   passwordHash: varchar("password_hash", { length: 255 }),
   active: boolean().notNull().default(true),
   createdAt: datetime("created_at", { mode: "date" }).notNull(),
@@ -42,11 +43,31 @@ export const systemSettings = mysqlTable("system_settings", {
   keycloakClientId: varchar("keycloak_client_id", { length: 180 }),
   keycloakClientSecret: varchar("keycloak_client_secret", { length: 255 }),
   keycloakRedirectUri: varchar("keycloak_redirect_uri", { length: 255 }),
+  crewApiBaseUrl: varchar("crew_api_base_url", { length: 255 }),
+  crewApiProfileEndpoint: varchar("crew_api_profile_endpoint", { length: 255 }),
+  crewApiPictureEndpoint: varchar("crew_api_picture_endpoint", { length: 255 }),
   smtpPass: varchar("smtp_pass", { length: 255 }),
   googleMapsApiKey: varchar("google_maps_api_key", { length: 255 }),
   vegvesenApiKey: varchar("vegvesen_api_key", { length: 255 }),
   crewApiBearerToken: text("crew_api_bearer_token"),
+  crewCacheYear: int("crew_cache_year"),
 });
+
+export const crewDirectoryCache = mysqlTable("crew_directory_cache", {
+  id: int({ unsigned: true }).primaryKey().autoincrement(),
+  wannabeId: int("wannabe_id", { unsigned: true }).notNull(),
+  scanNumber: varchar("scan_number", { length: 64 }),
+  name: varchar({ length: 255 }),
+  nickname: varchar({ length: 255 }),
+  crewName: varchar("crew_name", { length: 255 }),
+  crewRoleTitle: varchar("crew_role_title", { length: 255 }),
+  crewRoleName: varchar("crew_role_name", { length: 255 }),
+  createdAt: datetime("created_at", { mode: "date" }).notNull(),
+  updatedAt: datetime("updated_at", { mode: "date" }).notNull(),
+}, (table) => [
+  uniqueIndex("crew_directory_cache_wannabe_id_unique").on(table.wannabeId),
+  uniqueIndex("crew_directory_cache_scan_number_unique").on(table.scanNumber),
+]);
 
 export const equipment = mysqlTable("equipment", {
   id: bigint({ mode: "number", unsigned: true }).primaryKey().autoincrement(),

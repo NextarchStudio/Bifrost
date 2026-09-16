@@ -1,6 +1,6 @@
-import type { EquipmentLoanListItem, EquipmentLoanListResponse } from "@bifrost/contracts";
+import type { CrewProfile, EquipmentLoanListItem, EquipmentLoanListResponse } from "@bifrost/contracts";
 import { useEffect, useState } from "react";
-import { getEquipmentLoans, issueEquipmentLoans, returnEquipmentLoan } from "../../api/client";
+import { getEquipmentLoans, issueEquipmentLoans, lookupCrewProfile, returnEquipmentLoan } from "../../api/client";
 
 interface LoanLine {
   key: number;
@@ -13,6 +13,10 @@ export function LoanWorkspace({ accessToken }: { accessToken: string }) {
   const [page, setPage] = useState(1);
   const [data, setData] = useState<EquipmentLoanListResponse | null>(null);
   const [lines, setLines] = useState<LoanLine[]>([{ key: 1, barcode: "", quantity: 1 }]);
+  const [wannabeQuery, setWannabeQuery] = useState("");
+  const [crewProfile, setCrewProfile] = useState<CrewProfile | null>(null);
+  const [lookupBusy, setLookupBusy] = useState(false);
+  const [lookupError, setLookupError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [selectedLoan, setSelectedLoan] = useState<EquipmentLoanListItem | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -37,20 +41,30 @@ export function LoanWorkspace({ accessToken }: { accessToken: string }) {
 
       <form className="mb-6 rounded-2xl border border-white/10 bg-white/[.025] p-5" onSubmit={(event) => {
         event.preventDefault();
-        const formElement = event.currentTarget;
-        const form = new FormData(formElement);
+        const fallbackWannabeId = Number(wannabeQuery);
+        if (!crewProfile && (!Number.isInteger(fallbackWannabeId) || fallbackWannabeId <= 0)) {
+          setError("Slå opp badge-scan først, eller skriv inn en gyldig Wannabe-ID.");
+          return;
+        }
         setSaving(true); setError(null); setNotice(null);
         void issueEquipmentLoans(accessToken, {
-          wannabeId: Number(form.get("wannabeId")),
+          wannabeId: crewProfile?.id ?? fallbackWannabeId,
           lines: lines.map(({ barcode, quantity }) => ({ barcode, quantity })),
         }).then((result) => {
           setLines([{ key: 1, barcode: "", quantity: 1 }]);
-          formElement.reset();
+          setWannabeQuery("");
+          setCrewProfile(null);
+          setLookupError(null);
           setNotice(`${result.loanIds.length} lån ble registrert.`);
           setRefresh((value) => value + 1);
         }).catch((reason) => setError(messageFrom(reason))).finally(() => setSaving(false));
       }}>
-        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start"><div><h2 className="text-lg font-medium">Lån ut utstyr</h2><p className="mt-1 text-sm text-slate-500">Wannabe-ID og minst én strekkode er påkrevd.</p></div><div className="w-full sm:w-64"><Field label="Wannabe-ID" name="wannabeId" type="number" min="1" required /></div></div>
+        <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-start"><div><h2 className="text-lg font-medium">Lån ut utstyr</h2><p className="mt-1 text-sm text-slate-500">Slå opp med Wannabe-ID eller badge-scan. Numerisk Wannabe-ID kan brukes direkte hvis crew-API-et er utilgjengelig.</p></div><div className="w-full lg:w-[28rem]"><label><span className="mb-2 block text-sm text-slate-400">Wannabe-ID / badge-scan</span><div className="flex gap-2"><input required value={wannabeQuery} onChange={(event) => { setWannabeQuery(event.target.value); setCrewProfile(null); setLookupError(null); }} className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 outline-none focus:border-emerald-300/60" /><button type="button" disabled={lookupBusy || !wannabeQuery.trim()} className="rounded-xl border border-emerald-300/30 px-4 py-2.5 text-sm text-emerald-200 hover:bg-emerald-300/10 disabled:opacity-40" onClick={() => {
+          const query = wannabeQuery.trim();
+          if (!query) return;
+          setLookupBusy(true); setLookupError(null); setCrewProfile(null);
+          void lookupCrewProfile(accessToken, query).then((profile) => { setCrewProfile(profile); setWannabeQuery(String(profile.id)); }).catch((reason) => setLookupError(messageFrom(reason))).finally(() => setLookupBusy(false));
+        }}>{lookupBusy ? "Søker …" : "Slå opp"}</button></div></label>{crewProfile && <div className="mt-3 rounded-xl border border-emerald-300/20 bg-emerald-300/[.07] px-4 py-3"><p className="font-medium text-emerald-100">{crewProfile.displayName}</p><p className="mt-1 text-xs text-emerald-200/60">Wannabe {crewProfile.id}{crewProfile.crewName ? ` · ${crewProfile.crewName}` : ""}{crewProfile.role ? ` · ${crewProfile.role}` : ""}</p></div>}{lookupError && <p className="mt-2 text-sm text-rose-300">{lookupError}</p>}</div></div>
         <div className="mt-5 grid gap-3">{lines.map((line, index) => <div key={line.key} className="grid gap-3 rounded-xl border border-white/[.07] bg-black/10 p-4 sm:grid-cols-[1fr_140px_auto] sm:items-end"><label><span className="mb-2 block text-sm text-slate-400">Strekkode / serienummer {index + 1}</span><input required value={line.barcode} onChange={(event) => updateLine(line.key, { barcode: event.target.value })} className="w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 outline-none focus:border-emerald-300/60" /></label><label><span className="mb-2 block text-sm text-slate-400">Antall</span><input type="number" min="1" required value={line.quantity} onChange={(event) => updateLine(line.key, { quantity: Number(event.target.value) })} className="w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 outline-none focus:border-emerald-300/60" /></label><button type="button" className="rounded-xl border border-white/10 px-4 py-2.5 text-sm text-slate-400 hover:text-slate-100" onClick={() => setLines((current) => current.length === 1 ? [{ ...current[0]!, barcode: "", quantity: 1 }] : current.filter((candidate) => candidate.key !== line.key))}>{lines.length === 1 ? "Tøm" : "Fjern"}</button></div>)}</div>
         <div className="mt-4 flex flex-wrap justify-between gap-3"><button type="button" className="rounded-xl border border-white/10 px-4 py-2.5 text-sm text-slate-300 hover:border-emerald-300/40" onClick={() => setLines((current) => [...current, { key: Math.max(...current.map((line) => line.key)) + 1, barcode: "", quantity: 1 }])}>Legg til linje</button><button disabled={saving} className="rounded-xl bg-emerald-300 px-5 py-2.5 text-sm font-semibold text-slate-950 hover:bg-emerald-200 disabled:opacity-50">{saving ? "Registrerer …" : "Registrer lån"}</button></div>
       </form>

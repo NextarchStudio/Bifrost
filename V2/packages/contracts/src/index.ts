@@ -152,3 +152,13 @@ export interface EquipmentLoanReturnResponse {
   remainingQuantity: number;
   status: "active" | "returned";
 }
+
+export interface CrewProfile {
+  id: number;
+  name: string;
+  nickname: string;
+  crewName: string;
+  role: string;
+  displayName: string;
+  source: "cache" | "remote" | "local";
+}

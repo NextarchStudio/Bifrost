@@ -6,8 +6,12 @@ import { createCategoryService } from "./modules/categories/service.js";
 import { createLocationService } from "./modules/locations/service.js";
 import { createWarehouseService } from "./modules/warehouse/service.js";
 import { createLoanService } from "./modules/loans/service.js";
+import { createCrewDirectoryService } from "./modules/crew/service.js";
+import { createSecureSettingsStore } from "./modules/settings/secure-settings.js";
+import { resolve } from "node:path";
 
 const database = createDatabase(readDatabaseConfig());
+const secureSettings = await createSecureSettingsStore(database, resolve(process.cwd(), "../var/secrets/settings.key"));
 const app = buildApp({
   auth: createAuthService(database),
   equipment: createEquipmentService(database),
@@ -15,6 +19,7 @@ const app = buildApp({
   locations: createLocationService(database),
   warehouse: createWarehouseService(database),
   loans: createLoanService(database),
+  crew: createCrewDirectoryService(database, secureSettings),
   checkDatabase: async () => {
     const connection = await database.pool.getConnection();
     try {

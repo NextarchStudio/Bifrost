@@ -1,0 +1,175 @@
+import type { CrewProfile } from "@bifrost/contracts";
+import { crewDirectoryCache, systemSettings, users, type DatabaseConnection } from "@bifrost/database";
+import { eq, or } from "drizzle-orm";
+import type { SecureSettingsStore } from "../settings/secure-settings.js";
+
+interface CrewApiProfile {
+  id?: unknown;
+  name?: unknown;
+  nickname?: unknown;
+  nick?: unknown;
+  crew_name?: unknown;
+  crew?: unknown;
+  role?: unknown;
+  rolle?: unknown;
+  crew_role?: unknown;
+}
+
+interface NormalizedProfile {
+  id: number;
+  name: string;
+  nickname: string;
+  crewName: string;
+  roleTitle: string;
+  roleName: string;
+}
+
+export class CrewDirectoryError extends Error {
+  constructor(message: string, readonly code: "NOT_FOUND" | "NOT_CONFIGURED") { super(message); }
+}
+
+export interface CrewDirectoryService {
+  lookup(query: string): Promise<CrewProfile>;
+}
+
+export function createCrewDirectoryService(
+  database: DatabaseConnection,
+  secureSettings: SecureSettingsStore,
+  fetchImplementation: typeof fetch = fetch,
+): CrewDirectoryService {
+  return {
+    async lookup(query) {
+      await ensureFreshCacheYear(database);
+      const isWannabeId = /^\d+$/.test(query);
+      const wannabeId = isWannabeId ? Number(query) : null;
+      const [cached] = await database.db.select().from(crewDirectoryCache)
+        .where(isWannabeId ? eq(crewDirectoryCache.wannabeId, wannabeId!) : eq(crewDirectoryCache.scanNumber, query)).limit(1);
+      if (cached?.name && cached.wannabeId > 0) return toPublicProfile({
+        id: cached.wannabeId,
+        name: cached.name,
+        nickname: cached.nickname ?? "",
+        crewName: cached.crewName ?? "",
+        roleTitle: cached.crewRoleTitle ?? "",
+        roleName: cached.crewRoleName ?? "",
+      }, "cache");
+
+      const config = await loadConfig(database, secureSettings);
+      if (config) {
+        const remote = await fetchRemoteProfile(config, isWannabeId ? "uid" : "sn", query, fetchImplementation);
+        if (remote) {
+          await saveProfile(database, remote, isWannabeId ? null : query);
+          return toPublicProfile(remote, "remote");
+        }
+      }
+
+      const [local] = await database.db.select({
+        id: users.wannabeId,
+        name: users.name,
+      }).from(users).where(isWannabeId ? eq(users.wannabeId, wannabeId!) : eq(users.badgeScanNumber, query)).limit(1);
+      if (local?.id && local.name) return {
+        id: local.id,
+        name: local.name,
+        nickname: "",
+        crewName: "",
+        role: "",
+        displayName: local.name,
+        source: "local",
+      };
+      if (!config) throw new CrewDirectoryError("Crew-oppslag er ikke konfigurert.", "NOT_CONFIGURED");
+      throw new CrewDirectoryError("Fant ikke person for denne Wannabe-ID-en eller badge-scannen.", "NOT_FOUND");
+    },
+  };
+}
+
+async function loadConfig(database: DatabaseConnection, secureSettings: SecureSettingsStore) {
+  const [settings] = await database.db.select({
+    baseUrl: systemSettings.crewApiBaseUrl,
+    profileEndpoint: systemSettings.crewApiProfileEndpoint,
+  }).from(systemSettings).where(eq(systemSettings.id, 1)).limit(1);
+  const token = await secureSettings.get("crew.api_bearer_token");
+  if (!settings?.baseUrl || !settings.profileEndpoint || !token) return null;
+  return { baseUrl: settings.baseUrl, profileEndpoint: settings.profileEndpoint, token };
+}
+
+async function fetchRemoteProfile(
+  config: { baseUrl: string; profileEndpoint: string; token: string },
+  queryKey: "uid" | "sn",
+  queryValue: string,
+  fetchImplementation: typeof fetch,
+): Promise<NormalizedProfile | null> {
+  let url: URL;
+  try {
+    const base = config.baseUrl.endsWith("/") ? config.baseUrl : `${config.baseUrl}/`;
+    url = new URL(config.profileEndpoint.replace(/^\//, ""), base);
+    if (!new Set(["http:", "https:"]).has(url.protocol)) return null;
+    url.searchParams.set(queryKey, queryValue);
+    const response = await fetchImplementation(url, {
+      headers: { Authorization: `Bearer ${config.token}`, Accept: "application/json" },
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!response.ok) return null;
+    return normalizeProfile(await response.json() as CrewApiProfile);
+  } catch {
+    return null;
+  }
+}
+
+function normalizeProfile(profile: CrewApiProfile): NormalizedProfile | null {
+  const id = typeof profile.id === "number" ? profile.id : typeof profile.id === "string" ? Number(profile.id) : 0;
+  const name = stringValue(profile.name);
+  if (!Number.isSafeInteger(id) || id < 1 || !name) return null;
+  const role = profile.crew_role && typeof profile.crew_role === "object" ? profile.crew_role as Record<string, unknown> : {};
+  return {
+    id,
+    name,
+    nickname: stringValue(profile.nickname) || stringValue(profile.nick),
+    crewName: stringValue(profile.crew_name) || stringValue(profile.crew),
+    roleTitle: stringValue(role.title) || stringValue(profile.role) || stringValue(profile.rolle),
+    roleName: stringValue(role.name),
+  };
+}
+
+async function saveProfile(database: DatabaseConnection, profile: NormalizedProfile, scanNumber: string | null): Promise<void> {
+  await database.db.transaction(async (tx) => {
+    const [existing] = await tx.select({ id: crewDirectoryCache.id, scanNumber: crewDirectoryCache.scanNumber })
+      .from(crewDirectoryCache).where(or(
+        eq(crewDirectoryCache.wannabeId, profile.id),
+        ...(scanNumber ? [eq(crewDirectoryCache.scanNumber, scanNumber)] : []),
+      )).limit(1);
+    const now = new Date();
+    const values = {
+      wannabeId: profile.id,
+      scanNumber: scanNumber || existing?.scanNumber || null,
+      name: profile.name,
+      nickname: profile.nickname || null,
+      crewName: profile.crewName || null,
+      crewRoleTitle: profile.roleTitle || null,
+      crewRoleName: profile.roleName || null,
+      updatedAt: now,
+    };
+    if (existing) await tx.update(crewDirectoryCache).set(values).where(eq(crewDirectoryCache.id, existing.id));
+    else await tx.insert(crewDirectoryCache).values({ ...values, createdAt: now });
+    if (scanNumber) await tx.update(users).set({ badgeScanNumber: scanNumber, updatedAt: now }).where(eq(users.wannabeId, profile.id));
+  });
+}
+
+async function ensureFreshCacheYear(database: DatabaseConnection): Promise<void> {
+  const currentYear = new Date().getFullYear();
+  const [settings] = await database.db.select({ year: systemSettings.crewCacheYear })
+    .from(systemSettings).where(eq(systemSettings.id, 1)).limit(1);
+  if (settings?.year === currentYear) return;
+  await database.db.transaction(async (tx) => {
+    await tx.delete(crewDirectoryCache);
+    await tx.update(users).set({ badgeScanNumber: null });
+    await tx.update(systemSettings).set({ crewCacheYear: currentYear }).where(eq(systemSettings.id, 1));
+  });
+}
+
+function toPublicProfile(profile: NormalizedProfile, source: "cache" | "remote"): CrewProfile {
+  const displayName = profile.name || profile.nickname || `Wannabe ${profile.id}`;
+  return { id: profile.id, name: profile.name, nickname: profile.nickname, crewName: profile.crewName, role: profile.roleTitle, displayName, source };
+}
+
+function stringValue(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}

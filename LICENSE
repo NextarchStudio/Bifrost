@@ -1,32 +1,52 @@
-Bifrost Proprietary Software License
+Bifrost (TG Logistics CMS) Proprietary License
 
-Copyright (c) 2026 Nextarch Studio. All rights reserved.
+Copyright (c) 2026 Nextarch Studio
+All rights reserved.
 
-Bifrost, including its source code, documentation, designs, configuration,
-database definitions and associated assets (the "Software"), is proprietary
-and confidential software owned by Nextarch Studio.
+This project and its source code are proprietary and are not open source.
 
-Permission is granted only to persons explicitly authorized by Nextarch Studio
-to access, use, execute and modify the Software for approved internal purposes.
-No ownership rights are transferred by this permission.
+Ownership
 
-Without prior written permission from Nextarch Studio, you may not copy,
-publish, distribute, sublicense, sell, lease, disclose, reverse engineer or
-make the Software, or any substantial part of it, available to a third party.
+Nextarch Studio retains all right, title, and interest in and to this project,
+including the source code, custom application logic, design, documentation,
+and other project-specific materials, except for third-party components that
+are subject to their own separate licenses.
 
-Access to a source-code repository containing the Software does not make the
-Software open source and does not grant any rights beyond those expressly
-stated in this license.
+Internal The Gathering License
 
-The Software is provided "as is", without warranty of any kind, express or
-implied, including warranties of merchantability, fitness for a particular
-purpose and non-infringement. To the maximum extent permitted by law,
-Nextarch Studio shall not be liable for any claim, damages or other liability
-arising from the Software or its use.
+The Gathering is granted a non-exclusive, non-transferable, revocable license to:
 
-Third-party components included with or used by the Software remain subject
-to their respective licenses and copyright notices. Those third-party terms
-apply only to the relevant components and do not change the proprietary status
-of original Bifrost code.
+- use this software internally for The Gathering operations
+- run and host the software for internal The Gathering purposes
+- modify and further develop the software internally for The Gathering use
+- maintain copies required for internal backup, testing, and deployment
 
-For licensing requests, contact Nextarch Studio.
+Restrictions
+
+Without prior written permission from Nextarch Studio, the software may not be:
+
+- sold, sublicensed, or redistributed to third parties
+- published publicly in source or compiled form
+- transferred to another organization or external vendor
+- reused outside The Gathering for other organizations under this license
+
+Third-Party Software
+
+This repository may include or depend on third-party software, including
+CodeIgniter and Composer packages, which remain licensed under their own
+respective terms. This license applies only to the project-specific portions
+of Bifrost (TG Logistics CMS) owned by Nextarch Studio and does not replace or override
+any third-party license obligations.
+
+Warranty and Liability
+
+This software is provided "as is", without warranty of any kind, express or
+implied, including but not limited to warranties of merchantability, fitness
+for a particular purpose, and noninfringement. In no event shall Nextarch
+Studio be liable for any claim, damages, or other liability arising from or in
+connection with the software or the use of the software.
+
+Contact
+
+For permissions, licensing questions, or external use, written approval must
+be obtained from Nextarch Studio.

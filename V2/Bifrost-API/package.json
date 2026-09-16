@@ -18,7 +18,7 @@
     "@bifrost/security": "workspace:*",
     "@fastify/cors": "^11.0.0",
     "@fastify/helmet": "^13.0.0",
-    "drizzle-orm": "^0.44.0",
+    "drizzle-orm": "^0.45.2",
     "fastify": "^5.0.0",
     "jose": "^6.0.0",
     "zod": "^4.0.0"

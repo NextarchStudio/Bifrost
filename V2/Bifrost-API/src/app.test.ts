@@ -68,6 +68,7 @@ test("lists equipment for an authorized logistics user", async () => {
     },
     equipment: {
       list: async (query) => ({ items: [], pagination: { ...query, total: 0, pageCount: 0 } }),
+      create: async () => ({ id: 1, merged: false }),
     },
   });
   const response = await app.inject({
@@ -95,7 +96,10 @@ test("denies equipment to users without a logistics role", async () => {
         roles: ["bruker"],
       }),
     },
-    equipment: { list: async () => { throw new Error("not called"); } },
+    equipment: {
+      list: async () => { throw new Error("not called"); },
+      create: async () => { throw new Error("not called"); },
+    },
   });
   const response = await app.inject({
     method: "GET",
@@ -104,5 +108,36 @@ test("denies equipment to users without a logistics role", async () => {
   });
   assert.equal(response.statusCode, 403);
   assert.equal(response.json().error.code, "FORBIDDEN");
+  await app.close();
+});
+
+test("creates equipment for an authorized user", async () => {
+  const app = buildApp({
+    checkDatabase: async () => undefined,
+    auth: {
+      getPublicConfig: async () => { throw new Error("not called"); },
+      authenticate: async () => ({
+        id: 7,
+        name: "Lager Bruker",
+        firstName: "Lager",
+        lastName: "Bruker",
+        email: "lager@example.test",
+        wannabeId: null,
+        roles: ["logistikk"],
+      }),
+    },
+    equipment: {
+      list: async () => { throw new Error("not called"); },
+      create: async (_input, actorUserId) => ({ id: actorUserId, merged: false }),
+    },
+  });
+  const response = await app.inject({
+    method: "POST",
+    url: "/api/v1/equipment",
+    headers: { authorization: "Bearer valid" },
+    payload: { name: "Kabel", category: "Kabel", serialNumber: "KB-100", quantity: 4 },
+  });
+  assert.equal(response.statusCode, 201);
+  assert.equal(response.json().id, 7);
   await app.close();
 });

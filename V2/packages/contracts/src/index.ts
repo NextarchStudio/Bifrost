@@ -76,3 +76,8 @@ export interface EquipmentListResponse {
     pageCount: number;
   };
 }
+
+export interface EquipmentMutationResponse {
+  id: number;
+  merged: boolean;
+}

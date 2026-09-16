@@ -92,6 +92,16 @@ export const equipmentLoans = mysqlTable("equipment_loans", {
   status: varchar({ length: 20 }).notNull(),
 });
 
+export const auditLogs = mysqlTable("audit_logs", {
+  id: bigint({ mode: "number", unsigned: true }).primaryKey().autoincrement(),
+  actorUserId: bigint("actor_user_id", { mode: "number", unsigned: true }).notNull(),
+  action: varchar({ length: 120 }).notNull(),
+  entityType: varchar("entity_type", { length: 60 }).notNull(),
+  entityId: bigint("entity_id", { mode: "number", unsigned: true }).notNull(),
+  diffJson: json("diff_json"),
+  createdAt: datetime("created_at", { mode: "date" }).notNull(),
+});
+
 export const secureSettings = mysqlTable("bifrost_secure_settings", {
   key: varchar({ length: 120 }).primaryKey(),
   encryptedValue: text("encrypted_value").notNull(),

@@ -7,7 +7,7 @@ import {
   users,
   type DatabaseConnection,
 } from "@bifrost/database";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { createRemoteJWKSet, jwtVerify, type JWTPayload } from "jose";
 
 export class AuthenticationError extends Error {
@@ -56,7 +56,29 @@ export function createAuthService(database: DatabaseConnection, verifyToken: Ver
       const claims = await verifyToken(token, config);
       if (!claims.sub) throw new AuthenticationError("Token mangler brukeridentitet.");
 
-      const rows = await database.db
+      let rows = await loadUser(claims.sub);
+      if (rows.length === 0) {
+        await provisionUser(database, claims);
+        rows = await loadUser(claims.sub);
+      }
+
+      const first = rows[0];
+      if (!first) throw new AuthenticationError("Brukeren kunne ikke opprettes i Bifrost.", 403);
+
+      return {
+        id: first.id,
+        name: first.name,
+        firstName: first.firstName,
+        lastName: first.lastName,
+        email: first.email,
+        wannabeId: first.wannabeId,
+        roles: [...new Set(rows.flatMap((row) => row.role ? [row.role] : []))],
+      };
+    },
+  };
+
+  async function loadUser(providerId: string) {
+    return database.db
         .select({
           id: users.id,
           name: users.name,
@@ -72,24 +94,113 @@ export function createAuthService(database: DatabaseConnection, verifyToken: Ver
         .leftJoin(roles, eq(roles.id, userRoles.roleId))
         .where(and(
           eq(authAccounts.provider, "keycloak"),
-          eq(authAccounts.providerId, claims.sub),
+          eq(authAccounts.providerId, providerId),
           eq(users.active, true),
         ));
+  }
+}
 
-      const first = rows[0];
-      if (!first) throw new AuthenticationError("Brukeren er ikke aktivert i Bifrost.", 403);
+async function provisionUser(database: DatabaseConnection, claims: JWTPayload): Promise<void> {
+  const providerId = claims.sub;
+  const email = typeof claims.email === "string" ? claims.email.trim().toLowerCase() : "";
+  if (!providerId || !email) throw new AuthenticationError("Keycloak returnerte ikke nødvendig brukerdata.", 403);
 
-      return {
-        id: first.id,
-        name: first.name,
-        firstName: first.firstName,
-        lastName: first.lastName,
-        email: first.email,
-        wannabeId: first.wannabeId,
-        roles: [...new Set(rows.flatMap((row) => row.role ? [row.role] : []))],
-      };
-    },
-  };
+  const displayName = claimString(claims.name) || claimString(claims.preferred_username) || email;
+  const [firstName, lastName] = splitName(displayName);
+  const wannabeId = extractWannabeId(claims);
+  const externalRoles = extractRoleNames(claims);
+
+  await database.db.transaction(async (tx) => {
+    const [existing] = await tx
+      .select({ id: users.id, active: users.active, wannabeId: users.wannabeId })
+      .from(users)
+      .where(eq(users.email, email))
+      .limit(1);
+
+    if (existing && !existing.active) throw new AuthenticationError("Brukeren er deaktivert.", 403);
+
+    let userId = existing?.id;
+    if (!userId) {
+      const [created] = await tx.insert(users).values({
+        name: displayName.slice(0, 120),
+        firstName,
+        lastName,
+        email: email.slice(0, 180),
+        wannabeId,
+        passwordHash: null,
+        active: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }).$returningId();
+      userId = created?.id;
+    } else if (wannabeId && existing?.wannabeId !== wannabeId) {
+      await tx.update(users).set({ wannabeId, updatedAt: new Date() }).where(eq(users.id, userId));
+    }
+
+    if (!userId) throw new AuthenticationError("Brukeren kunne ikke opprettes.", 503);
+
+    await tx.insert(authAccounts).values({ userId, provider: "keycloak", providerId });
+
+    const roleFilters = externalRoles.length > 0
+      ? inArray(roles.wannabeRoleName, externalRoles)
+      : eq(roles.name, "bruker");
+    const mappedRoles = await tx
+      .select({ id: roles.id, name: roles.name })
+      .from(roles)
+      .where(roleFilters);
+    const defaultRole = mappedRoles.some((role) => role.name === "bruker")
+      ? []
+      : await tx.select({ id: roles.id, name: roles.name }).from(roles).where(eq(roles.name, "bruker")).limit(1);
+
+    for (const role of [...mappedRoles, ...defaultRole]) {
+      await tx.insert(userRoles).values({ userId, roleId: role.id }).onDuplicateKeyUpdate({ set: { userId } });
+    }
+  });
+}
+
+function claimString(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function splitName(value: string): [string, string] {
+  const parts = value.replace(/\s+/g, " ").trim().split(" ");
+  const firstName = (parts.shift() || "Unknown").slice(0, 80);
+  return [firstName, parts.join(" ").slice(0, 80)];
+}
+
+export function extractWannabeId(claims: JWTPayload): number | null {
+  const record = claims as Record<string, unknown>;
+  const candidates = [
+    "wannabe_id", "wannabeId", "member_number", "memberNumber", "person_id", "personId",
+    "uid", "uidNumber", "employeeNumber", "preferred_username", "nickname", "username", "upn", "email",
+  ];
+  for (const key of candidates) {
+    const value = record[key];
+    if (typeof value === "number" && Number.isSafeInteger(value) && value > 0) return value;
+    if (typeof value === "string") {
+      const match = value.match(/\b(\d{4,})\b/);
+      if (match) return Number(match[1]);
+    }
+  }
+  return null;
+}
+
+export function extractRoleNames(claims: JWTPayload): string[] {
+  const record = claims as Record<string, unknown>;
+  const values = [record.role, record.roles, record.crew_role, record.crewRole, record.crew_role_name, record.crew_role_title];
+  const names: string[] = [];
+  for (const value of values) collectRoleNames(value, names);
+  return [...new Set(names.map((name) => name.trim()).filter(Boolean))];
+}
+
+function collectRoleNames(value: unknown, target: string[]): void {
+  if (typeof value === "string") target.push(value);
+  else if (Array.isArray(value)) value.forEach((entry) => collectRoleNames(entry, target));
+  else if (value && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    collectRoleNames(record.title, target);
+    collectRoleNames(record.name, target);
+  }
 }
 
 const keySets = new Map<string, ReturnType<typeof createRemoteJWKSet>>();

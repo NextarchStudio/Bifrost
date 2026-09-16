@@ -1,5 +1,6 @@
-import type { EquipmentListResponse } from "@bifrost/contracts";
+import type { EquipmentListResponse, EquipmentMutationResponse } from "@bifrost/contracts";
 import {
+  auditLogs,
   equipment,
   equipmentLoans,
   locations,
@@ -16,8 +17,17 @@ export interface EquipmentListQuery {
   status?: string;
 }
 
+export interface EquipmentCreateInput {
+  name: string;
+  category: string;
+  serialNumber: string;
+  quantity: number;
+  notes?: string;
+}
+
 export interface EquipmentService {
   list(query: EquipmentListQuery): Promise<EquipmentListResponse>;
+  create(input: EquipmentCreateInput, actorUserId: number): Promise<EquipmentMutationResponse>;
 }
 
 export function createEquipmentService(database: DatabaseConnection): EquipmentService {
@@ -77,6 +87,54 @@ export function createEquipmentService(database: DatabaseConnection): EquipmentS
           pageCount: Math.ceil(total / query.pageSize),
         },
       };
+    },
+
+    async create(input, actorUserId): Promise<EquipmentMutationResponse> {
+      return database.db.transaction(async (tx) => {
+        const [existing] = await tx
+          .select({ id: equipment.id, quantity: equipment.quantity, status: equipment.status })
+          .from(equipment)
+          .where(eq(equipment.serialNumber, input.serialNumber))
+          .limit(1);
+
+        if (existing) {
+          const quantity = existing.quantity + input.quantity;
+          const status = existing.status === "maintenance" ? "maintenance" : quantity > 0 ? "available" : "loaned";
+          await tx.update(equipment).set({ quantity, status, updatedAt: new Date() }).where(eq(equipment.id, existing.id));
+          await tx.insert(auditLogs).values({
+            actorUserId,
+            action: "quantity",
+            entityType: "equipment",
+            entityId: existing.id,
+            diffJson: { serial_number: input.serialNumber, added_quantity: input.quantity, quantity },
+            createdAt: new Date(),
+          });
+          return { id: existing.id, merged: true };
+        }
+
+        const [created] = await tx.insert(equipment).values({
+          name: input.name,
+          category: input.category,
+          serialNumber: input.serialNumber,
+          quantity: input.quantity,
+          status: "available",
+          palletSlotId: null,
+          notes: input.notes || null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }).$returningId();
+        if (!created) throw new Error("Utstyret kunne ikke opprettes.");
+
+        await tx.insert(auditLogs).values({
+          actorUserId,
+          action: "create",
+          entityType: "equipment",
+          entityId: created.id,
+          diffJson: input,
+          createdAt: new Date(),
+        });
+        return { id: created.id, merged: false };
+      });
     },
   };
 }

@@ -3,6 +3,15 @@ import test from "node:test";
 import { buildApp } from "./app.js";
 import type { EquipmentService } from "./modules/equipment/service.js";
 import { EquipmentDomainError } from "./modules/equipment/service.js";
+import type { LocationService } from "./modules/locations/service.js";
+
+const locationStub = (overrides: Partial<LocationService> = {}): LocationService => ({
+  list: async () => [],
+  create: async (input) => ({ id: 1, address: input.address ?? null, ...input }),
+  update: async () => undefined,
+  delete: async () => undefined,
+  ...overrides,
+});
 
 const equipmentStub = (overrides: Partial<EquipmentService> = {}): EquipmentService => ({
   list: async () => { throw new Error("not called"); },
@@ -198,5 +207,39 @@ test("lists equipment categories for logistics users", async () => {
   const response = await app.inject({ method: "GET", url: "/api/v1/equipment-categories", headers: { authorization: "Bearer valid" } });
   assert.equal(response.statusCode, 200);
   assert.equal(response.json()[0].name, "Kabel");
+  await app.close();
+});
+
+test("creates a location with actor context", async () => {
+  let actor = 0;
+  const app = buildApp({
+    checkDatabase: async () => undefined,
+    auth: {
+      getPublicConfig: async () => { throw new Error("not called"); },
+      authenticate: async () => ({ id: 14, name: "Lager", firstName: "Lager", lastName: "", email: "lager@example.test", wannabeId: null, roles: ["logistikk"] }),
+    },
+    locations: locationStub({
+      create: async (input, actorUserId) => { actor = actorUserId; return { id: 3, address: input.address ?? null, ...input }; },
+    }),
+  });
+  const response = await app.inject({ method: "POST", url: "/api/v1/locations", headers: { authorization: "Bearer valid" }, payload: { name: "Varemottak", type: "Lager", address: "Vikingskipet" } });
+  assert.equal(response.statusCode, 201);
+  assert.equal(response.json().name, "Varemottak");
+  assert.equal(actor, 14);
+  await app.close();
+});
+
+test("rejects an invalid location payload", async () => {
+  const app = buildApp({
+    checkDatabase: async () => undefined,
+    auth: {
+      getPublicConfig: async () => { throw new Error("not called"); },
+      authenticate: async () => ({ id: 14, name: "Lager", firstName: "Lager", lastName: "", email: "lager@example.test", wannabeId: null, roles: ["logistikk"] }),
+    },
+    locations: locationStub(),
+  });
+  const response = await app.inject({ method: "POST", url: "/api/v1/locations", headers: { authorization: "Bearer valid" }, payload: { name: "", type: "Lager" } });
+  assert.equal(response.statusCode, 400);
+  assert.equal(response.json().error.code, "INVALID_BODY");
   await app.close();
 });

@@ -1,4 +1,4 @@
-import type { ApiError, CurrentUser, EquipmentCategory, EquipmentListResponse, EquipmentMutationResponse } from "@bifrost/contracts";
+import type { ApiError, CurrentUser, EquipmentCategory, EquipmentListResponse, EquipmentMutationResponse, Location } from "@bifrost/contracts";
 
 const apiUrl = (import.meta.env.VITE_API_URL || "http://localhost:3001").replace(/\/$/, "");
 
@@ -39,15 +39,15 @@ export async function updateEquipmentDetails(
   equipmentId: number,
   input: { name: string; serialNumber: string; quantity: number },
 ): Promise<void> {
-  await sendEquipmentMutation(accessToken, `/api/v1/equipment/${equipmentId}`, "PATCH", input, "Kunne ikke oppdatere utstyret.");
+  await sendApiMutation(accessToken, `/api/v1/equipment/${equipmentId}`, "PATCH", input, "Kunne ikke oppdatere utstyret.");
 }
 
 export async function updateEquipmentStatus(accessToken: string, equipmentId: number, status: string): Promise<void> {
-  await sendEquipmentMutation(accessToken, `/api/v1/equipment/${equipmentId}/status`, "PATCH", { status }, "Kunne ikke oppdatere status.");
+  await sendApiMutation(accessToken, `/api/v1/equipment/${equipmentId}/status`, "PATCH", { status }, "Kunne ikke oppdatere status.");
 }
 
 export async function moveEquipment(accessToken: string, equipmentId: number, palletQrCode: string): Promise<void> {
-  await sendEquipmentMutation(accessToken, `/api/v1/equipment/${equipmentId}/move`, "POST", { palletQrCode }, "Kunne ikke flytte utstyret.");
+  await sendApiMutation(accessToken, `/api/v1/equipment/${equipmentId}/move`, "POST", { palletQrCode }, "Kunne ikke flytte utstyret.");
 }
 
 export async function deleteEquipment(accessToken: string, equipmentId: number): Promise<void> {
@@ -64,7 +64,40 @@ export async function getEquipmentCategories(accessToken: string): Promise<Equip
   return response.json() as Promise<EquipmentCategory[]>;
 }
 
-async function sendEquipmentMutation(
+export async function getLocations(accessToken: string): Promise<Location[]> {
+  const response = await fetch(`${apiUrl}/api/v1/locations`, { headers: createHeaders(accessToken) });
+  if (!response.ok) throw await createApiError(response, "Kunne ikke hente lokasjoner.");
+  return response.json() as Promise<Location[]>;
+}
+
+export async function createLocation(
+  accessToken: string,
+  input: { name: string; type: string; address?: string },
+): Promise<Location> {
+  const headers = createHeaders(accessToken);
+  headers.set("Content-Type", "application/json");
+  const response = await fetch(`${apiUrl}/api/v1/locations`, { method: "POST", headers, body: JSON.stringify(input) });
+  if (!response.ok) throw await createApiError(response, "Kunne ikke opprette lokasjonen.");
+  return response.json() as Promise<Location>;
+}
+
+export async function updateLocation(
+  accessToken: string,
+  locationId: number,
+  input: { name: string; type: string; address?: string },
+): Promise<void> {
+  await sendApiMutation(accessToken, `/api/v1/locations/${locationId}`, "PATCH", input, "Kunne ikke oppdatere lokasjonen.");
+}
+
+export async function deleteLocation(accessToken: string, locationId: number): Promise<void> {
+  const response = await fetch(`${apiUrl}/api/v1/locations/${locationId}`, {
+    method: "DELETE",
+    headers: createHeaders(accessToken),
+  });
+  if (!response.ok) throw await createApiError(response, "Kunne ikke slette lokasjonen.");
+}
+
+async function sendApiMutation(
   accessToken: string,
   path: string,
   method: "PATCH" | "POST",

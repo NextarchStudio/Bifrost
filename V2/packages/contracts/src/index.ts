@@ -86,3 +86,10 @@ export interface EquipmentCategory {
   id: number;
   name: string;
 }
+
+export interface Location {
+  id: number;
+  name: string;
+  type: string;
+  address: string | null;
+}

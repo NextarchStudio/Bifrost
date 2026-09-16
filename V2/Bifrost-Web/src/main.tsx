@@ -4,6 +4,7 @@ import { createRoot } from "react-dom/client";
 import { getCurrentUser } from "./api/client";
 import { beginSignIn, completeSignIn, getSignedInUser, signOut } from "./auth/oidc";
 import { EquipmentWorkspace } from "./features/equipment/EquipmentWorkspace";
+import { LocationWorkspace } from "./features/locations/LocationWorkspace";
 import "./styles.css";
 
 type SessionState =
@@ -14,13 +15,14 @@ type SessionState =
 
 function App() {
   const [session, setSession] = useState<SessionState>({ status: "loading" });
+  const [workspace, setWorkspace] = useState<"equipment" | "locations">(window.location.pathname === "/locations" ? "locations" : "equipment");
 
   useEffect(() => {
     const load = async () => {
       try {
         const isCallback = window.location.pathname === "/auth/callback";
         const oidcUser = isCallback ? await completeSignIn() : await getSignedInUser();
-        if (isCallback) window.history.replaceState({}, "", "/");
+        if (isCallback) window.history.replaceState({}, "", "/equipment");
         if (!oidcUser || oidcUser.expired) return setSession({ status: "anonymous" });
         setSession({ status: "authenticated", user: await getCurrentUser(oidcUser.access_token), accessToken: oidcUser.access_token });
       } catch (error) {
@@ -30,21 +32,30 @@ function App() {
     void load();
   }, []);
 
+  useEffect(() => {
+    const handleNavigation = () => setWorkspace(window.location.pathname === "/locations" ? "locations" : "equipment");
+    window.addEventListener("popstate", handleNavigation);
+    return () => window.removeEventListener("popstate", handleNavigation);
+  }, []);
+
+  const navigate = (nextWorkspace: "equipment" | "locations") => {
+    setWorkspace(nextWorkspace);
+    window.history.pushState({}, "", `/${nextWorkspace}`);
+  };
+
   return (
     <main className="min-h-screen bg-[#07111d] text-slate-100">
       <div className="mx-auto flex min-h-screen max-w-6xl flex-col px-6 py-8 md:px-10">
-        <header className="flex items-center justify-between border-b border-white/10 pb-5">
+        <header className="flex flex-wrap items-center justify-between gap-5 border-b border-white/10 pb-5">
           <div className="flex items-center gap-3">
             <div className="grid size-10 place-items-center rounded-xl bg-emerald-300 font-black text-slate-950">B</div>
             <div><p className="font-semibold">Bifrost</p><p className="text-xs text-slate-500">TG Logistics</p></div>
           </div>
-          {session.status === "authenticated" && (
-            <button className="rounded-lg border border-white/10 px-4 py-2 text-sm text-slate-300 hover:bg-white/5" onClick={() => void signOut()}>Logg ut</button>
-          )}
+          {session.status === "authenticated" && <div className="flex flex-wrap items-center gap-2"><nav className="mr-2 flex rounded-xl border border-white/10 bg-white/[.025] p-1" aria-label="Hovednavigasjon"><NavigationButton active={workspace === "equipment"} onClick={() => navigate("equipment")}>Utstyr</NavigationButton><NavigationButton active={workspace === "locations"} onClick={() => navigate("locations")}>Lokasjoner</NavigationButton></nav><button className="rounded-lg border border-white/10 px-4 py-2 text-sm text-slate-300 hover:bg-white/5" onClick={() => void signOut()}>Logg ut</button></div>}
         </header>
 
         {session.status === "authenticated" ? (
-          <EquipmentWorkspace user={session.user} accessToken={session.accessToken} />
+          workspace === "locations" ? <LocationWorkspace accessToken={session.accessToken} /> : <EquipmentWorkspace user={session.user} accessToken={session.accessToken} />
         ) : <section className="grid flex-1 items-center gap-12 py-16 lg:grid-cols-[1.15fr_.85fr]">
           <div>
             <p className="mb-5 text-xs font-bold tracking-[.22em] text-emerald-300">BIFROST V2 · SIKKER LOGISTIKK</p>
@@ -68,6 +79,10 @@ function App() {
       </div>
     </main>
   );
+}
+
+function NavigationButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: string }) {
+  return <button className={`rounded-lg px-3 py-2 text-sm transition ${active ? "bg-emerald-300 text-slate-950" : "text-slate-400 hover:text-slate-100"}`} onClick={onClick}>{children}</button>;
 }
 
 function Status({ title, detail, error = false }: { title: string; detail: string; error?: boolean }) {

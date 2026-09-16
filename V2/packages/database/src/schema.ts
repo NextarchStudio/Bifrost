@@ -1,4 +1,4 @@
-import { bigint, boolean, datetime, int, json, mysqlTable, primaryKey, smallint, text, tinyint, uniqueIndex, varchar } from "drizzle-orm/mysql-core";
+import { bigint, boolean, datetime, decimal, int, json, mysqlTable, primaryKey, smallint, text, tinyint, uniqueIndex, varchar } from "drizzle-orm/mysql-core";
 
 export const users = mysqlTable("users", {
   id: bigint({ mode: "number", unsigned: true }).primaryKey().autoincrement(),
@@ -72,6 +72,9 @@ export const locations = mysqlTable("locations", {
   id: int({ unsigned: true }).primaryKey().autoincrement(),
   name: varchar({ length: 120 }).notNull(),
   type: varchar({ length: 50 }).notNull(),
+  address: varchar({ length: 255 }),
+  latitude: decimal({ precision: 10, scale: 7 }),
+  longitude: decimal({ precision: 10, scale: 7 }),
 });
 
 export const pallets = mysqlTable("pallets", {
@@ -96,6 +99,13 @@ export const equipmentLoans = mysqlTable("equipment_loans", {
   issuedByUserId: bigint("issued_by_user_id", { mode: "number", unsigned: true }).notNull(),
   issuedAt: datetime("issued_at", { mode: "date" }).notNull(),
   returnedAt: datetime("returned_at", { mode: "date" }),
+  status: varchar({ length: 20 }).notNull(),
+});
+
+export const transportJobs = mysqlTable("transport_jobs", {
+  id: bigint({ mode: "number", unsigned: true }).primaryKey().autoincrement(),
+  fromLocationId: int("from_location_id", { unsigned: true }).notNull(),
+  toLocationId: int("to_location_id", { unsigned: true }).notNull(),
   status: varchar({ length: 20 }).notNull(),
 });
 

@@ -1,6 +1,6 @@
 import { createReadStream, existsSync, statSync } from "node:fs";
 import { createServer } from "node:http";
-import { extname, join, normalize, resolve } from "node:path";
+import { extname, join, normalize, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(fileURLToPath(new URL("./dist", import.meta.url)));
@@ -16,9 +16,17 @@ const mimeTypes = new Map([
 ]);
 
 createServer((request, response) => {
-  const pathname = decodeURIComponent(new URL(request.url ?? "/", "http://localhost").pathname);
+  let pathname;
+  try {
+    pathname = decodeURIComponent(new URL(request.url ?? "/", "http://localhost").pathname);
+  } catch {
+    response.writeHead(400, { "Content-Type": "text/plain; charset=utf-8" });
+    response.end("Ugyldig URL.");
+    return;
+  }
   const requestedPath = resolve(root, `.${normalize(pathname)}`);
-  const safePath = requestedPath.startsWith(root) ? requestedPath : join(root, "index.html");
+  const isInsideRoot = requestedPath === root || requestedPath.startsWith(`${root}${sep}`);
+  const safePath = isInsideRoot ? requestedPath : join(root, "index.html");
   const filePath = existsSync(safePath) && statSync(safePath).isFile() ? safePath : join(root, "index.html");
   const isAsset = filePath.includes(`${join(root, "assets")}`);
 

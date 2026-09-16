@@ -66,6 +66,8 @@ Crew-/badge-oppslaget leser URL og endepunkt fra V1-tabellen `system_settings`, 
 
 Regler for privat utstyr leses og administreres direkte i V1-tabellen `private_equipment_prefixes`. V2 krever eksplisitt bekreftelse både i Web og API før utstyr med et registrert prefiks kan lånes ut, og viser eierpåminnelse ved retur.
 
+Utstyrsforespørsler bruker V1-tabellene `equipment_requests` og `equipment_request_items`. Godkjenning, lagerreduksjon og opprettelse av koblede lån utføres i samme databasetransaksjon; siste retur flytter en utlevert forespørsel til `returned`.
+
 ## PM2
 
 ```bash

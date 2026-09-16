@@ -1,4 +1,4 @@
-import type { ApiError, CrewProfile, CurrentUser, EquipmentCategory, EquipmentListResponse, EquipmentLoanIssueResponse, EquipmentLoanListResponse, EquipmentLoanReturnResponse, EquipmentMutationResponse, Location, Pallet, PalletInspection, PrivateEquipmentNotice, PrivateEquipmentRule } from "@bifrost/contracts";
+import type { ApiError, CrewProfile, CurrentUser, EquipmentCategory, EquipmentListResponse, EquipmentLoanIssueResponse, EquipmentLoanListResponse, EquipmentLoanReturnResponse, EquipmentMutationResponse, EquipmentRequestWorkspaceResponse, Location, Pallet, PalletInspection, PrivateEquipmentNotice, PrivateEquipmentRule } from "@bifrost/contracts";
 
 const apiUrl = (import.meta.env.VITE_API_URL || "http://localhost:3001").replace(/\/$/, "");
 
@@ -210,6 +210,47 @@ export async function createPrivateEquipmentRule(
 export async function deletePrivateEquipmentRule(accessToken: string, id: number): Promise<void> {
   const response = await fetch(`${apiUrl}/api/v1/private-equipment/${id}`, { method: "DELETE", headers: createHeaders(accessToken) });
   if (!response.ok) throw await createApiError(response, "Kunne ikke slette privat utstyr-regelen.");
+}
+
+export async function getEquipmentRequestWorkspace(accessToken: string): Promise<EquipmentRequestWorkspaceResponse> {
+  const response = await fetch(`${apiUrl}/api/v1/equipment-requests`, { headers: createHeaders(accessToken) });
+  if (!response.ok) throw await createApiError(response, "Kunne ikke hente utstyrsforespørsler.");
+  return response.json() as Promise<EquipmentRequestWorkspaceResponse>;
+}
+
+export async function createEquipmentRequest(
+  accessToken: string,
+  items: Array<{ equipmentId: number; quantity: number; note?: string }>,
+): Promise<{ id: number }> {
+  const headers = createHeaders(accessToken);
+  headers.set("Content-Type", "application/json");
+  const response = await fetch(`${apiUrl}/api/v1/equipment-requests`, { method: "POST", headers, body: JSON.stringify({ items }) });
+  if (!response.ok) throw await createApiError(response, "Kunne ikke sende utstyrsforespørselen.");
+  return response.json() as Promise<{ id: number }>;
+}
+
+export async function deleteEquipmentRequest(accessToken: string, id: number): Promise<void> {
+  const response = await fetch(`${apiUrl}/api/v1/equipment-requests/${id}`, { method: "DELETE", headers: createHeaders(accessToken) });
+  if (!response.ok) throw await createApiError(response, "Kunne ikke slette utstyrsforespørselen.");
+}
+
+export async function updateEquipmentRequestStatus(
+  accessToken: string,
+  id: number,
+  status: "pending" | "rejected" | "fulfilled",
+): Promise<void> {
+  await sendApiMutation(accessToken, `/api/v1/equipment-requests/${id}/status`, "PATCH", { status }, "Kunne ikke oppdatere forespørselen.");
+}
+
+export async function approveEquipmentRequest(
+  accessToken: string,
+  id: number,
+  input: {
+    approveAll: boolean;
+    decisions: Array<{ itemId: number; approvedQuantity: number; rejected: boolean; privateEquipmentConfirmed?: boolean }>;
+  },
+): Promise<void> {
+  await sendApiMutation(accessToken, `/api/v1/equipment-requests/${id}/approve`, "POST", input, "Kunne ikke behandle forespørselen.");
 }
 
 async function sendApiMutation(

@@ -18,6 +18,8 @@ import { registerCrewRoutes } from "./modules/crew/routes.js";
 import type { CrewDirectoryService } from "./modules/crew/service.js";
 import { registerPrivateEquipmentRoutes } from "./modules/private-equipment/routes.js";
 import type { PrivateEquipmentService } from "./modules/private-equipment/service.js";
+import { registerEquipmentRequestRoutes } from "./modules/requests/routes.js";
+import type { EquipmentRequestService } from "./modules/requests/service.js";
 
 export interface AppDependencies {
   checkDatabase: () => Promise<void>;
@@ -30,6 +32,7 @@ export interface AppDependencies {
   loans?: LoanService;
   crew?: CrewDirectoryService;
   privateEquipment?: PrivateEquipmentService;
+  requests?: EquipmentRequestService;
 }
 
 export function buildApp(dependencies: AppDependencies): FastifyInstance {
@@ -69,6 +72,7 @@ export function buildApp(dependencies: AppDependencies): FastifyInstance {
   if (dependencies.auth && dependencies.loans) void registerLoanRoutes(app, dependencies.auth, dependencies.loans);
   if (dependencies.auth && dependencies.crew) void registerCrewRoutes(app, dependencies.auth, dependencies.crew);
   if (dependencies.auth && dependencies.privateEquipment) void registerPrivateEquipmentRoutes(app, dependencies.auth, dependencies.privateEquipment);
+  if (dependencies.auth && dependencies.requests) void registerEquipmentRequestRoutes(app, dependencies.auth, dependencies.requests);
 
   app.setNotFoundHandler((request, reply) => {
     const body: ApiError = { error: { code: "NOT_FOUND", message: "Ressursen finnes ikke.", requestId: request.id } };

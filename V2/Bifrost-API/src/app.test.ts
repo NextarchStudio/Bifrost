@@ -12,6 +12,7 @@ import { LoanDomainError } from "./modules/loans/service.js";
 import type { CrewDirectoryService } from "./modules/crew/service.js";
 import { CrewDirectoryError } from "./modules/crew/service.js";
 import type { PrivateEquipmentService } from "./modules/private-equipment/service.js";
+import type { EquipmentRequestService } from "./modules/requests/service.js";
 
 const locationStub = (overrides: Partial<LocationService> = {}): LocationService => ({
   list: async () => [],
@@ -60,6 +61,15 @@ const privateEquipmentStub = (overrides: Partial<PrivateEquipmentService> = {}):
     equipmentItems: [],
   }),
   delete: async () => undefined,
+  ...overrides,
+});
+
+const requestStub = (overrides: Partial<EquipmentRequestService> = {}): EquipmentRequestService => ({
+  workspace: async (user) => ({ canCreate: true, canManage: false, currentWannabeId: user.wannabeId, selection: [], mine: [], incoming: [] }),
+  create: async () => ({ id: 1 }),
+  delete: async () => undefined,
+  updateStatus: async () => undefined,
+  approve: async () => undefined,
   ...overrides,
 });
 
@@ -471,5 +481,71 @@ test("creates a private equipment rule with actor context", async () => {
   assert.equal(response.statusCode, 201);
   assert.equal(response.json().id, 3);
   assert.equal(actor, 27);
+  await app.close();
+});
+
+test("allows a regular authenticated user to open equipment requests", async () => {
+  const app = buildApp({
+    checkDatabase: async () => undefined,
+    auth: {
+      getPublicConfig: async () => { throw new Error("not called"); },
+      authenticate: async () => ({ id: 30, name: "Bruker", firstName: "Vanlig", lastName: "Bruker", email: "bruker@example.test", wannabeId: 12345, roles: ["bruker"] }),
+    },
+    requests: requestStub(),
+  });
+  const response = await app.inject({ method: "GET", url: "/api/v1/equipment-requests", headers: { authorization: "Bearer valid" } });
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.json().canCreate, true);
+  assert.equal(response.json().currentWannabeId, 12345);
+  await app.close();
+});
+
+test("creates an equipment request for the authenticated user", async () => {
+  let requesterId = 0;
+  const app = buildApp({
+    checkDatabase: async () => undefined,
+    auth: {
+      getPublicConfig: async () => { throw new Error("not called"); },
+      authenticate: async () => ({ id: 30, name: "Bruker", firstName: "Vanlig", lastName: "Bruker", email: "bruker@example.test", wannabeId: 12345, roles: ["bruker"] }),
+    },
+    requests: requestStub({ create: async (_input, user) => { requesterId = user.id; return { id: 44 }; } }),
+  });
+  const response = await app.inject({ method: "POST", url: "/api/v1/equipment-requests", headers: { authorization: "Bearer valid" }, payload: { items: [{ equipmentId: 7, quantity: 2, note: "Til scene" }] } });
+  assert.equal(response.statusCode, 201);
+  assert.equal(response.json().id, 44);
+  assert.equal(requesterId, 30);
+  await app.close();
+});
+
+test("lets logistics approve request lines with actor context", async () => {
+  let actorId = 0;
+  let approvedQuantity = 0;
+  const app = buildApp({
+    checkDatabase: async () => undefined,
+    auth: {
+      getPublicConfig: async () => { throw new Error("not called"); },
+      authenticate: async () => ({ id: 31, name: "Logistikk", firstName: "Logistikk", lastName: "Bruker", email: "logistikk@example.test", wannabeId: 98765, roles: ["logistikk"] }),
+    },
+    requests: requestStub({ approve: async (_id, input, user) => { actorId = user.id; approvedQuantity = input.decisions[0]?.approvedQuantity ?? 0; } }),
+  });
+  const response = await app.inject({ method: "POST", url: "/api/v1/equipment-requests/44/approve", headers: { authorization: "Bearer valid" }, payload: { approveAll: false, decisions: [{ itemId: 9, approvedQuantity: 2, rejected: false }] } });
+  assert.equal(response.statusCode, 204);
+  assert.equal(actorId, 31);
+  assert.equal(approvedQuantity, 2);
+  await app.close();
+});
+
+test("denies request approval to users without a logistics role", async () => {
+  const app = buildApp({
+    checkDatabase: async () => undefined,
+    auth: {
+      getPublicConfig: async () => { throw new Error("not called"); },
+      authenticate: async () => ({ id: 30, name: "Bruker", firstName: "Vanlig", lastName: "Bruker", email: "bruker@example.test", wannabeId: 12345, roles: ["bruker"] }),
+    },
+    requests: requestStub(),
+  });
+  const response = await app.inject({ method: "POST", url: "/api/v1/equipment-requests/44/approve", headers: { authorization: "Bearer valid" }, payload: { approveAll: true, decisions: [] } });
+  assert.equal(response.statusCode, 403);
+  assert.equal(response.json().error.code, "FORBIDDEN");
   await app.close();
 });

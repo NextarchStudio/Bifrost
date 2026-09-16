@@ -9,6 +9,7 @@ import { createLoanService } from "./modules/loans/service.js";
 import { createCrewDirectoryService } from "./modules/crew/service.js";
 import { createSecureSettingsStore } from "./modules/settings/secure-settings.js";
 import { createPrivateEquipmentService } from "./modules/private-equipment/service.js";
+import { createEquipmentRequestService } from "./modules/requests/service.js";
 import { resolve } from "node:path";
 
 const database = createDatabase(readDatabaseConfig());
@@ -22,6 +23,7 @@ const app = buildApp({
   loans: createLoanService(database),
   crew: createCrewDirectoryService(database, secureSettings),
   privateEquipment: createPrivateEquipmentService(database),
+  requests: createEquipmentRequestService(database),
   checkDatabase: async () => {
     const connection = await database.pool.getConnection();
     try {

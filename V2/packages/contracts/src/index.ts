@@ -187,3 +187,51 @@ export interface PrivateEquipmentRule extends PrivateEquipmentNotice {
   highestSerial: string | null;
   equipmentItems: PrivateEquipmentItem[];
 }
+
+export type EquipmentRequestStatus = "pending" | "approved" | "rejected" | "partial" | "fulfilled" | "returned";
+
+export interface EquipmentRequestSelectionItem {
+  id: number;
+  name: string;
+  serialNumber: string;
+  quantity: number;
+  status: string;
+  locationName: string | null;
+}
+
+export interface EquipmentRequestItem {
+  id: number;
+  equipmentId: number;
+  equipmentName: string;
+  serialNumber: string;
+  quantity: number;
+  approvedQuantity: number;
+  itemStatus: string;
+  equipmentQuantity: number;
+  equipmentStatus: string;
+  note: string | null;
+}
+
+export interface EquipmentRequest {
+  id: number;
+  requesterUserId: number;
+  requesterName: string;
+  wannabeId: number;
+  title: string;
+  notes: string | null;
+  status: EquipmentRequestStatus;
+  itemsSummary: string;
+  changeSummary: string | null;
+  createdAt: string;
+  updatedAt: string;
+  items: EquipmentRequestItem[];
+}
+
+export interface EquipmentRequestWorkspaceResponse {
+  canCreate: boolean;
+  canManage: boolean;
+  currentWannabeId: number | null;
+  selection: EquipmentRequestSelectionItem[];
+  mine: EquipmentRequest[];
+  incoming: EquipmentRequest[];
+}

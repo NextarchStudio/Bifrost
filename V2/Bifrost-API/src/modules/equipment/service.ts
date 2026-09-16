@@ -3,12 +3,14 @@ import {
   auditLogs,
   equipment,
   equipmentLoans,
+  equipmentRequestItems,
+  equipmentRequests,
   locations,
   pallets,
   palletSlots,
   type DatabaseConnection,
 } from "@bifrost/database";
-import { and, asc, count, eq, like, sql, type SQL } from "drizzle-orm";
+import { and, asc, count, eq, inArray, like, ne, notInArray, sql, type SQL } from "drizzle-orm";
 
 export interface EquipmentListQuery {
   page: number;
@@ -25,9 +27,26 @@ export interface EquipmentCreateInput {
   notes?: string;
 }
 
+export interface EquipmentDetailsInput {
+  name: string;
+  serialNumber: string;
+  quantity: number;
+}
+
+export class EquipmentDomainError extends Error {
+  constructor(message: string, readonly code: "NOT_FOUND" | "CONFLICT") {
+    super(message);
+  }
+}
+
 export interface EquipmentService {
   list(query: EquipmentListQuery): Promise<EquipmentListResponse>;
   create(input: EquipmentCreateInput, actorUserId: number): Promise<EquipmentMutationResponse>;
+  updateDetails(id: number, input: EquipmentDetailsInput, actorUserId: number): Promise<void>;
+  updateQuantity(id: number, quantity: number, actorUserId: number): Promise<void>;
+  updateStatus(id: number, status: string, actorUserId: number): Promise<void>;
+  move(id: number, palletQrCode: string, actorUserId: number): Promise<void>;
+  delete(id: number, actorUserId: number): Promise<void>;
 }
 
 export function createEquipmentService(database: DatabaseConnection): EquipmentService {
@@ -136,5 +155,108 @@ export function createEquipmentService(database: DatabaseConnection): EquipmentS
         return { id: created.id, merged: false };
       });
     },
+
+    async updateDetails(id, input, actorUserId): Promise<void> {
+      await database.db.transaction(async (tx) => {
+        const [item] = await tx.select({ status: equipment.status }).from(equipment).where(eq(equipment.id, id)).limit(1);
+        if (!item) throw new EquipmentDomainError("Utstyr finnes ikke.", "NOT_FOUND");
+        const [duplicate] = await tx.select({ id: equipment.id }).from(equipment).where(eq(equipment.serialNumber, input.serialNumber)).limit(1);
+        if (duplicate && duplicate.id !== id) throw new EquipmentDomainError("Serienummeret er allerede registrert.", "CONFLICT");
+
+        const status = item.status === "maintenance" ? "maintenance" : input.quantity > 0 ? "available" : "loaned";
+        await tx.update(equipment).set({
+          name: input.name,
+          serialNumber: input.serialNumber,
+          quantity: input.quantity,
+          status,
+          updatedAt: new Date(),
+        }).where(eq(equipment.id, id));
+        await writeAudit(tx, actorUserId, "update", id, { ...input, status });
+      });
+    },
+
+    async updateQuantity(id, quantity, actorUserId): Promise<void> {
+      await database.db.transaction(async (tx) => {
+        const [item] = await tx.select({ status: equipment.status }).from(equipment).where(eq(equipment.id, id)).limit(1);
+        if (!item) throw new EquipmentDomainError("Utstyr finnes ikke.", "NOT_FOUND");
+        const status = item.status === "maintenance" ? "maintenance" : quantity > 0 ? "available" : "loaned";
+        await tx.update(equipment).set({ quantity, status, updatedAt: new Date() }).where(eq(equipment.id, id));
+        await writeAudit(tx, actorUserId, "quantity", id, { quantity, status });
+      });
+    },
+
+    async updateStatus(id, status, actorUserId): Promise<void> {
+      await database.db.transaction(async (tx) => {
+        const [item] = await tx.select({ id: equipment.id }).from(equipment).where(eq(equipment.id, id)).limit(1);
+        if (!item) throw new EquipmentDomainError("Utstyr finnes ikke.", "NOT_FOUND");
+        await tx.update(equipment).set({ status, updatedAt: new Date() }).where(eq(equipment.id, id));
+        await writeAudit(tx, actorUserId, "status", id, { status });
+      });
+    },
+
+    async move(id, palletQrCode, actorUserId): Promise<void> {
+      await database.db.transaction(async (tx) => {
+        const [item] = await tx.select({ id: equipment.id }).from(equipment).where(eq(equipment.id, id)).limit(1);
+        if (!item) throw new EquipmentDomainError("Utstyr finnes ikke.", "NOT_FOUND");
+        const [pallet] = await tx.select({ id: pallets.id }).from(pallets).where(eq(pallets.qrCode, palletQrCode)).limit(1);
+        if (!pallet) throw new EquipmentDomainError("Palle med strekkode finnes ikke.", "NOT_FOUND");
+
+        let [slot] = await tx.select({ id: palletSlots.id }).from(palletSlots)
+          .where(and(eq(palletSlots.palletId, pallet.id), eq(palletSlots.slotNumber, 1))).limit(1);
+        if (!slot) {
+          const [created] = await tx.insert(palletSlots).values({ palletId: pallet.id, slotNumber: 1, status: "available" }).$returningId();
+          slot = created;
+        }
+        if (!slot) throw new Error("Palleplass kunne ikke opprettes.");
+
+        await tx.update(equipment).set({ palletSlotId: slot.id, updatedAt: new Date() }).where(eq(equipment.id, id));
+        await writeAudit(tx, actorUserId, "move", id, { pallet_slot_id: slot.id, pallet_qr_code: palletQrCode });
+      });
+    },
+
+    async delete(id, actorUserId): Promise<void> {
+      await database.db.transaction(async (tx) => {
+        const [item] = await tx.select({ id: equipment.id, name: equipment.name }).from(equipment).where(eq(equipment.id, id)).limit(1);
+        if (!item) throw new EquipmentDomainError("Utstyr finnes ikke.", "NOT_FOUND");
+
+        const [loanRefs] = await tx.select({ value: count() }).from(equipmentLoans)
+          .where(and(eq(equipmentLoans.equipmentId, id), ne(equipmentLoans.status, "returned")));
+        const [requestRefs] = await tx.select({ value: count() }).from(equipmentRequestItems)
+          .innerJoin(equipmentRequests, eq(equipmentRequests.id, equipmentRequestItems.requestId))
+          .where(and(eq(equipmentRequestItems.equipmentId, id), notInArray(equipmentRequests.status, ["returned", "rejected"])));
+        if ((loanRefs?.value ?? 0) > 0 || (requestRefs?.value ?? 0) > 0) {
+          throw new EquipmentDomainError("Utstyr er koblet til aktive utlån eller forespørsler.", "CONFLICT");
+        }
+
+        await tx.delete(equipmentLoans).where(and(eq(equipmentLoans.equipmentId, id), eq(equipmentLoans.status, "returned")));
+        const removableItems = await tx.select({ id: equipmentRequestItems.id }).from(equipmentRequestItems)
+          .innerJoin(equipmentRequests, eq(equipmentRequests.id, equipmentRequestItems.requestId))
+          .where(and(eq(equipmentRequestItems.equipmentId, id), inArray(equipmentRequests.status, ["returned", "rejected"])));
+        if (removableItems.length > 0) {
+          await tx.delete(equipmentRequestItems).where(inArray(equipmentRequestItems.id, removableItems.map((row) => row.id)));
+        }
+        await tx.delete(equipment).where(eq(equipment.id, id));
+        await writeAudit(tx, actorUserId, "delete", id, { name: item.name });
+      });
+    },
   };
+}
+
+type AuditTransaction = Parameters<Parameters<DatabaseConnection["db"]["transaction"]>[0]>[0];
+
+async function writeAudit(
+  tx: AuditTransaction,
+  actorUserId: number,
+  action: string,
+  entityId: number,
+  diffJson: Record<string, unknown>,
+): Promise<void> {
+  await tx.insert(auditLogs).values({
+    actorUserId,
+    action,
+    entityType: "equipment",
+    entityId,
+    diffJson,
+    createdAt: new Date(),
+  });
 }

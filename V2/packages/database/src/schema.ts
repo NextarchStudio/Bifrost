@@ -102,6 +102,27 @@ export const auditLogs = mysqlTable("audit_logs", {
   createdAt: datetime("created_at", { mode: "date" }).notNull(),
 });
 
+export const equipmentRequests = mysqlTable("equipment_requests", {
+  id: bigint({ mode: "number", unsigned: true }).primaryKey().autoincrement(),
+  requesterUserId: bigint("requester_user_id", { mode: "number", unsigned: true }).notNull(),
+  wannabeId: bigint("wannabe_id", { mode: "number", unsigned: true }).notNull(),
+  title: varchar({ length: 150 }).notNull(),
+  notes: text(),
+  status: varchar({ length: 20 }).notNull().default("pending"),
+  createdAt: datetime("created_at", { mode: "date" }).notNull(),
+  updatedAt: datetime("updated_at", { mode: "date" }).notNull(),
+});
+
+export const equipmentRequestItems = mysqlTable("equipment_request_items", {
+  id: bigint({ mode: "number", unsigned: true }).primaryKey().autoincrement(),
+  requestId: bigint("request_id", { mode: "number", unsigned: true }).notNull(),
+  equipmentId: bigint("equipment_id", { mode: "number", unsigned: true }).notNull(),
+  quantity: smallint({ unsigned: true }).notNull().default(1),
+  note: varchar({ length: 255 }),
+  approvedQuantity: smallint("approved_quantity", { unsigned: true }).notNull().default(0),
+  itemStatus: varchar("item_status", { length: 20 }).notNull().default("pending"),
+});
+
 export const secureSettings = mysqlTable("bifrost_secure_settings", {
   key: varchar({ length: 120 }).primaryKey(),
   encryptedValue: text("encrypted_value").notNull(),

@@ -70,6 +70,8 @@ Utstyrsforespørsler bruker V1-tabellene `equipment_requests` og `equipment_requ
 
 Kjøretøymodulen bruker V1-tabellene `vehicles`, `vehicle_loans`, `wannabe_competencies` og `wannabe_vehicle_kdo` direkte. Oppretting, utlån, retur, KDO og førerkort-/kompetansekontroll beholder V1-rollene og audit-sporet. Statens vegvesen-oppslag bruker den krypterte innstillingen `vegvesen.api_key`; API-nøkkelen eksponeres aldri til Web.
 
+Profilmodulen samler aktive utstyrs-, kjøretøy- og sambandlån samt åpne forespørsler fra V1-tabellene. V1-reglene for innsyn i andres profiler og blokkering av profilbilder beholdes. Profilbildet hentes server-side med kryptert crew-token og sendes som en kontrollert bildeproxy; tokenet eksponeres ikke i browseren. Lokal passordendring videreføres ikke fordi Keycloak/OIDC er obligatorisk i V2.
+
 ## PM2
 
 ```bash

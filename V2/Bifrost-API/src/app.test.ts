@@ -14,6 +14,8 @@ import { CrewDirectoryError } from "./modules/crew/service.js";
 import type { PrivateEquipmentService } from "./modules/private-equipment/service.js";
 import type { EquipmentRequestService } from "./modules/requests/service.js";
 import type { VehicleService } from "./modules/vehicles/service.js";
+import type { ProfileService } from "./modules/profiles/service.js";
+import { ProfileDomainError } from "./modules/profiles/service.js";
 
 const locationStub = (overrides: Partial<LocationService> = {}): LocationService => ({
   list: async () => [],
@@ -43,6 +45,7 @@ const loanStub = (overrides: Partial<LoanService> = {}): LoanService => ({
 
 const crewStub = (overrides: Partial<CrewDirectoryService> = {}): CrewDirectoryService => ({
   lookup: async () => ({ id: 12345, name: "Crew Member", nickname: "", crewName: "Logistics", role: "Crew", displayName: "Crew Member", source: "cache" }),
+  picture: async () => null,
   ...overrides,
 });
 
@@ -87,6 +90,22 @@ const vehicleStub = (overrides: Partial<VehicleService> = {}): VehicleService =>
   delete: async () => undefined,
   issue: async () => ({ loanId: 1 }),
   returnLoan: async () => undefined,
+  ...overrides,
+});
+
+const profileStub = (overrides: Partial<ProfileService> = {}): ProfileService => ({
+  profile: async (viewer, wannabeId) => ({
+    user: { id: viewer.id, name: viewer.name, firstName: viewer.firstName, lastName: viewer.lastName, email: viewer.email, wannabeId, roles: viewer.roles, roleDisplayNames: viewer.roles },
+    isOwnProfile: viewer.wannabeId === wannabeId,
+    canViewOtherProfiles: false,
+    canViewRequests: true,
+    pictureAvailable: true,
+    equipmentLoans: [],
+    vehicleLoans: [],
+    commsLoans: [],
+    requests: [],
+  }),
+  canShowPicture: async () => true,
   ...overrides,
 });
 
@@ -675,5 +694,54 @@ test("lets chief update a user competency profile", async () => {
   assert.equal(response.statusCode, 204);
   assert.equal(actorId, 43);
   assert.equal(selected, "t1,be");
+  await app.close();
+});
+
+test("returns the authenticated user's profile overview", async () => {
+  let viewerId = 0;
+  const app = buildApp({
+    checkDatabase: async () => undefined,
+    auth: {
+      getPublicConfig: async () => { throw new Error("not called"); },
+      authenticate: async () => ({ id: 50, name: "Profil Bruker", firstName: "Profil", lastName: "Bruker", email: "profil@example.test", wannabeId: 500, roles: ["bruker"] }),
+    },
+    profiles: profileStub({ profile: async (viewer, wannabeId) => { viewerId = viewer.id; return { user: { id: 50, name: "Profil Bruker", firstName: "Profil", lastName: "Bruker", email: "profil@example.test", wannabeId, roles: ["bruker"], roleDisplayNames: ["Bruker"] }, isOwnProfile: true, canViewOtherProfiles: false, canViewRequests: true, pictureAvailable: false, equipmentLoans: [], vehicleLoans: [], commsLoans: [], requests: [] }; } }),
+  });
+  const response = await app.inject({ method: "GET", url: "/api/v1/profiles/500", headers: { authorization: "Bearer valid" } });
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.json().isOwnProfile, true);
+  assert.equal(viewerId, 50);
+  await app.close();
+});
+
+test("preserves profile access denial from the domain service", async () => {
+  const app = buildApp({
+    checkDatabase: async () => undefined,
+    auth: {
+      getPublicConfig: async () => { throw new Error("not called"); },
+      authenticate: async () => ({ id: 50, name: "Profil Bruker", firstName: "Profil", lastName: "Bruker", email: "profil@example.test", wannabeId: 500, roles: ["bruker"] }),
+    },
+    profiles: profileStub({ profile: async () => { throw new ProfileDomainError("Du har ikke tilgang til denne profilen.", "FORBIDDEN"); } }),
+  });
+  const response = await app.inject({ method: "GET", url: "/api/v1/profiles/999", headers: { authorization: "Bearer valid" } });
+  assert.equal(response.statusCode, 403);
+  assert.equal(response.json().error.code, "FORBIDDEN");
+  await app.close();
+});
+
+test("proxies an allowed crew profile picture without exposing the bearer token", async () => {
+  const app = buildApp({
+    checkDatabase: async () => undefined,
+    auth: {
+      getPublicConfig: async () => { throw new Error("not called"); },
+      authenticate: async () => ({ id: 50, name: "Profil Bruker", firstName: "Profil", lastName: "Bruker", email: "profil@example.test", wannabeId: 500, roles: ["bruker"] }),
+    },
+    profiles: profileStub(),
+    crew: crewStub({ picture: async () => ({ contentType: "image/png", body: Buffer.from([137, 80, 78, 71]) }) }),
+  });
+  const response = await app.inject({ method: "GET", url: "/api/v1/profiles/500/picture", headers: { authorization: "Bearer valid" } });
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.headers["content-type"], "image/png");
+  assert.equal(response.headers["cache-control"], "private, max-age=900");
   await app.close();
 });

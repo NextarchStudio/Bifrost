@@ -12,6 +12,7 @@ import { createPrivateEquipmentService } from "./modules/private-equipment/servi
 import { createEquipmentRequestService } from "./modules/requests/service.js";
 import { createVehicleService } from "./modules/vehicles/service.js";
 import { createVegvesenVehicleDataService } from "./modules/vehicles/vegvesen.js";
+import { createProfileService } from "./modules/profiles/service.js";
 import { resolve } from "node:path";
 
 const database = createDatabase(readDatabaseConfig());
@@ -27,6 +28,7 @@ const app = buildApp({
   privateEquipment: createPrivateEquipmentService(database),
   requests: createEquipmentRequestService(database),
   vehicles: createVehicleService(database, createVegvesenVehicleDataService(database, secureSettings)),
+  profiles: createProfileService(database),
   checkDatabase: async () => {
     const connection = await database.pool.getConnection();
     try {

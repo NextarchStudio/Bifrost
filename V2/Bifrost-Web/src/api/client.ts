@@ -1,4 +1,4 @@
-import type { ApiError, CrewProfile, CurrentUser, EquipmentCategory, EquipmentListResponse, EquipmentLoanIssueResponse, EquipmentLoanListResponse, EquipmentLoanReturnResponse, EquipmentMutationResponse, EquipmentRequestWorkspaceResponse, Location, Pallet, PalletInspection, PrivateEquipmentNotice, PrivateEquipmentRule, VehicleCompetencyCode, VehicleCompetencyProfile, VehicleCompetencyRequirement, VehicleLoanIssueResponse, VehicleWorkspaceResponse } from "@bifrost/contracts";
+import type { ApiError, CrewProfile, CurrentUser, EquipmentCategory, EquipmentListResponse, EquipmentLoanIssueResponse, EquipmentLoanListResponse, EquipmentLoanReturnResponse, EquipmentMutationResponse, EquipmentRequestWorkspaceResponse, Location, Pallet, PalletInspection, PrivateEquipmentNotice, PrivateEquipmentRule, UserProfileResponse, VehicleCompetencyCode, VehicleCompetencyProfile, VehicleCompetencyRequirement, VehicleLoanIssueResponse, VehicleWorkspaceResponse } from "@bifrost/contracts";
 
 const apiUrl = (import.meta.env.VITE_API_URL || "http://localhost:3001").replace(/\/$/, "");
 
@@ -344,6 +344,19 @@ export async function issueVehicleLoan(
 
 export async function returnVehicleLoan(accessToken: string, loanId: number): Promise<void> {
   await sendApiMutation(accessToken, `/api/v1/vehicle-loans/${loanId}/return`, "POST", {}, "Kunne ikke returnere kjøretøyet.");
+}
+
+export async function getUserProfile(accessToken: string, wannabeId: number): Promise<UserProfileResponse> {
+  const response = await fetch(`${apiUrl}/api/v1/profiles/${wannabeId}`, { headers: createHeaders(accessToken) });
+  if (!response.ok) throw await createApiError(response, "Kunne ikke hente profilen.");
+  return response.json() as Promise<UserProfileResponse>;
+}
+
+export async function getUserProfilePicture(accessToken: string, wannabeId: number): Promise<Blob | null> {
+  const response = await fetch(`${apiUrl}/api/v1/profiles/${wannabeId}/picture`, { headers: createHeaders(accessToken) });
+  if (response.status === 404) return null;
+  if (!response.ok) throw await createApiError(response, "Kunne ikke hente profilbildet.");
+  return response.blob();
 }
 
 async function sendApiMutation(

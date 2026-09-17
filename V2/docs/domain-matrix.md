@@ -26,7 +26,7 @@ Brukere kan ha flere roller. `ingen_tilbakemeldinger` skal behandles som en eksp
 
 | Domene | V1-tilgang på rutenivå | Viktige V1-regler | V2-status |
 |---|---|---|---|
-| OIDC og profil | Alle innloggede | Keycloak/OIDC, egen profil, profilbilde og passordflyt i V1 | OIDC, tokenvalidering og brukerprovisjonering levert; profilside gjenstår |
+| OIDC og profil | Alle innloggede; utvidet innsyn følger V1-rollene | Keycloak/OIDC, egen profil, autorisert innsyn i andres lån/forespørsler og blokkering av profilbilde for sperrede roller; lokal V1-passordflyt erstattes av obligatorisk Keycloak | OIDC, tokenvalidering, brukerprovisjonering, profilside, aktive utstyrs-/kjøretøy-/sambandlån, forespørsler og sikker bildeproxy levert |
 | Dashboard | Alle innloggede | Operativ oversikt og varsler | Ikke startet |
 | Globalt søk | `developer`, `chief`, `co-chief`, `logistikk` | Søk på tvers av utstyr, serienummer, lokasjon, palle, plass og Wannabe-ID | Ikke startet |
 | Utstyr | `developer`, `chief`, `co-chief`, `logistikk` | Opprett/merge på serienummer, rediger, antall, status, flytt og slettingsvern | API og Web levert |
@@ -59,6 +59,7 @@ Brukere kan ha flere roller. `ingen_tilbakemeldinger` skal behandles som en eksp
 | `/api/v1/crew/lookup` | `developer`, `chief`, `co-chief`, `skiftleder`, `logistikk` | Cacheoppdatering ved eksternt treff; `skiftleder` trenger oppslaget i kjøretøylån | Ja |
 | `/api/v1/private-equipment*` | `developer`, `chief`, `co-chief`, `logistikk` | Ja | Delvis |
 | `/api/v1/vehicles*`, `/api/v1/vehicle-loans*` | `developer`, `chief`, `co-chief`, `skiftleder`, `logistikk`; endring/sletting uten `logistikk`; kompetanseadmin uten `skiftleder` og `logistikk` | Ja | Ja |
+| `/api/v1/profiles*` | Egen profil: alle innloggede; andres lån: `developer`, `chief`, `co-chief`, `skiftleder`, `sambandsansvarlig`, `logistikk`; andres forespørsler uten `logistikk` | Kun lesing | Ja |
 
 API-et bruker én felles Bearer-token- og rollekontroll. Manglende token gir `401`, manglende rolle gir `403`, og manglende OIDC-konfigurasjon beholdes som `503` med kode `OIDC_NOT_CONFIGURED`.
 

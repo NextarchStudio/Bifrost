@@ -1,6 +1,7 @@
 import type { CrewProfile } from "@bifrost/contracts";
 import { crewDirectoryCache, systemSettings, users, type DatabaseConnection } from "@bifrost/database";
 import { eq, or } from "drizzle-orm";
+import { Buffer } from "node:buffer";
 import type { SecureSettingsStore } from "../settings/secure-settings.js";
 
 interface CrewApiProfile {
@@ -30,6 +31,7 @@ export class CrewDirectoryError extends Error {
 
 export interface CrewDirectoryService {
   lookup(query: string): Promise<CrewProfile>;
+  picture(wannabeId: number): Promise<{ contentType: string; body: Buffer } | null>;
 }
 
 export function createCrewDirectoryService(
@@ -78,6 +80,28 @@ export function createCrewDirectoryService(
       if (!config) throw new CrewDirectoryError("Crew-oppslag er ikke konfigurert.", "NOT_CONFIGURED");
       throw new CrewDirectoryError("Fant ikke person for denne Wannabe-ID-en eller badge-scannen.", "NOT_FOUND");
     },
+
+    async picture(wannabeId) {
+      const config = await loadPictureConfig(database, secureSettings);
+      if (!config) return null;
+      try {
+        const base = config.baseUrl.endsWith("/") ? config.baseUrl : `${config.baseUrl}/`;
+        const url = new URL(config.pictureEndpoint.replace(/^\//, ""), base);
+        if (!new Set(["http:", "https:"]).has(url.protocol)) return null;
+        url.searchParams.set("uid", String(wannabeId));
+        const response = await fetchImplementation(url, {
+          headers: { Authorization: `Bearer ${config.token}`, Accept: "image/png,image/jpeg,image/webp,image/gif" },
+          signal: AbortSignal.timeout(10_000),
+        });
+        if (!response.ok) return null;
+        const contentType = response.headers.get("content-type")?.split(";")[0]?.trim().toLowerCase() || "image/png";
+        if (!new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]).has(contentType)) return null;
+        const body = Buffer.from(await response.arrayBuffer());
+        return body.length > 0 ? { contentType, body } : null;
+      } catch {
+        return null;
+      }
+    },
   };
 }
 
@@ -89,6 +113,16 @@ async function loadConfig(database: DatabaseConnection, secureSettings: SecureSe
   const token = await secureSettings.get("crew.api_bearer_token");
   if (!settings?.baseUrl || !settings.profileEndpoint || !token) return null;
   return { baseUrl: settings.baseUrl, profileEndpoint: settings.profileEndpoint, token };
+}
+
+async function loadPictureConfig(database: DatabaseConnection, secureSettings: SecureSettingsStore) {
+  const [settings] = await database.db.select({
+    baseUrl: systemSettings.crewApiBaseUrl,
+    pictureEndpoint: systemSettings.crewApiPictureEndpoint,
+  }).from(systemSettings).where(eq(systemSettings.id, 1)).limit(1);
+  const token = await secureSettings.get("crew.api_bearer_token");
+  if (!settings?.baseUrl || !settings.pictureEndpoint || !token) return null;
+  return { baseUrl: settings.baseUrl, pictureEndpoint: settings.pictureEndpoint, token };
 }
 
 async function fetchRemoteProfile(

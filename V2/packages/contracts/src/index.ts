@@ -276,3 +276,59 @@ export interface VehicleWorkspaceResponse {
 export interface VehicleLoanIssueResponse {
   loanId: number;
 }
+
+export interface ProfileUser {
+  id: number;
+  name: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  wannabeId: number;
+  roles: string[];
+  roleDisplayNames: string[];
+}
+
+export interface ProfileEquipmentLoan {
+  id: number;
+  equipmentName: string;
+  serialNumber: string;
+  quantity: number;
+  status: string;
+  issuedAt: string;
+}
+
+export interface ProfileVehicleLoan {
+  id: number;
+  vehicleName: string;
+  registrationNumber: string;
+  status: string;
+  issuedAt: string;
+}
+
+export interface ProfileCommsLoan {
+  id: number;
+  setId: number | null;
+  setName: string | null;
+  itemsSummary: string;
+  totalItems: number;
+  issuedAt: string;
+}
+
+export interface ProfileEquipmentRequest {
+  id: number;
+  itemsSummary: string;
+  status: EquipmentRequestStatus;
+  createdAt: string;
+}
+
+export interface UserProfileResponse {
+  user: ProfileUser;
+  isOwnProfile: boolean;
+  canViewOtherProfiles: boolean;
+  canViewRequests: boolean;
+  pictureAvailable: boolean;
+  equipmentLoans: ProfileEquipmentLoan[];
+  vehicleLoans: ProfileVehicleLoan[];
+  commsLoans: ProfileCommsLoan[];
+  requests: ProfileEquipmentRequest[];
+}

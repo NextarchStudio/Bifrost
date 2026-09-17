@@ -187,6 +187,51 @@ export const wannabeVehicleKdo = mysqlTable("wannabe_vehicle_kdo", {
   updatedAt: datetime("updated_at", { mode: "date" }).notNull(),
 }, (table) => [uniqueIndex("wannabe_vehicle_kdo_wannabe_vehicle_unique").on(table.wannabeId, table.vehicleId)]);
 
+export const commsItems = mysqlTable("comms_items", {
+  id: bigint({ mode: "number", unsigned: true }).primaryKey().autoincrement(),
+  name: varchar({ length: 140 }).notNull(),
+  type: varchar({ length: 30 }).notNull(),
+  serialNumber: varchar("serial_number", { length: 150 }),
+  quantity: int({ unsigned: true }).notNull().default(1),
+  status: varchar({ length: 20 }).notNull().default("available"),
+  notes: text(),
+  createdAt: datetime("created_at", { mode: "date" }).notNull(),
+  updatedAt: datetime("updated_at", { mode: "date" }).notNull(),
+});
+
+export const commsSets = mysqlTable("comms_sets", {
+  id: bigint({ mode: "number", unsigned: true }).primaryKey().autoincrement(),
+  name: varchar({ length: 120 }).notNull(),
+  notes: text(),
+  createdAt: datetime("created_at", { mode: "date" }).notNull(),
+  updatedAt: datetime("updated_at", { mode: "date" }).notNull(),
+});
+
+export const commsSetItems = mysqlTable("comms_set_items", {
+  id: bigint({ mode: "number", unsigned: true }).primaryKey().autoincrement(),
+  setId: bigint("set_id", { mode: "number", unsigned: true }).notNull(),
+  itemId: bigint("item_id", { mode: "number", unsigned: true }).notNull(),
+  quantity: int({ unsigned: true }).notNull().default(1),
+}, (table) => [uniqueIndex("comms_set_items_set_item_unique").on(table.setId, table.itemId)]);
+
+export const commsLoans = mysqlTable("comms_loans", {
+  id: bigint({ mode: "number", unsigned: true }).primaryKey().autoincrement(),
+  wannabeId: bigint("wannabe_id", { mode: "number", unsigned: true }).notNull(),
+  issuedByUserId: bigint("issued_by_user_id", { mode: "number", unsigned: true }).notNull(),
+  setId: bigint("set_id", { mode: "number", unsigned: true }),
+  issuedAt: datetime("issued_at", { mode: "date" }).notNull(),
+  returnedAt: datetime("returned_at", { mode: "date" }),
+  status: varchar({ length: 20 }).notNull().default("active"),
+  notes: text(),
+});
+
+export const commsLoanItems = mysqlTable("comms_loan_items", {
+  id: bigint({ mode: "number", unsigned: true }).primaryKey().autoincrement(),
+  loanId: bigint("loan_id", { mode: "number", unsigned: true }).notNull(),
+  itemId: bigint("item_id", { mode: "number", unsigned: true }).notNull(),
+  quantity: int({ unsigned: true }).notNull().default(1),
+});
+
 export const transportJobs = mysqlTable("transport_jobs", {
   id: bigint({ mode: "number", unsigned: true }).primaryKey().autoincrement(),
   fromLocationId: int("from_location_id", { unsigned: true }).notNull(),

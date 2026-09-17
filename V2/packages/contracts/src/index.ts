@@ -747,3 +747,30 @@ export interface AdminStatistics {
   locations: { total: number; withAddress: number; types: AdminCountBreakdown[] };
   warehouse: { pallets: number; slots: number; occupiedSlots: number };
 }
+
+export interface AdminCrewResetPreview {
+  confirmationPhrase: string;
+  preservedUser: { id: number; name: string; email: string } | null;
+  deletes: {
+    users: number;
+    crewCache: number;
+    competencies: number;
+    vehicleKdo: number;
+    passwordResetTokens: number;
+    feedbackNotificationReads: number;
+    feedbackEntries: number;
+    tasks: number;
+    authAccounts: number;
+    userRoles: number;
+    equipmentRequests: number;
+    equipmentLoans: number;
+    commsLoans: number;
+    vehicleLoans: number;
+    shopMovements: number;
+    auditLogs: number;
+    loginAttempts: number;
+  };
+  unlinks: { transportRequesters: number; transportAssignees: number };
+  clearsProtectedUserBadge: boolean;
+  cacheYear: number;
+}

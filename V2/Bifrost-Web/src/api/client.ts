@@ -1,4 +1,4 @@
-import type { AdminRole, AdminSettings, AdminStatistics, AdminWorkspaceResponse, ApiError, CommsItemType, CommsWorkspaceResponse, CrewClothingItemType, CrewClothingMember, CrewClothingWorkspaceResponse, CrewProfile, CurrentUser, EquipmentCategory, EquipmentListResponse, EquipmentLoanIssueResponse, EquipmentLoanListResponse, EquipmentLoanReturnResponse, EquipmentMutationResponse, EquipmentRequestWorkspaceResponse, FeedbackNotificationResponse, FeedbackStatus, FeedbackType, FeedbackWorkspaceResponse, Location, Pallet, PalletInspection, PrivateEquipmentNotice, PrivateEquipmentRule, ShopImportSummary, ShopWorkspaceResponse, TaskPriority, TaskStatus, TaskType, TaskWorkspaceResponse, TransportJob, TransportJobKind, TransportWorkspaceResponse, UserProfileResponse, VehicleCompetencyCode, VehicleCompetencyProfile, VehicleCompetencyRequirement, VehicleLoanIssueResponse, VehicleWorkspaceResponse } from "@bifrost/contracts";
+import type { AdminCrewResetPreview, AdminRole, AdminSettings, AdminStatistics, AdminWorkspaceResponse, ApiError, CommsItemType, CommsWorkspaceResponse, CrewClothingItemType, CrewClothingMember, CrewClothingWorkspaceResponse, CrewProfile, CurrentUser, EquipmentCategory, EquipmentListResponse, EquipmentLoanIssueResponse, EquipmentLoanListResponse, EquipmentLoanReturnResponse, EquipmentMutationResponse, EquipmentRequestWorkspaceResponse, FeedbackNotificationResponse, FeedbackStatus, FeedbackType, FeedbackWorkspaceResponse, Location, Pallet, PalletInspection, PrivateEquipmentNotice, PrivateEquipmentRule, ShopImportSummary, ShopWorkspaceResponse, TaskPriority, TaskStatus, TaskType, TaskWorkspaceResponse, TransportJob, TransportJobKind, TransportWorkspaceResponse, UserProfileResponse, VehicleCompetencyCode, VehicleCompetencyProfile, VehicleCompetencyRequirement, VehicleLoanIssueResponse, VehicleWorkspaceResponse } from "@bifrost/contracts";
 
 const apiUrl = (import.meta.env.VITE_API_URL || "http://localhost:3001").replace(/\/$/, "");
 
@@ -643,6 +643,19 @@ export async function deleteAdminRole(accessToken: string, id: number): Promise<
 
 export async function updateAdminSettings(accessToken: string, input: AdminSettings & { keycloakClientSecret?: string | null; smtpPassword?: string | null; vegvesenApiKey?: string | null; crewApiBearerToken?: string | null }): Promise<void> {
   await sendApiPut(accessToken, "/api/v1/admin/settings", input, "Kunne ikke oppdatere systeminnstillingene.");
+}
+
+export async function getAdminCrewResetPreview(accessToken: string): Promise<AdminCrewResetPreview> {
+  const response = await fetch(`${apiUrl}/api/v1/admin/crew-cache/preview`, { headers: createHeaders(accessToken) });
+  if (!response.ok) throw await createApiError(response, "Kunne ikke forhåndsvise crew-reset.");
+  return response.json() as Promise<AdminCrewResetPreview>;
+}
+
+export async function clearAdminCrewCache(accessToken: string, confirmation: string): Promise<AdminCrewResetPreview> {
+  const headers = createHeaders(accessToken); headers.set("Content-Type", "application/json");
+  const response = await fetch(`${apiUrl}/api/v1/admin/crew-cache/clear`, { method: "POST", headers, body: JSON.stringify({ confirmation }) });
+  if (!response.ok) throw await createApiError(response, "Kunne ikke fullføre crew-reset.");
+  return response.json() as Promise<AdminCrewResetPreview>;
 }
 
 export async function getUserProfile(accessToken: string, wannabeId: number): Promise<UserProfileResponse> {

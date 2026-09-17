@@ -33,6 +33,24 @@ export const authAccounts = mysqlTable("auth_accounts", {
   providerId: varchar("provider_id", { length: 191 }).notNull(),
 });
 
+export const passwordResetTokens = mysqlTable("password_reset_tokens", {
+  id: bigint({ mode: "number", unsigned: true }).primaryKey().autoincrement(),
+  userId: bigint("user_id", { mode: "number", unsigned: true }).notNull(),
+  purpose: varchar({ length: 20 }).notNull(),
+  tokenHash: varchar("token_hash", { length: 64 }).notNull(),
+  expiresAt: datetime("expires_at", { mode: "date" }).notNull(),
+  usedAt: datetime("used_at", { mode: "date" }),
+  createdAt: datetime("created_at", { mode: "date" }).notNull(),
+});
+
+export const loginAttempts = mysqlTable("login_attempts", {
+  id: bigint({ mode: "number", unsigned: true }).primaryKey().autoincrement(),
+  email: varchar({ length: 180 }).notNull(),
+  ipAddress: varchar("ip_address", { length: 45 }).notNull(),
+  successful: boolean().notNull().default(false),
+  createdAt: datetime("created_at", { mode: "date" }).notNull(),
+});
+
 export const systemSettings = mysqlTable("system_settings", {
   id: tinyint({ unsigned: true }).primaryKey(),
   appName: varchar("app_name", { length: 120 }),

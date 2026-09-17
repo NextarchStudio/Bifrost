@@ -1,12 +1,14 @@
-import type { AdminRole, AdminSettings, AdminStatistics, AdminUser, AdminWorkspaceResponse, VehicleCompetencyCode } from "@bifrost/contracts";
+import type { AdminCrewResetPreview, AdminRole, AdminSettings, AdminStatistics, AdminUser, AdminWorkspaceResponse, VehicleCompetencyCode } from "@bifrost/contracts";
 import { VEHICLE_COMPETENCY_CODES } from "@bifrost/contracts";
 import { useEffect, useState, type ReactNode } from "react";
 import {
   createAdminRole,
   createAdminUser,
+  clearAdminCrewCache,
   deleteAdminRole,
   deleteAdminUser,
   getAdminStatistics,
+  getAdminCrewResetPreview,
   getAdminWorkspace,
   setAdminUserActive,
   syncAdminUserRoles,
@@ -24,7 +26,7 @@ export function AdminWorkspace({ accessToken }: { accessToken: string }) {
   useEffect(() => { void reload().catch((reason) => setError(messageFrom(reason))); }, [accessToken]);
   const run = async (action: () => Promise<unknown>, message: string) => { setError(null); setSuccess(null); try { await action(); await reload(); setSuccess(message); } catch (reason) { setError(messageFrom(reason)); throw reason; } };
   if (!data) return <WorkspaceState title="Laster administrasjon" detail={error ?? "Henter brukere, roller og sikker konfigurasjon …"} error={Boolean(error)} />;
-  return <section className="flex-1 py-8"><div className="mb-7"><p className="text-sm text-amber-300">Tilgang og konfigurasjon</p><h1 className="mt-1 text-3xl font-semibold">Administrasjon</h1><p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">Administrer V1-brukere, roller og kompetanser. Nye brukere kobles til Keycloak ved første innlogging; V2 oppretter ikke lokale passord.</p></div>{error && <Banner tone="error">{error}</Banner>}{success && <Banner tone="success">{success}</Banner>}{statistics && <Statistics data={statistics} />}{data.canManageSettings && data.settings && <SettingsForm accessToken={accessToken} settings={data.settings} cacheCount={data.crewCacheEntries} run={run} />}<NewUser accessToken={accessToken} run={run} /><Users data={data} accessToken={accessToken} run={run} /><Roles roles={data.roles} accessToken={accessToken} run={run} /></section>;
+  return <section className="flex-1 py-8"><div className="mb-7"><p className="text-sm text-amber-300">Tilgang og konfigurasjon</p><h1 className="mt-1 text-3xl font-semibold">Administrasjon</h1><p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">Administrer V1-brukere, roller og kompetanser. Nye brukere kobles til Keycloak ved første innlogging; V2 oppretter ikke lokale passord.</p></div>{error && <Banner tone="error">{error}</Banner>}{success && <Banner tone="success">{success}</Banner>}{statistics && <Statistics data={statistics} />}{data.canManageSettings && data.settings && <><SettingsForm accessToken={accessToken} settings={data.settings} cacheCount={data.crewCacheEntries} run={run} /><CrewReset accessToken={accessToken} /></>}<NewUser accessToken={accessToken} run={run} /><Users data={data} accessToken={accessToken} run={run} /><Roles roles={data.roles} accessToken={accessToken} run={run} /></section>;
 }
 
 function Statistics({ data }: { data: AdminStatistics }) {
@@ -75,6 +77,38 @@ function Roles({ roles, accessToken, run }: { roles: AdminRole[]; accessToken: s
 function SettingsForm({ accessToken, settings, cacheCount, run }: { accessToken: string; settings: AdminSettings; cacheCount: number; run: RunAction }) {
   const [saving, setSaving] = useState(false);
   return <form className={cardClass} onSubmit={(event) => { event.preventDefault(); const form = new FormData(event.currentTarget); setSaving(true); void run(() => updateAdminSettings(accessToken, settingsInput(form, settings)), "Systeminnstillingene er oppdatert.").catch(() => undefined).finally(() => setSaving(false)); }}><p className="text-sm text-amber-300">Kun developer</p><h2 className="mt-1 text-xl font-semibold">Systeminnstillinger</h2><p className="mt-2 text-sm text-slate-500">Keycloak er alltid aktiv og lokal innlogging alltid avslått i V2. Hemmeligheter vises aldri; la feltet stå tomt for å beholde eksisterende verdi.</p><div className="mt-5 grid gap-5 lg:grid-cols-2"><SettingsGroup title="Generelt"><Field label="Applikasjonsnavn" name="appName" defaultValue={settings.appName} required /><Field label="Logo URL" name="logoUrl" type="url" defaultValue={settings.logoUrl ?? ""} /><Field label="Favicon URL" name="faviconUrl" type="url" defaultValue={settings.faviconUrl ?? ""} /></SettingsGroup><SettingsGroup title="Keycloak / OIDC"><Field label="Base URL" name="keycloakBaseUrl" type="url" defaultValue={settings.keycloakBaseUrl ?? ""} /><Field label="Realm" name="keycloakRealm" defaultValue={settings.keycloakRealm ?? ""} /><Field label="Client ID" name="keycloakClientId" defaultValue={settings.keycloakClientId ?? ""} /><SecretField label="Client secret" name="keycloakClientSecret" configured={settings.hasOidcClientSecret} /><Field label="Redirect URI" name="keycloakRedirectUri" type="url" defaultValue={settings.keycloakRedirectUri ?? ""} /></SettingsGroup><SettingsGroup title="SMTP"><Field label="Fra e-post" name="smtpFromEmail" type="email" defaultValue={settings.smtpFromEmail ?? ""} /><Field label="Fra navn" name="smtpFromName" defaultValue={settings.smtpFromName ?? ""} /><Field label="Vert" name="smtpHost" defaultValue={settings.smtpHost ?? ""} /><Field label="Port" name="smtpPort" type="number" min="1" max="65535" defaultValue={settings.smtpPort ? String(settings.smtpPort) : ""} /><Field label="Brukernavn" name="smtpUser" defaultValue={settings.smtpUser ?? ""} /><SecretField label="Passord" name="smtpPassword" configured={settings.hasSmtpPassword} /><Select label="Kryptering" name="smtpCrypto" defaultValue={settings.smtpCrypto ?? ""} options={[{ value: "", label: "Ingen" }, { value: "tls", label: "TLS" }, { value: "ssl", label: "SSL" }]} /></SettingsGroup><SettingsGroup title="Eksterne tjenester"><Field label="OSRM base URL" name="osrmBaseUrl" type="url" defaultValue={settings.osrmBaseUrl ?? ""} /><SecretField label="Vegvesen API-nøkkel" name="vegvesenApiKey" configured={settings.hasVegvesenApiKey} /><Field label="Crew API base URL" name="crewApiBaseUrl" type="url" defaultValue={settings.crewApiBaseUrl ?? ""} /><Field label="Profil-endepunkt" name="crewApiProfileEndpoint" defaultValue={settings.crewApiProfileEndpoint ?? ""} /><Field label="Bilde-endepunkt" name="crewApiPictureEndpoint" defaultValue={settings.crewApiPictureEndpoint ?? ""} /><SecretField label="Crew bearer-token" name="crewApiBearerToken" configured={settings.hasCrewApiBearerToken} /><p className="text-xs text-slate-600">Crew-cache: {cacheCount} oppslag · år {settings.crewCacheYear ?? "–"}</p></SettingsGroup></div><button disabled={saving} className={`${primaryButton} mt-5`}>{saving ? "Lagrer …" : "Lagre innstillinger"}</button></form>;
+}
+
+function CrewReset({ accessToken }: { accessToken: string }) {
+  const [preview, setPreview] = useState<AdminCrewResetPreview | null>(null);
+  const [confirmation, setConfirmation] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [completed, setCompleted] = useState(false);
+  const loadPreview = async () => { setBusy(true); setError(null); try { setPreview(await getAdminCrewResetPreview(accessToken)); } catch (reason) { setError(messageFrom(reason)); } finally { setBusy(false); } };
+  const execute = async () => {
+    if (!preview || confirmation !== preview.confirmationPhrase || !preview.preservedUser) return;
+    if (!window.confirm("Dette sletter alle brukere unntatt ID 2 og kan ikke angres. Fortsette?")) return;
+    setBusy(true); setError(null);
+    try { await clearAdminCrewCache(accessToken, confirmation); setCompleted(true); }
+    catch (reason) { setError(messageFrom(reason)); }
+    finally { setBusy(false); }
+  };
+  return <section className={`${cardClass} mt-5 border-rose-400/20`}><p className="text-sm text-rose-300">Kun developer · destruktiv nødfunksjon</p><h2 className="mt-1 text-xl font-semibold">Tøm crew-cache og brukere</h2><p className="mt-2 max-w-4xl text-sm leading-6 text-slate-500">Dette er V1-funksjonen med samme sluttresultat: all crew-cache og kompetansedata slettes, nesten all brukerrelatert historikk fjernes, transportkoblinger nullstilles og bare bruker-ID 2 beholdes.</p>
+    {error && <div className="mt-4"><Banner tone="error">{error}</Banner></div>}
+    {completed ? <div className="mt-4 rounded-xl border border-emerald-300/20 bg-emerald-300/10 p-4 text-sm text-emerald-200">Crew-reset er fullført. Hvis din bruker ikke er ID 2, er den lokale kontoen slettet; logg inn på nytt og tildel nødvendige roller kontrollert.</div> : !preview ? <button type="button" disabled={busy} className={`${dangerButton} mt-4`} onClick={() => void loadPreview()}>{busy ? "Beregner konsekvenser …" : "Forhåndsvis konsekvenser"}</button> : <div className="mt-5 rounded-xl border border-rose-400/20 bg-rose-400/[.06] p-4"><div className="flex flex-wrap justify-between gap-3"><div><p className="font-medium text-rose-200">{formatNumber(preview.deletes.users)} brukere slettes</p><p className="mt-1 text-xs text-slate-500">Beholdes: {preview.preservedUser ? `#${preview.preservedUser.id} ${preview.preservedUser.name} (${preview.preservedUser.email})` : "Ingen – operasjonen er blokkert"}</p></div><button type="button" disabled={busy} className={secondaryButton} onClick={() => void loadPreview()}>Oppdater forhåndsvisning</button></div><div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{resetRows(preview).map(([label, value]) => <div key={label} className="flex justify-between gap-3 border-b border-white/[.06] pb-1 text-xs"><span className="text-slate-500">{label}</span><span className="font-mono text-slate-300">{formatNumber(value)}</span></div>)}</div><label className="mt-5 block"><Label>Skriv frasen nøyaktig: <span className="font-mono text-rose-200">{preview.confirmationPhrase}</span></Label><input value={confirmation} onChange={(event) => setConfirmation(event.target.value)} autoComplete="off" className={inputClass} /></label><button type="button" disabled={busy || !preview.preservedUser || confirmation !== preview.confirmationPhrase} className={`${dangerButton} mt-4`} onClick={() => void execute()}>{busy ? "Utfører reset …" : "Slett crew-cache og brukere permanent"}</button></div>}
+  </section>;
+}
+
+function resetRows(preview: AdminCrewResetPreview): Array<[string, number]> {
+  return [
+    ["Crew-cache", preview.deletes.crewCache], ["Kompetanser", preview.deletes.competencies], ["Kjøretøy-KDO", preview.deletes.vehicleKdo],
+    ["Passordtoken", preview.deletes.passwordResetTokens], ["Varsellesinger", preview.deletes.feedbackNotificationReads], ["Tilbakemeldinger", preview.deletes.feedbackEntries],
+    ["Oppgaver", preview.deletes.tasks], ["OIDC-koblinger", preview.deletes.authAccounts], ["Rollekoblinger", preview.deletes.userRoles],
+    ["Utstyrsforespørsler", preview.deletes.equipmentRequests], ["Utstyrsutlån", preview.deletes.equipmentLoans], ["Sambandsutlån", preview.deletes.commsLoans],
+    ["Kjøretøyutlån", preview.deletes.vehicleLoans], ["Shop-bevegelser", preview.deletes.shopMovements], ["Auditlinjer", preview.deletes.auditLogs],
+    ["Innloggingsforsøk", preview.deletes.loginAttempts], ["Transport-bestillere kobles fra", preview.unlinks.transportRequesters], ["Transport-sjåfører kobles fra", preview.unlinks.transportAssignees],
+  ];
 }
 
 function settingsInput(form: FormData, current: AdminSettings) { return { ...current, appName: String(form.get("appName")), logoUrl: optional(form, "logoUrl"), faviconUrl: optional(form, "faviconUrl"), keycloakBaseUrl: optional(form, "keycloakBaseUrl"), keycloakRealm: optional(form, "keycloakRealm"), keycloakClientId: optional(form, "keycloakClientId"), keycloakClientSecret: optional(form, "keycloakClientSecret"), keycloakRedirectUri: optional(form, "keycloakRedirectUri"), smtpFromEmail: optional(form, "smtpFromEmail"), smtpFromName: optional(form, "smtpFromName"), smtpHost: optional(form, "smtpHost"), smtpPort: Number(form.get("smtpPort")) || null, smtpUser: optional(form, "smtpUser"), smtpPassword: optional(form, "smtpPassword"), smtpCrypto: (optional(form, "smtpCrypto") as "tls" | "ssl" | null), osrmBaseUrl: optional(form, "osrmBaseUrl"), vegvesenApiKey: optional(form, "vegvesenApiKey"), crewApiBaseUrl: optional(form, "crewApiBaseUrl"), crewApiProfileEndpoint: optional(form, "crewApiProfileEndpoint"), crewApiPictureEndpoint: optional(form, "crewApiPictureEndpoint"), crewApiBearerToken: optional(form, "crewApiBearerToken") }; }

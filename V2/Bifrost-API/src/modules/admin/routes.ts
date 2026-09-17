@@ -4,6 +4,7 @@ import { z } from "zod";
 import { authenticationErrorCode, requireRoleAccess } from "../../http/authorization.js";
 import { AuthenticationError, type AuthService } from "../auth/service.js";
 import { ADMIN_ROLES, AdminDomainError, SYSTEM_SETTINGS_ROLES, type AdminService } from "./service.js";
+import { CREW_RESET_CONFIRMATION, CrewResetDomainError } from "./crew-reset.js";
 
 const idSchema = z.object({ id: z.coerce.number().int().positive() });
 const createUserSchema = z.object({
@@ -39,6 +40,7 @@ const settingsSchema = z.object({
   crewApiPictureEndpoint: z.string().trim().max(255).nullable().optional(),
   crewApiBearerToken: z.string().max(4096).nullable().optional(),
 });
+const crewResetSchema = z.object({ confirmation: z.literal(CREW_RESET_CONFIRMATION) });
 
 export async function registerAdminRoutes(app: FastifyInstance, auth: AuthService, admin: AdminService): Promise<void> {
   app.get("/api/v1/admin", async (request, reply) => {
@@ -85,6 +87,14 @@ export async function registerAdminRoutes(app: FastifyInstance, auth: AuthServic
     try { const user = await requireRoleAccess(request, auth, SYSTEM_SETTINGS_ROLES, "Bare developer kan administrere systeminnstillinger."); await admin.updateSettings(settingsSchema.parse(request.body), user.id); return reply.code(204).send(); }
     catch (error) { return sendError(error, request, reply); }
   });
+  app.get("/api/v1/admin/crew-cache/preview", async (request, reply) => {
+    try { await requireRoleAccess(request, auth, SYSTEM_SETTINGS_ROLES, "Bare developer kan forhåndsvise crew-reset."); return await admin.crewResetPreview(); }
+    catch (error) { return sendError(error, request, reply); }
+  });
+  app.post("/api/v1/admin/crew-cache/clear", async (request, reply) => {
+    try { const user = await requireRoleAccess(request, auth, SYSTEM_SETTINGS_ROLES, "Bare developer kan kjøre crew-reset."); const { confirmation } = crewResetSchema.parse(request.body); return await admin.clearCrewCache(confirmation, user.id); }
+    catch (error) { return sendError(error, request, reply); }
+  });
 }
 
 function authorizeAdmin(request: FastifyRequest, auth: AuthService) { return requireRoleAccess(request, auth, ADMIN_ROLES, "Du har ikke tilgang til administrasjon."); }
@@ -92,6 +102,7 @@ function sendError(error: unknown, request: FastifyRequest, reply: FastifyReply)
   let statusCode = 500; let code = "INTERNAL_ERROR"; let message = "En intern feil oppstod.";
   if (error instanceof AuthenticationError) { statusCode = error.statusCode; code = authenticationErrorCode(error); message = error.message; }
   else if (error instanceof AdminDomainError) { statusCode = error.code === "NOT_FOUND" ? 404 : error.code === "FORBIDDEN" ? 403 : 409; code = error.code; message = error.message; }
+  else if (error instanceof CrewResetDomainError) { statusCode = 409; code = "CONFLICT"; message = error.message; }
   else if (error instanceof z.ZodError) { statusCode = 400; code = "INVALID_BODY"; message = error.issues[0]?.message ?? "Ugyldige data."; }
   const body: ApiError = { error: { code, message, requestId: request.id } };
   return reply.code(statusCode).send(body);

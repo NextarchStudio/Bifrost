@@ -1,5 +1,6 @@
 import type {
   AdminRole,
+  AdminCrewResetPreview,
   AdminSettings,
   AdminStatistics,
   AdminUser,
@@ -23,6 +24,7 @@ import {
 import { asc, count, eq, inArray } from "drizzle-orm";
 import type { SecureSettingsStore } from "../settings/secure-settings.js";
 import { loadAdminStatistics } from "./statistics.js";
+import { loadCrewResetPreview, resetCrewData } from "./crew-reset.js";
 
 export const ADMIN_ROLES: ReadonlySet<string> = new Set(["developer", "chief", "co-chief"]);
 export const SYSTEM_SETTINGS_ROLES: ReadonlySet<string> = new Set(["developer"]);
@@ -62,6 +64,8 @@ export class AdminDomainError extends Error {
 export interface AdminService {
   workspace(canManageSettings: boolean): Promise<AdminWorkspaceResponse>;
   statistics(): Promise<AdminStatistics>;
+  crewResetPreview(): Promise<AdminCrewResetPreview>;
+  clearCrewCache(confirmation: string, actorUserId: number): Promise<AdminCrewResetPreview>;
   createUser(input: AdminCreateUserInput, actorUserId: number): Promise<{ id: number }>;
   setUserActive(userId: number, active: boolean, actorUserId: number): Promise<void>;
   syncUserRoles(userId: number, roleIds: number[], actorUserId: number): Promise<void>;
@@ -106,6 +110,8 @@ export function createAdminService(database: DatabaseConnection, secureSettings:
     },
 
     async statistics() { return loadAdminStatistics(database); },
+    async crewResetPreview() { return loadCrewResetPreview(database); },
+    async clearCrewCache(confirmation, actorUserId) { return resetCrewData(database, confirmation, actorUserId); },
 
     async createUser(input, actorUserId) {
       const firstName = plainText(input.firstName, 80);

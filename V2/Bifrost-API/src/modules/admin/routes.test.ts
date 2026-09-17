@@ -6,6 +6,7 @@ import type { AdminService } from "./service.js";
 const workspace = { canManageSettings: false, crewCacheEntries: 0, roles: [], users: [], settings: null };
 const serviceStub = (overrides: Partial<AdminService> = {}): AdminService => ({
   workspace: async () => workspace,
+  statistics: async () => ({ users: { total: 0, active: 0, inactive: 0, withWannabeId: 0, withBadgeScan: 0, cached: 0 }, roles: [], feedback: { total: 0, pending: 0, approved: 0, onHold: 0, inProgress: 0, implemented: 0, fixed: 0, completedTotal: 0, rejected: 0, needsDatabaseFix: 0, featureTotal: 0, bugTotal: 0 }, equipment: { totalItems: 0, totalQuantity: 0, availableQuantity: 0, loanedQuantity: 0, maintenanceQuantity: 0, activeLoans: 0, loanedOutQuantity: 0, returnedLoans: 0, returnedQuantity: 0, loanEventsTotal: 0, categories: [] }, comms: { totalItems: 0, totalQuantity: 0, availableQuantity: 0, loanedQuantity: 0, totalSets: 0, activeLoans: 0, returnedLoans: 0, loanedOutQuantity: 0, returnedQuantity: 0, loanEventsTotal: 0, types: [] }, vehicles: { total: 0, available: 0, loaned: 0, maintenance: 0, activeLoans: 0, returnedLoans: 0, loanEventsTotal: 0, assignedTransportJobs: 0 }, requests: { total: 0, pending: 0, partial: 0, fulfilled: 0, returned: 0, rejected: 0, requestedQuantity: 0, requestLines: 0 }, transport: { total: 0, open: 0, assigned: 0, inProgress: 0, completed: 0, peopleTransport: 0, equipmentTransport: 0 }, tasks: { total: 0, notStarted: 0, inProgress: 0, blocked: 0, completed: 0, linkedToTransport: 0 }, shop: { categories: 0, items: 0, totalQuantity: 0, checkoutCount: 0, checkoutQuantity: 0, checkinCount: 0, checkinQuantity: 0, movementsTotal: 0 }, privateEquipment: { prefixRules: 0 }, locations: { total: 0, withAddress: 0, types: [] }, warehouse: { pallets: 0, slots: 0, occupiedSlots: 0 } }),
   createUser: async () => ({ id: 1 }), setUserActive: async () => undefined, syncUserRoles: async () => undefined,
   updateUserCompetencies: async () => undefined, deleteUser: async () => undefined,
   createRole: async () => ({ id: 1 }), updateRole: async () => undefined, deleteRole: async () => undefined,
@@ -21,6 +22,18 @@ test("keeps V1 administration limited to developer, chief and co-chief", async (
   }
   const app = buildApp({ checkDatabase: async () => undefined, auth: auth(["logistikk"]), admin: serviceStub() });
   const response = await app.inject({ method: "GET", url: "/api/v1/admin", headers: { authorization: "Bearer valid" } });
+  assert.equal(response.statusCode, 403); await app.close();
+});
+
+test("keeps V1 statistics available to the same three administration roles", async () => {
+  for (const role of ["developer", "chief", "co-chief"]) {
+    let called = false;
+    const app = buildApp({ checkDatabase: async () => undefined, auth: auth([role]), admin: serviceStub({ statistics: async () => { called = true; return serviceStub().statistics(); } }) });
+    const response = await app.inject({ method: "GET", url: "/api/v1/admin/statistics", headers: { authorization: "Bearer valid" } });
+    assert.equal(response.statusCode, 200, role); assert.equal(called, true, role); await app.close();
+  }
+  const app = buildApp({ checkDatabase: async () => undefined, auth: auth(["logistikk"]), admin: serviceStub() });
+  const response = await app.inject({ method: "GET", url: "/api/v1/admin/statistics", headers: { authorization: "Bearer valid" } });
   assert.equal(response.statusCode, 403); await app.close();
 });
 

@@ -1,6 +1,7 @@
 import type {
   AdminRole,
   AdminSettings,
+  AdminStatistics,
   AdminUser,
   AdminWorkspaceResponse,
   VehicleCompetencyCode,
@@ -21,6 +22,7 @@ import {
 } from "@bifrost/database";
 import { asc, count, eq, inArray } from "drizzle-orm";
 import type { SecureSettingsStore } from "../settings/secure-settings.js";
+import { loadAdminStatistics } from "./statistics.js";
 
 export const ADMIN_ROLES: ReadonlySet<string> = new Set(["developer", "chief", "co-chief"]);
 export const SYSTEM_SETTINGS_ROLES: ReadonlySet<string> = new Set(["developer"]);
@@ -59,6 +61,7 @@ export class AdminDomainError extends Error {
 
 export interface AdminService {
   workspace(canManageSettings: boolean): Promise<AdminWorkspaceResponse>;
+  statistics(): Promise<AdminStatistics>;
   createUser(input: AdminCreateUserInput, actorUserId: number): Promise<{ id: number }>;
   setUserActive(userId: number, active: boolean, actorUserId: number): Promise<void>;
   syncUserRoles(userId: number, roleIds: number[], actorUserId: number): Promise<void>;
@@ -101,6 +104,8 @@ export function createAdminService(database: DatabaseConnection, secureSettings:
         settings,
       };
     },
+
+    async statistics() { return loadAdminStatistics(database); },
 
     async createUser(input, actorUserId) {
       const firstName = plainText(input.firstName, 80);

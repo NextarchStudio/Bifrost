@@ -45,6 +45,10 @@ export async function registerAdminRoutes(app: FastifyInstance, auth: AuthServic
     try { const user = await authorizeAdmin(request, auth); return await admin.workspace(user.roles.some((role) => SYSTEM_SETTINGS_ROLES.has(role))); }
     catch (error) { return sendError(error, request, reply); }
   });
+  app.get("/api/v1/admin/statistics", async (request, reply) => {
+    try { await authorizeAdmin(request, auth); return await admin.statistics(); }
+    catch (error) { return sendError(error, request, reply); }
+  });
   app.post("/api/v1/admin/users", async (request, reply) => {
     try { const user = await authorizeAdmin(request, auth); return reply.code(201).send(await admin.createUser(createUserSchema.parse(request.body), user.id)); }
     catch (error) { return sendError(error, request, reply); }

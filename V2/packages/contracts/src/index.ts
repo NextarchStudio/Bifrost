@@ -720,3 +720,30 @@ export interface AdminWorkspaceResponse {
   users: AdminUser[];
   settings: AdminSettings | null;
 }
+
+export interface AdminCountBreakdown {
+  name: string;
+  total: number;
+}
+
+export interface AdminInventoryBreakdown {
+  name: string;
+  rows: number;
+  quantity: number;
+}
+
+export interface AdminStatistics {
+  users: { total: number; active: number; inactive: number; withWannabeId: number; withBadgeScan: number; cached: number };
+  roles: Array<{ name: string; displayName: string; total: number }>;
+  feedback: { total: number; pending: number; approved: number; onHold: number; inProgress: number; implemented: number; fixed: number; completedTotal: number; rejected: number; needsDatabaseFix: number; featureTotal: number; bugTotal: number };
+  equipment: { totalItems: number; totalQuantity: number; availableQuantity: number; loanedQuantity: number; maintenanceQuantity: number; activeLoans: number; loanedOutQuantity: number; returnedLoans: number; returnedQuantity: number; loanEventsTotal: number; categories: AdminInventoryBreakdown[] };
+  comms: { totalItems: number; totalQuantity: number; availableQuantity: number; loanedQuantity: number; totalSets: number; activeLoans: number; returnedLoans: number; loanedOutQuantity: number; returnedQuantity: number; loanEventsTotal: number; types: AdminInventoryBreakdown[] };
+  vehicles: { total: number; available: number; loaned: number; maintenance: number; activeLoans: number; returnedLoans: number; loanEventsTotal: number; assignedTransportJobs: number };
+  requests: { total: number; pending: number; partial: number; fulfilled: number; returned: number; rejected: number; requestedQuantity: number; requestLines: number };
+  transport: { total: number; open: number; assigned: number; inProgress: number; completed: number; peopleTransport: number; equipmentTransport: number };
+  tasks: { total: number; notStarted: number; inProgress: number; blocked: number; completed: number; linkedToTransport: number };
+  shop: { categories: number; items: number; totalQuantity: number; checkoutCount: number; checkoutQuantity: number; checkinCount: number; checkinQuantity: number; movementsTotal: number };
+  privateEquipment: { prefixRules: number };
+  locations: { total: number; withAddress: number; types: AdminCountBreakdown[] };
+  warehouse: { pallets: number; slots: number; occupiedSlots: number };
+}

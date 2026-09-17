@@ -1,4 +1,4 @@
-import type { AdminRole, AdminSettings, AdminUser, AdminWorkspaceResponse, VehicleCompetencyCode } from "@bifrost/contracts";
+import type { AdminRole, AdminSettings, AdminStatistics, AdminUser, AdminWorkspaceResponse, VehicleCompetencyCode } from "@bifrost/contracts";
 import { VEHICLE_COMPETENCY_CODES } from "@bifrost/contracts";
 import { useEffect, useState, type ReactNode } from "react";
 import {
@@ -6,6 +6,7 @@ import {
   createAdminUser,
   deleteAdminRole,
   deleteAdminUser,
+  getAdminStatistics,
   getAdminWorkspace,
   setAdminUserActive,
   syncAdminUserRoles,
@@ -16,13 +17,38 @@ import {
 
 export function AdminWorkspace({ accessToken }: { accessToken: string }) {
   const [data, setData] = useState<AdminWorkspaceResponse | null>(null);
+  const [statistics, setStatistics] = useState<AdminStatistics | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const reload = async () => setData(await getAdminWorkspace(accessToken));
+  const reload = async () => { const [workspace, stats] = await Promise.all([getAdminWorkspace(accessToken), getAdminStatistics(accessToken)]); setData(workspace); setStatistics(stats); };
   useEffect(() => { void reload().catch((reason) => setError(messageFrom(reason))); }, [accessToken]);
   const run = async (action: () => Promise<unknown>, message: string) => { setError(null); setSuccess(null); try { await action(); await reload(); setSuccess(message); } catch (reason) { setError(messageFrom(reason)); throw reason; } };
   if (!data) return <WorkspaceState title="Laster administrasjon" detail={error ?? "Henter brukere, roller og sikker konfigurasjon …"} error={Boolean(error)} />;
-  return <section className="flex-1 py-8"><div className="mb-7"><p className="text-sm text-amber-300">Tilgang og konfigurasjon</p><h1 className="mt-1 text-3xl font-semibold">Administrasjon</h1><p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">Administrer V1-brukere, roller og kompetanser. Nye brukere kobles til Keycloak ved første innlogging; V2 oppretter ikke lokale passord.</p></div>{error && <Banner tone="error">{error}</Banner>}{success && <Banner tone="success">{success}</Banner>}{data.canManageSettings && data.settings && <SettingsForm accessToken={accessToken} settings={data.settings} cacheCount={data.crewCacheEntries} run={run} />}<NewUser accessToken={accessToken} run={run} /><Users data={data} accessToken={accessToken} run={run} /><Roles roles={data.roles} accessToken={accessToken} run={run} /></section>;
+  return <section className="flex-1 py-8"><div className="mb-7"><p className="text-sm text-amber-300">Tilgang og konfigurasjon</p><h1 className="mt-1 text-3xl font-semibold">Administrasjon</h1><p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">Administrer V1-brukere, roller og kompetanser. Nye brukere kobles til Keycloak ved første innlogging; V2 oppretter ikke lokale passord.</p></div>{error && <Banner tone="error">{error}</Banner>}{success && <Banner tone="success">{success}</Banner>}{statistics && <Statistics data={statistics} />}{data.canManageSettings && data.settings && <SettingsForm accessToken={accessToken} settings={data.settings} cacheCount={data.crewCacheEntries} run={run} />}<NewUser accessToken={accessToken} run={run} /><Users data={data} accessToken={accessToken} run={run} /><Roles roles={data.roles} accessToken={accessToken} run={run} /></section>;
+}
+
+function Statistics({ data }: { data: AdminStatistics }) {
+  return <details className={cardClass} open><summary className="cursor-pointer list-none"><p className="text-sm text-amber-300">V1-datagrunnlag</p><div className="mt-1 flex items-center justify-between gap-3"><h2 className="text-xl font-semibold">Systemstatistikk</h2><span className="text-xs text-slate-600">Klikk for å skjule</span></div></summary><div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+    <StatCard title="Brukere" metrics={[["Totalt", data.users.total], ["Aktive", data.users.active], ["Inaktive", data.users.inactive], ["Med Wannabe ID", data.users.withWannabeId], ["Med badge", data.users.withBadgeScan], ["Crew-cache", data.users.cached]]}><Breakdown rows={data.roles.map((role) => ({ label: role.displayName, value: role.total }))} /></StatCard>
+    <StatCard title="Tilbakemeldinger" metrics={[["Totalt", data.feedback.total], ["Venter", data.feedback.pending], ["Godkjent", data.feedback.approved], ["På vent", data.feedback.onHold], ["Pågår", data.feedback.inProgress], ["Implementert", data.feedback.implemented], ["Rettet", data.feedback.fixed], ["Fullført totalt", data.feedback.completedTotal], ["Avvist", data.feedback.rejected], ["Krever DB-fiks", data.feedback.needsDatabaseFix], ["Funksjoner", data.feedback.featureTotal], ["Feil", data.feedback.bugTotal]]} />
+    <StatCard title="Utstyr" metrics={[["Varelinjer", data.equipment.totalItems], ["Antall totalt", data.equipment.totalQuantity], ["Tilgjengelig", data.equipment.availableQuantity], ["Utlånt status", data.equipment.loanedQuantity], ["Vedlikehold", data.equipment.maintenanceQuantity], ["Aktive utlån", data.equipment.activeLoans], ["Ute nå", data.equipment.loanedOutQuantity], ["Returnerte utlån", data.equipment.returnedLoans], ["Returnert antall", data.equipment.returnedQuantity], ["Utlånshendelser", data.equipment.loanEventsTotal]]}><Breakdown rows={data.equipment.categories.map((item) => ({ label: item.name, value: item.quantity, suffix: `${item.rows} linjer` }))} /></StatCard>
+    <StatCard title="Samband" metrics={[["Varelinjer", data.comms.totalItems], ["Antall totalt", data.comms.totalQuantity], ["Tilgjengelig", data.comms.availableQuantity], ["Utlånt status", data.comms.loanedQuantity], ["Sett", data.comms.totalSets], ["Aktive utlån", data.comms.activeLoans], ["Returnerte utlån", data.comms.returnedLoans], ["Ute nå", data.comms.loanedOutQuantity], ["Returnert antall", data.comms.returnedQuantity], ["Utlånshendelser", data.comms.loanEventsTotal]]}><Breakdown rows={data.comms.types.map((item) => ({ label: item.name, value: item.quantity, suffix: `${item.rows} linjer` }))} /></StatCard>
+    <StatCard title="Kjøretøy" metrics={[["Totalt", data.vehicles.total], ["Tilgjengelig", data.vehicles.available], ["Utlånt", data.vehicles.loaned], ["Vedlikehold", data.vehicles.maintenance], ["Aktive utlån", data.vehicles.activeLoans], ["Returnerte utlån", data.vehicles.returnedLoans], ["Utlånshendelser", data.vehicles.loanEventsTotal], ["Tildelt transport", data.vehicles.assignedTransportJobs]]} />
+    <StatCard title="Utstyrsforespørsler" metrics={[["Totalt", data.requests.total], ["Venter", data.requests.pending], ["Delvis", data.requests.partial], ["Oppfylt", data.requests.fulfilled], ["Returnert", data.requests.returned], ["Avvist", data.requests.rejected], ["Forespurt antall", data.requests.requestedQuantity], ["Varelinjer", data.requests.requestLines]]} />
+    <StatCard title="Transport" metrics={[["Totalt", data.transport.total], ["Åpne", data.transport.open], ["Tildelt", data.transport.assigned], ["Pågår", data.transport.inProgress], ["Fullført", data.transport.completed], ["Persontransport", data.transport.peopleTransport], ["Utstyrstransport", data.transport.equipmentTransport]]} />
+    <StatCard title="Oppgaver" metrics={[["Totalt", data.tasks.total], ["Ikke startet", data.tasks.notStarted], ["Pågår", data.tasks.inProgress], ["Blokkert", data.tasks.blocked], ["Fullført", data.tasks.completed], ["Koblet til transport", data.tasks.linkedToTransport]]} />
+    <StatCard title="Shop" metrics={[["Kategorier", data.shop.categories], ["Varer", data.shop.items], ["Beholdning", data.shop.totalQuantity], ["Utleveringer", data.shop.checkoutCount], ["Utlevert antall", data.shop.checkoutQuantity], ["Innleveringer", data.shop.checkinCount], ["Innlevert antall", data.shop.checkinQuantity], ["Bevegelser totalt", data.shop.movementsTotal]]} />
+    <StatCard title="Lokasjoner og lager" metrics={[["Lokasjoner", data.locations.total], ["Med adresse", data.locations.withAddress], ["Paller", data.warehouse.pallets], ["Palleplasser", data.warehouse.slots], ["Opptatte plasser", data.warehouse.occupiedSlots], ["Private prefiksregler", data.privateEquipment.prefixRules]]}><Breakdown rows={data.locations.types.map((item) => ({ label: item.name, value: item.total }))} /></StatCard>
+  </div></details>;
+}
+
+function StatCard({ title, metrics, children }: { title: string; metrics: Array<[string, number]>; children?: ReactNode }) {
+  return <article className="rounded-xl border border-white/[.08] bg-black/10 p-4"><h3 className="font-medium text-slate-200">{title}</h3><dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2">{metrics.map(([label, value]) => <div key={label} className="flex items-baseline justify-between gap-2 border-b border-white/[.05] pb-1"><dt className="text-xs text-slate-500">{label}</dt><dd className="font-mono text-sm text-slate-300">{formatNumber(value)}</dd></div>)}</dl>{children}</article>;
+}
+
+function Breakdown({ rows }: { rows: Array<{ label: string; value: number; suffix?: string }> }) {
+  if (!rows.length) return null;
+  return <details className="mt-4"><summary className="cursor-pointer text-xs text-amber-300">Vis fordeling ({rows.length})</summary><div className="mt-2 grid gap-1">{rows.map((row) => <div key={row.label} className="flex justify-between gap-3 text-xs text-slate-500"><span>{row.label}{row.suffix ? ` · ${row.suffix}` : ""}</span><span className="font-mono text-slate-400">{formatNumber(row.value)}</span></div>)}</div></details>;
 }
 
 function NewUser({ accessToken, run }: { accessToken: string; run: RunAction }) {
@@ -64,6 +90,7 @@ function Count({ children }: { children: number }) { return <span className="rou
 function Banner({ tone, children }: { tone: "success" | "error"; children: string }) { return <div className={`mb-5 rounded-xl border px-4 py-3 text-sm ${tone === "success" ? "border-emerald-300/20 bg-emerald-300/10 text-emerald-200" : "border-rose-400/20 bg-rose-400/10 text-rose-200"}`}>{children}</div>; }
 function WorkspaceState({ title, detail, error = false }: { title: string; detail: string; error?: boolean }) { return <section className="grid flex-1 place-items-center py-16"><div className="text-center"><p className={error ? "text-rose-300" : "text-amber-300"}>{error ? "Feil" : "Vent litt"}</p><h1 className="mt-2 text-2xl font-semibold">{title}</h1><p className="mt-2 text-slate-500">{detail}</p></div></section>; }
 function messageFrom(reason: unknown) { return reason instanceof Error ? reason.message : "Handlingen kunne ikke fullføres."; }
+function formatNumber(value: number) { return new Intl.NumberFormat("nb-NO").format(value); }
 
 type RunAction = (action: () => Promise<unknown>, message: string) => Promise<void>;
 const cardClass = "rounded-2xl border border-white/10 bg-white/[.025] p-5";

@@ -1,4 +1,4 @@
-import type { AdminRole, AdminSettings, AdminWorkspaceResponse, ApiError, CommsItemType, CommsWorkspaceResponse, CrewClothingItemType, CrewClothingMember, CrewClothingWorkspaceResponse, CrewProfile, CurrentUser, EquipmentCategory, EquipmentListResponse, EquipmentLoanIssueResponse, EquipmentLoanListResponse, EquipmentLoanReturnResponse, EquipmentMutationResponse, EquipmentRequestWorkspaceResponse, FeedbackNotificationResponse, FeedbackStatus, FeedbackType, FeedbackWorkspaceResponse, Location, Pallet, PalletInspection, PrivateEquipmentNotice, PrivateEquipmentRule, ShopImportSummary, ShopWorkspaceResponse, TaskPriority, TaskStatus, TaskType, TaskWorkspaceResponse, TransportJob, TransportJobKind, TransportWorkspaceResponse, UserProfileResponse, VehicleCompetencyCode, VehicleCompetencyProfile, VehicleCompetencyRequirement, VehicleLoanIssueResponse, VehicleWorkspaceResponse } from "@bifrost/contracts";
+import type { AdminRole, AdminSettings, AdminStatistics, AdminWorkspaceResponse, ApiError, CommsItemType, CommsWorkspaceResponse, CrewClothingItemType, CrewClothingMember, CrewClothingWorkspaceResponse, CrewProfile, CurrentUser, EquipmentCategory, EquipmentListResponse, EquipmentLoanIssueResponse, EquipmentLoanListResponse, EquipmentLoanReturnResponse, EquipmentMutationResponse, EquipmentRequestWorkspaceResponse, FeedbackNotificationResponse, FeedbackStatus, FeedbackType, FeedbackWorkspaceResponse, Location, Pallet, PalletInspection, PrivateEquipmentNotice, PrivateEquipmentRule, ShopImportSummary, ShopWorkspaceResponse, TaskPriority, TaskStatus, TaskType, TaskWorkspaceResponse, TransportJob, TransportJobKind, TransportWorkspaceResponse, UserProfileResponse, VehicleCompetencyCode, VehicleCompetencyProfile, VehicleCompetencyRequirement, VehicleLoanIssueResponse, VehicleWorkspaceResponse } from "@bifrost/contracts";
 
 const apiUrl = (import.meta.env.VITE_API_URL || "http://localhost:3001").replace(/\/$/, "");
 
@@ -595,6 +595,12 @@ export async function getAdminWorkspace(accessToken: string): Promise<AdminWorks
   const response = await fetch(`${apiUrl}/api/v1/admin`, { headers: createHeaders(accessToken) });
   if (!response.ok) throw await createApiError(response, "Kunne ikke hente administrasjonen.");
   return response.json() as Promise<AdminWorkspaceResponse>;
+}
+
+export async function getAdminStatistics(accessToken: string): Promise<AdminStatistics> {
+  const response = await fetch(`${apiUrl}/api/v1/admin/statistics`, { headers: createHeaders(accessToken) });
+  if (!response.ok) throw await createApiError(response, "Kunne ikke hente statistikk.");
+  return response.json() as Promise<AdminStatistics>;
 }
 
 export async function createAdminUser(accessToken: string, input: { firstName: string; lastName: string; email: string; wannabeId?: number | null }): Promise<{ id: number }> {

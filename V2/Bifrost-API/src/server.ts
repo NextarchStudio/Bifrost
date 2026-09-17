@@ -13,6 +13,8 @@ import { createEquipmentRequestService } from "./modules/requests/service.js";
 import { createVehicleService } from "./modules/vehicles/service.js";
 import { createVegvesenVehicleDataService } from "./modules/vehicles/vegvesen.js";
 import { createProfileService } from "./modules/profiles/service.js";
+import { createTransportService } from "./modules/transport/service.js";
+import { createTransportRouting } from "./modules/transport/routing.js";
 import { resolve } from "node:path";
 
 const database = createDatabase(readDatabaseConfig());
@@ -29,6 +31,7 @@ const app = buildApp({
   requests: createEquipmentRequestService(database),
   vehicles: createVehicleService(database, createVegvesenVehicleDataService(database, secureSettings)),
   profiles: createProfileService(database),
+  transport: createTransportService(database, createTransportRouting(database)),
   checkDatabase: async () => {
     const connection = await database.pool.getConnection();
     try {

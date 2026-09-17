@@ -1,4 +1,4 @@
-import type { ApiError, CrewProfile, CurrentUser, EquipmentCategory, EquipmentListResponse, EquipmentLoanIssueResponse, EquipmentLoanListResponse, EquipmentLoanReturnResponse, EquipmentMutationResponse, EquipmentRequestWorkspaceResponse, Location, Pallet, PalletInspection, PrivateEquipmentNotice, PrivateEquipmentRule, UserProfileResponse, VehicleCompetencyCode, VehicleCompetencyProfile, VehicleCompetencyRequirement, VehicleLoanIssueResponse, VehicleWorkspaceResponse } from "@bifrost/contracts";
+import type { ApiError, CrewProfile, CurrentUser, EquipmentCategory, EquipmentListResponse, EquipmentLoanIssueResponse, EquipmentLoanListResponse, EquipmentLoanReturnResponse, EquipmentMutationResponse, EquipmentRequestWorkspaceResponse, Location, Pallet, PalletInspection, PrivateEquipmentNotice, PrivateEquipmentRule, TransportJob, TransportJobKind, TransportWorkspaceResponse, UserProfileResponse, VehicleCompetencyCode, VehicleCompetencyProfile, VehicleCompetencyRequirement, VehicleLoanIssueResponse, VehicleWorkspaceResponse } from "@bifrost/contracts";
 
 const apiUrl = (import.meta.env.VITE_API_URL || "http://localhost:3001").replace(/\/$/, "");
 
@@ -344,6 +344,61 @@ export async function issueVehicleLoan(
 
 export async function returnVehicleLoan(accessToken: string, loanId: number): Promise<void> {
   await sendApiMutation(accessToken, `/api/v1/vehicle-loans/${loanId}/return`, "POST", {}, "Kunne ikke returnere kjøretøyet.");
+}
+
+export async function getTransportWorkspace(accessToken: string): Promise<TransportWorkspaceResponse> {
+  const response = await fetch(`${apiUrl}/api/v1/transport`, { headers: createHeaders(accessToken) });
+  if (!response.ok) throw await createApiError(response, "Kunne ikke hente transportoppdrag.");
+  return response.json() as Promise<TransportWorkspaceResponse>;
+}
+
+export async function getTransportJob(accessToken: string, id: number): Promise<TransportJob> {
+  const response = await fetch(`${apiUrl}/api/v1/transport/${id}`, { headers: createHeaders(accessToken) });
+  if (!response.ok) throw await createApiError(response, "Kunne ikke inspisere transportoppdraget.");
+  return response.json() as Promise<TransportJob>;
+}
+
+export async function createTransportJob(
+  accessToken: string,
+  input: {
+    description: string;
+    fromLocationId: number;
+    toLocationId: number;
+    vehicleId: number;
+    jobKind: Exclude<TransportJobKind, "people">;
+    requesterUserId?: number | null;
+    requesterWannabeId?: number | null;
+    stops: Array<{ address: string; notes?: string | null }>;
+  },
+): Promise<{ id: number }> {
+  const headers = createHeaders(accessToken);
+  headers.set("Content-Type", "application/json");
+  const response = await fetch(`${apiUrl}/api/v1/transport`, { method: "POST", headers, body: JSON.stringify(input) });
+  if (!response.ok) throw await createApiError(response, "Kunne ikke opprette transportoppdraget.");
+  return response.json() as Promise<{ id: number }>;
+}
+
+export async function requestPeopleTransport(
+  accessToken: string,
+  input: { description?: string | null; fromLocationId: number; toLocationId: number; peopleCount: number; pickupAt: string },
+): Promise<{ id: number }> {
+  const headers = createHeaders(accessToken);
+  headers.set("Content-Type", "application/json");
+  const response = await fetch(`${apiUrl}/api/v1/transport/people-requests`, { method: "POST", headers, body: JSON.stringify(input) });
+  if (!response.ok) throw await createApiError(response, "Kunne ikke sende transportforespørselen.");
+  return response.json() as Promise<{ id: number }>;
+}
+
+export async function assignTransportJob(accessToken: string, id: number, assignedUserId: number): Promise<void> {
+  await sendApiMutation(accessToken, `/api/v1/transport/${id}/assign`, "POST", { assignedUserId }, "Kunne ikke tildele transportoppdraget.");
+}
+
+export async function startTransportJob(accessToken: string, id: number, input: { vehicleId?: number | null; startOdometer?: number | null }): Promise<void> {
+  await sendApiMutation(accessToken, `/api/v1/transport/${id}/start`, "POST", input, "Kunne ikke starte transportoppdraget.");
+}
+
+export async function completeTransportJob(accessToken: string, id: number, endOdometer: number | null): Promise<void> {
+  await sendApiMutation(accessToken, `/api/v1/transport/${id}/complete`, "POST", { endOdometer }, "Kunne ikke fullføre transportoppdraget.");
 }
 
 export async function getUserProfile(accessToken: string, wannabeId: number): Promise<UserProfileResponse> {

@@ -72,6 +72,8 @@ Kjøretøymodulen bruker V1-tabellene `vehicles`, `vehicle_loans`, `wannabe_comp
 
 Profilmodulen samler aktive utstyrs-, kjøretøy- og sambandlån samt åpne forespørsler fra V1-tabellene. V1-reglene for innsyn i andres profiler og blokkering av profilbilder beholdes. Profilbildet hentes server-side med kryptert crew-token og sendes som en kontrollert bildeproxy; tokenet eksponeres ikke i browseren. Lokal passordendring videreføres ikke fordi Keycloak/OIDC er obligatorisk i V2.
 
+Transportmodulen bruker V1-tabellene `transport_jobs` og `transport_job_stops` direkte. V1-rollene beholdes: ledelse/logistikk oppretter, tildeler, starter og fullfører oppdrag, mens `innkjop` rekvirerer persontransport og ser egne turer. Kjøretøyreservasjon, kompetansekontroll, kilometerstand og audit oppdateres transaksjonelt. Geokoding går via Nominatim fra API-et, og rutelengde beregnes mot `osrm_base_url` i `system_settings`; Web kontakter aldri rutetjenestene direkte.
+
 ## PM2
 
 ```bash

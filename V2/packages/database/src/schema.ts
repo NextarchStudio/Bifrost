@@ -48,6 +48,7 @@ export const systemSettings = mysqlTable("system_settings", {
   crewApiPictureEndpoint: varchar("crew_api_picture_endpoint", { length: 255 }),
   smtpPass: varchar("smtp_pass", { length: 255 }),
   googleMapsApiKey: varchar("google_maps_api_key", { length: 255 }),
+  osrmBaseUrl: varchar("osrm_base_url", { length: 255 }),
   vegvesenApiKey: varchar("vegvesen_api_key", { length: 255 }),
   crewApiBearerToken: text("crew_api_bearer_token"),
   crewCacheYear: int("crew_cache_year"),
@@ -234,9 +235,37 @@ export const commsLoanItems = mysqlTable("comms_loan_items", {
 
 export const transportJobs = mysqlTable("transport_jobs", {
   id: bigint({ mode: "number", unsigned: true }).primaryKey().autoincrement(),
+  description: text().notNull(),
   fromLocationId: int("from_location_id", { unsigned: true }).notNull(),
   toLocationId: int("to_location_id", { unsigned: true }).notNull(),
+  transportType: varchar("transport_type", { length: 20 }).notNull().default("equipment"),
+  jobKind: varchar("job_kind", { length: 50 }),
+  peopleCount: smallint("people_count", { unsigned: true }),
+  pickupAt: datetime("pickup_at", { mode: "date" }),
+  equipmentId: bigint("equipment_id", { mode: "number", unsigned: true }),
+  requesterUserId: bigint("requester_user_id", { mode: "number", unsigned: true }),
+  requesterWannabeId: bigint("requester_wannabe_id", { mode: "number", unsigned: true }),
+  assignedUserId: bigint("assigned_user_id", { mode: "number", unsigned: true }),
+  assignedVehicleId: bigint("assigned_vehicle_id", { mode: "number", unsigned: true }),
+  startOdometer: int("start_odometer", { unsigned: true }),
+  endOdometer: int("end_odometer", { unsigned: true }),
+  distanceKm: int("distance_km", { unsigned: true }),
+  estimatedDistanceKm: int("estimated_distance_km", { unsigned: true }),
+  distanceDeviationKm: int("distance_deviation_km"),
   status: varchar({ length: 20 }).notNull(),
+  createdAt: datetime("created_at", { mode: "date" }).notNull(),
+  updatedAt: datetime("updated_at", { mode: "date" }).notNull(),
+});
+
+export const transportJobStops = mysqlTable("transport_job_stops", {
+  id: bigint({ mode: "number", unsigned: true }).primaryKey().autoincrement(),
+  transportJobId: bigint("transport_job_id", { mode: "number", unsigned: true }).notNull(),
+  stopNumber: int("stop_number", { unsigned: true }).notNull(),
+  address: varchar({ length: 255 }).notNull(),
+  latitude: decimal({ precision: 10, scale: 7 }),
+  longitude: decimal({ precision: 10, scale: 7 }),
+  notes: text(),
+  createdAt: datetime("created_at", { mode: "date" }).notNull(),
 });
 
 export const auditLogs = mysqlTable("audit_logs", {

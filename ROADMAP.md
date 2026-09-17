@@ -35,7 +35,8 @@ V1 er i dag en CodeIgniter 4-applikasjon med PHP 8.2+, MariaDB, server-renderte 
 | Fase 2 – identitet | Pågår | Obligatorisk Keycloak/OIDC med PKCE, JWT/JWKS-validering, automatisk V1-brukerprovisjonering og eksisterende roller er på plass. Audit av innlogging og full tilgangsmatrise gjenstår. |
 | Fase 3 – lager og utstyr | Nær ferdig | Utstyr, kategoriadministrasjon, lokasjoner, paller, palleplasser, strekkodeflyt, inspeksjon, flytting, slettingsvern, audit og nytt React-design er implementert. Playwright og paritetstest mot representativ V1-database gjenstår. |
 | Fase 4 – utlån og forespørsler | Implementert, ikke staging-verifisert | Transaksjonelt flerlinje-utlån, retur, person-/badge-oppslag, private-utstyrsregler, utstyrsforespørsler, kjøretøy, kompetanse/KDO, kjøretøylån og profiloversikt er implementert i API og Web. Paritetstest mot anonymiserte stagingdata gjenstår. |
-| Fase 5–7 | Ikke startet | Transport, samband, shop, øvrig admin og produksjonssetting følger etter fase 4. |
+| Fase 5 – transport, samband og shop | Pågår | Transportforespørsler, oppdrag, stopp/ruteestimat, tildeling, kompetansekontroll, kilometerteller, inspeksjon og historikk er implementert i API og Web. Samband, shop og import/eksport gjenstår. |
+| Fase 6–7 | Ikke startet | Øvrig admin, rapportering, produksjonssetting og kontrollert V1-avvikling følger etter fase 5. |
 
 Teknisk fundament kjører som `Bifrost-API`, `Bifrost-Web` og `Bifrost-Worker`. V1-tabellene brukes direkte. Nye tekniske tabeller for kryptert konfigurasjon og jobbkø har `bifrost_`-prefiks. Hele V2 kan verifiseres med `pnpm check`.
 
@@ -45,7 +46,7 @@ Teknisk fundament kjører som `Bifrost-API`, `Bifrost-Web` og `Bifrost-Worker`. 
 2. Kjør V2 mot en anonymisert kopi av eksisterende database og dokumenter V1/V2-avvik.
 3. Legg til Playwright-flyt for opprett utstyr → opprett palle → flytt → inspiser.
 4. Verifiser Keycloak-klient, redirect URI, roller og token-claims i staging.
-5. Paritetstest fase 4 mot anonymiserte data, og start deretter transportmodulen.
+5. Paritetstest fase 4 og transport mot anonymiserte data, og fortsett deretter med sambandsmodulen.
 
 ## 2. Omfanget i V1
 
@@ -184,6 +185,8 @@ Det viktigste valget er ikke rammeverket, men at domenelogikk ikke legges direkt
 - Statusoverganger håndheves på backend og er dekket av tester.
 
 ### Fase 5 – transport, samband, shop og crew clothing
+
+**Status:** Pågår. Transportdelen er implementert i kode, men er ikke verifisert mot anonymisert staging-database.
 
 **Leveranser**
 

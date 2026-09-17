@@ -332,3 +332,79 @@ export interface UserProfileResponse {
   commsLoans: ProfileCommsLoan[];
   requests: ProfileEquipmentRequest[];
 }
+
+export const TRANSPORT_JOB_KINDS = ["equipment", "innkjopsrunde", "henterunde", "people"] as const;
+export type TransportJobKind = (typeof TRANSPORT_JOB_KINDS)[number];
+export type TransportJobStatus = "open" | "assigned" | "in_progress" | "completed";
+
+export interface TransportStop {
+  id: number;
+  stopNumber: number;
+  address: string;
+  latitude: number | null;
+  longitude: number | null;
+  notes: string | null;
+}
+
+export interface TransportAssignee {
+  id: number;
+  name: string;
+  wannabeId: number | null;
+}
+
+export interface TransportVehicleOption {
+  id: number;
+  name: string;
+  registrationNumber: string;
+  status: string;
+  currentOdometer: number | null;
+  odometerExempt: boolean;
+}
+
+export interface TransportJob {
+  id: number;
+  description: string;
+  transportType: "equipment" | "people";
+  jobKind: TransportJobKind;
+  peopleCount: number | null;
+  pickupAt: string | null;
+  fromLocationId: number;
+  fromName: string | null;
+  fromType: string;
+  fromAddress: string | null;
+  toLocationId: number;
+  toName: string | null;
+  toType: string;
+  toAddress: string | null;
+  requesterUserId: number | null;
+  requesterWannabeId: number | null;
+  requesterName: string | null;
+  assignedUserId: number | null;
+  assignedName: string | null;
+  assignedVehicleId: number | null;
+  vehicleName: string | null;
+  vehicleRegistrationNumber: string | null;
+  vehicleOdometerExempt: boolean | null;
+  vehicleCurrentOdometer: number | null;
+  startOdometer: number | null;
+  endOdometer: number | null;
+  distanceKm: number | null;
+  estimatedDistanceKm: number | null;
+  distanceDeviationKm: number | null;
+  status: TransportJobStatus;
+  createdAt: string;
+  updatedAt: string;
+  stops: TransportStop[];
+  eligibleAssignees: TransportAssignee[];
+}
+
+export interface TransportWorkspaceResponse {
+  canManage: boolean;
+  canRequestPeople: boolean;
+  locations: Location[];
+  transportLocations: Location[];
+  users: TransportAssignee[];
+  vehicles: TransportVehicleOption[];
+  activeJobs: TransportJob[];
+  completedJobs: TransportJob[];
+}

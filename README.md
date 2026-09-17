@@ -26,6 +26,7 @@ Bifrost/
 - Bifrost-API, Bifrost-Web og Bifrost-Worker kjøres som separate PM2-prosesser.
 - OIDC/Keycloak er obligatorisk i V2.
 - Et separat V2-skjema kan brukes via kontrollerte ETL-/synkroniseringsjobber.
+- Lager, utstyr, utlån, forespørsler, kjøretøy, profil og transport er implementert i V2-kode; staging-paritet gjenstår.
 
 Se [ROADMAP.md](ROADMAP.md) for plan, arkitektur og leveranserekkefølge.
 
@@ -93,36 +94,3 @@ V2 beholder de eksisterende rollenavnene:
 ## Lisens
 
 Internt prosjekt for Nextarch Studio. Ikke publiser kode, konfigurasjon eller data uten eksplisitt godkjenning.
-php spark db:seed
-```
-
-6. Start server:
-
-```bash
-php spark serve
-```
-
-Åpne deretter:
-
-- `http://localhost:8080` (hvis `spark serve`)
-- eller lokal XAMPP-host etter ditt oppsett.
-
-## Viktig for versjonskontroll
-
-`.gitignore` er satt opp til å ignorere blant annet:
-
-- `AdminTemplate/`
-- `vendor/`
-- `node_modules/`
-- runtime-filer i `writable/`
-
-## Sikkerhet
-
-- CSRF aktivert
-- rollebasert tilgang
-- validering av input
-- audit-logging for sentrale write-operasjoner
-
-## Lisens
-
-Internt prosjekt. Legg til lisensfil ved behov før offentlig distribusjon.

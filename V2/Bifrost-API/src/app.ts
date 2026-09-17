@@ -82,6 +82,7 @@ export function buildApp(dependencies: AppDependencies): FastifyInstance {
   void app.register(multipart, { limits: { files: 1, fileSize: 10 * 1024 * 1024 } });
   void app.register(cors, {
     origin: [/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/],
+    methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Authorization", "Content-Type", "X-Bifrost-Client", "X-Request-Id"],
     exposedHeaders: ["Content-Disposition", "X-Barcode-Count"],
   });

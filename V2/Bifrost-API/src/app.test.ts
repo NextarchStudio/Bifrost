@@ -128,6 +128,24 @@ test("health returns API status", async () => {
   await app.close();
 });
 
+test("allows browser mutation methods through CORS", async () => {
+  const app = buildApp({ checkDatabase: async () => undefined });
+  const response = await app.inject({
+    method: "OPTIONS",
+    url: "/api/v1/locations/1",
+    headers: {
+      origin: "http://127.0.0.1:3000",
+      "access-control-request-method": "PATCH",
+      "access-control-request-headers": "authorization,content-type",
+    },
+  });
+  assert.equal(response.statusCode, 204);
+  assert.equal(response.headers["access-control-allow-origin"], "http://127.0.0.1:3000");
+  const methods = String(response.headers["access-control-allow-methods"]);
+  for (const method of ["PUT", "PATCH", "DELETE"]) assert.match(methods, new RegExp(`\\b${method}\\b`));
+  await app.close();
+});
+
 test("ready reports unavailable database", async () => {
   const app = buildApp({ checkDatabase: async () => { throw new Error("offline"); } });
   const response = await app.inject({ method: "GET", url: "/ready" });

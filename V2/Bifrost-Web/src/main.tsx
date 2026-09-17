@@ -203,7 +203,7 @@ function AuthenticatedShell({ session, workspace, navigate, onSignOut, access }:
               <span>{group.label}</span>
               <svg aria-hidden="true" viewBox="0 0 20 20" className={`size-4 transition-transform ${open ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="1.8"><path d="m5 7.5 5 5 5-5" /></svg>
             </button>
-            <div id={panelId} hidden={!open} className="mt-1 grid gap-1 pl-2">
+            <div id={panelId} aria-hidden={!open} className={`mt-1 gap-1 pl-2 ${open ? "grid" : "hidden"}`}>
               {items.map((item) => <SidebarNavigationButton key={item.workspace} item={item} active={workspace === item.workspace} onClick={() => goTo(item.workspace)} />)}
             </div>
           </div>;

@@ -15,9 +15,11 @@ const createUserSchema = z.object({
   badgeScanNumber: z.string().trim().max(64).nullable().optional(),
 });
 const crewProvisionSchema = z.object({
-  badgeScanNumber: z.string().trim().min(1).max(64),
+  lookup: z.string().trim().min(1).max(64).optional(),
+  badgeScanNumber: z.string().trim().min(1).max(64).optional(),
+  lookupType: z.enum(["badge", "wannabe"]).optional(),
   email: z.email().max(180).nullable().optional(),
-});
+}).refine((value) => Boolean(value.lookup || value.badgeScanNumber), { message: "Badge eller Wannabe-ID mangler." });
 const roleSchema = z.object({ name: z.string().trim().min(1).max(100), displayName: z.string().trim().max(100).nullable().optional(), wannabeRoleName: z.string().trim().max(100).nullable().optional() });
 const crewProvisioningRuleSchema = z.object({
   crewName: z.string().trim().min(1).max(180),
@@ -73,8 +75,9 @@ export async function registerAdminRoutes(app: FastifyInstance, auth: AuthServic
   app.post("/api/v1/admin/users/provision-from-crew", async (request, reply) => {
     try {
       const user = await authorizeAdmin(request, auth);
-      const { badgeScanNumber, email } = crewProvisionSchema.parse(request.body);
-      return reply.code(201).send(await admin.provisionCrewUser(badgeScanNumber, user.id, email));
+      const { lookup, badgeScanNumber, lookupType, email } = crewProvisionSchema.parse(request.body);
+      const value = lookup || badgeScanNumber!;
+      return reply.code(201).send(await admin.provisionCrewUser(value, user.id, email, lookup ? (lookupType ?? "badge") : "badge"));
     } catch (error) { return sendError(error, request, reply); }
   });
   app.patch("/api/v1/admin/users/:id/active", async (request, reply) => {

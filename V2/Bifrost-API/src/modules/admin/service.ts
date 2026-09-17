@@ -79,7 +79,7 @@ export interface AdminService {
   statistics(): Promise<AdminStatistics>;
   crewResetPreview(): Promise<AdminCrewResetPreview>;
   clearCrewCache(confirmation: string, actorUserId: number): Promise<AdminCrewResetPreview>;
-  provisionCrewUser(badgeScanNumber: string, actorUserId: number, emailOverride?: string | null): Promise<AdminCrewProvisionResult>;
+  provisionCrewUser(lookup: string, actorUserId: number, emailOverride?: string | null, lookupType?: "badge" | "wannabe"): Promise<AdminCrewProvisionResult>;
   createUser(input: AdminCreateUserInput, actorUserId: number): Promise<{ id: number }>;
   setUserActive(userId: number, active: boolean, actorUserId: number): Promise<void>;
   syncUserRoles(userId: number, roleIds: number[], actorUserId: number): Promise<void>;
@@ -159,10 +159,11 @@ export function createAdminService(
     async crewResetPreview() { return loadCrewResetPreview(database); },
     async clearCrewCache(confirmation, actorUserId) { return resetCrewData(database, confirmation, actorUserId); },
 
-    async provisionCrewUser(badgeScanNumber, actorUserId, emailOverride) {
-      const badge = plainText(badgeScanNumber, 64);
-      if (!badge) throw new AdminDomainError("Badge-scan mangler.", "CONFLICT");
-      const profile = await crew.lookup(badge, "badge", true);
+    async provisionCrewUser(lookupValue, actorUserId, emailOverride, lookupType = "badge") {
+      const lookup = plainText(lookupValue, 64);
+      if (!lookup) throw new AdminDomainError("Badge eller Wannabe-ID mangler.", "CONFLICT");
+      const badge = lookupType === "badge" ? lookup : null;
+      const profile = await crew.lookup(lookup, lookupType, true);
       const splitName = splitPersonName(profile.name);
       const firstName = plainText(profile.firstName || splitName.firstName, 80);
       const lastName = plainText(profile.lastName || splitName.lastName, 80);
@@ -170,10 +171,13 @@ export function createAdminService(
         throw new AdminDomainError("Crew API må returnere fullt navn og Wannabe-ID før brukeren kan opprettes.", "CONFLICT");
       }
 
-      const [[wannabeUser], [badgeUser]] = await Promise.all([
+      const [[wannabeUser], badgeUsers] = await Promise.all([
         database.db.select({ id: users.id, email: users.email }).from(users).where(eq(users.wannabeId, profile.id)).limit(1),
-        database.db.select({ id: users.id, email: users.email }).from(users).where(eq(users.badgeScanNumber, badge)).limit(1),
+        badge
+          ? database.db.select({ id: users.id, email: users.email }).from(users).where(eq(users.badgeScanNumber, badge)).limit(1)
+          : Promise.resolve([]),
       ]);
+      const badgeUser = badgeUsers[0];
       if (wannabeUser && badgeUser && wannabeUser.id !== badgeUser.id) {
         throw new AdminDomainError("Wannabe-ID og badge tilhører forskjellige brukere.", "CONFLICT");
       }
@@ -203,11 +207,14 @@ export function createAdminService(
       if (defaultRole) roleAssignments.set(defaultRole.id, defaultRole.name);
 
       const provisioned = await database.db.transaction(async (tx) => {
-        const [[wannabeOwner], [emailOwner], [badgeOwner]] = await Promise.all([
+        const [[wannabeOwner], [emailOwner], badgeOwners] = await Promise.all([
           tx.select({ id: users.id }).from(users).where(eq(users.wannabeId, profile.id)).limit(1),
           tx.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1),
-          tx.select({ id: users.id }).from(users).where(eq(users.badgeScanNumber, badge)).limit(1),
+          badge
+            ? tx.select({ id: users.id }).from(users).where(eq(users.badgeScanNumber, badge)).limit(1)
+            : Promise.resolve([]),
         ]);
+        const badgeOwner = badgeOwners[0];
         const ownerIds = new Set([wannabeOwner?.id, emailOwner?.id, badgeOwner?.id].filter((id): id is number => Boolean(id)));
         if (ownerIds.size > 1) throw new AdminDomainError("Wannabe-ID, e-post eller badge tilhører forskjellige brukere.", "CONFLICT");
 
@@ -221,7 +228,7 @@ export function createAdminService(
             lastName,
             email,
             wannabeId: profile.id,
-            badgeScanNumber: badge,
+            ...(badge ? { badgeScanNumber: badge } : {}),
             active: true,
             updatedAt: now,
           }).where(eq(users.id, userId));
@@ -262,6 +269,7 @@ export function createAdminService(
         });
         await writeAudit(tx, actorUserId, created ? "crew_provision_create" : "crew_provision_sync", "user", userId, {
           wannabe_id: profile.id,
+          lookup_type: lookupType,
           crew_name: profile.crewName,
           crew_role: profile.role,
           assigned_roles: [...roleAssignments.values()],

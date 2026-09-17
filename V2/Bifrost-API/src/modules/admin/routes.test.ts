@@ -92,6 +92,23 @@ test("provisions a user from a badge scan with actor context and optional email"
   assert.equal(invalid.statusCode, 400); await app.close();
 });
 
+test("provisions a user from an explicit Wannabe ID without treating it as a badge", async () => {
+  let captured: [string, number, string | null | undefined, "badge" | "wannabe" | undefined] | null = null;
+  const base = await serviceStub().provisionCrewUser("8468", 5);
+  const app = buildApp({ checkDatabase: async () => undefined, auth: auth(["chief"]), admin: serviceStub({
+    provisionCrewUser: async (value, actor, email, lookupType) => { captured = [value, actor, email, lookupType]; return base; },
+  }) });
+  const response = await app.inject({
+    method: "POST",
+    url: "/api/v1/admin/users/provision-from-crew",
+    headers: { authorization: "Bearer valid" },
+    payload: { lookup: "8468", lookupType: "wannabe" },
+  });
+  assert.equal(response.statusCode, 201);
+  assert.deepEqual(captured, ["8468", 5, undefined, "wannabe"]);
+  await app.close();
+});
+
 test("creates and validates Crew provisioning rules", async () => {
   let captured: unknown;
   const app = buildApp({ checkDatabase: async () => undefined, auth: auth(["co-chief"]), admin: serviceStub({ createCrewProvisioningRule: async (input) => { captured = input; return { id: 4 }; } }) });

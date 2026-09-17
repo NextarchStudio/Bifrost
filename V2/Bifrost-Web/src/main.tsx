@@ -191,13 +191,13 @@ function AuthenticatedShell({ session, workspace, navigate, onSignOut, access, b
   useEffect(() => { if (activeGroup) setExpandedGroup(activeGroup); }, [activeGroup]);
   const meta = workspaceMeta[workspace];
 
-  return <div className="h-[100dvh] overflow-hidden bg-[#07111d] text-slate-100 lg:grid lg:grid-cols-[17.5rem_minmax(0,1fr)]">
+  return <div className="h-[100dvh] overflow-hidden bg-[#07111d] text-slate-100 xl:grid xl:grid-cols-[17.5rem_minmax(0,1fr)]">
     <a href="#main-content" className="sr-only z-[70] rounded-lg bg-emerald-300 px-4 py-2 font-semibold text-slate-950 focus:not-sr-only focus:fixed focus:left-4 focus:top-4">Hopp til innhold</a>
-    {navigationOpen && <button type="button" aria-label="Lukk navigasjon" className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm lg:hidden" onClick={() => setNavigationOpen(false)} />}
-    <aside id="primary-navigation" className={`fixed inset-y-0 left-0 z-50 flex w-[17.5rem] flex-col border-r border-white/[.08] bg-[#091522] shadow-2xl shadow-black/40 transition-transform duration-200 lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 lg:shadow-none ${navigationOpen ? "translate-x-0" : "-translate-x-full"}`}>
+    {navigationOpen && <button type="button" aria-label="Lukk navigasjon" className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm xl:hidden" onClick={() => setNavigationOpen(false)} />}
+    <aside id="primary-navigation" className={`fixed inset-y-0 left-0 z-50 flex w-[min(17.5rem,calc(100vw-2rem))] flex-col border-r border-white/[.08] bg-[#091522] shadow-2xl shadow-black/40 transition-transform duration-200 xl:sticky xl:top-0 xl:h-[100dvh] xl:w-[17.5rem] xl:translate-x-0 xl:shadow-none ${navigationOpen ? "translate-x-0" : "-translate-x-full"}`}>
       <div className="flex h-20 shrink-0 items-center justify-between border-b border-white/[.08] px-5">
         <Brand branding={branding} />
-        <button type="button" aria-label="Lukk meny" className="grid size-9 place-items-center rounded-lg text-slate-500 hover:bg-white/5 hover:text-slate-200 lg:hidden" onClick={() => setNavigationOpen(false)}>
+        <button type="button" aria-label="Lukk meny" className="grid size-10 place-items-center rounded-lg text-slate-500 hover:bg-white/5 hover:text-slate-200 xl:hidden" onClick={() => setNavigationOpen(false)}>
           <span aria-hidden="true" className="text-xl">×</span>
         </button>
       </div>
@@ -233,7 +233,7 @@ function AuthenticatedShell({ session, workspace, navigate, onSignOut, access, b
     <div className="flex h-[100dvh] min-h-0 min-w-0 flex-col overflow-hidden">
       <header className="z-30 shrink-0 border-b border-white/[.08] bg-[#07111d]/90 backdrop-blur-xl">
         <div className="mx-auto flex min-h-20 w-full max-w-[96rem] flex-wrap items-center gap-3 px-4 py-3 sm:px-6 lg:px-8">
-          <button type="button" aria-label="Åpne navigasjon" aria-controls="primary-navigation" aria-expanded={navigationOpen} className="grid size-10 shrink-0 place-items-center rounded-xl border border-white/10 text-slate-300 hover:bg-white/5 lg:hidden" onClick={() => setNavigationOpen(true)}>
+          <button type="button" aria-label="Åpne navigasjon" aria-controls="primary-navigation" aria-expanded={navigationOpen} className="grid size-10 shrink-0 place-items-center rounded-xl border border-white/10 text-slate-300 hover:bg-white/5 xl:hidden" onClick={() => setNavigationOpen(true)}>
             <NavigationIcon name="menu" />
           </button>
           <div className="mr-auto min-w-0">
@@ -258,15 +258,15 @@ function PublicShell({ session, onLocalLogin, branding }: {
   branding: AppBranding;
 }) {
   return <main className="bifrost-scrollbar h-[100dvh] overflow-y-auto bg-[#07111d] text-slate-100">
-    <div className="mx-auto flex min-h-screen max-w-6xl flex-col px-6 pt-8 md:px-10">
+    <div className="mx-auto flex min-h-screen max-w-6xl flex-col px-4 pt-5 sm:px-6 sm:pt-8 md:px-10">
       <header className="flex items-center border-b border-white/10 pb-5"><Brand branding={branding} /></header>
-      <section className="grid flex-1 items-center gap-12 py-16 lg:grid-cols-[1.15fr_.85fr]">
+      <section className="grid flex-1 items-center gap-8 py-10 sm:gap-12 sm:py-16 lg:grid-cols-[1.15fr_.85fr]">
         <div>
           <p className="mb-5 text-xs font-bold tracking-[.22em] text-emerald-300">BIFROST V2 · SIKKER LOGISTIKK</p>
-          <h1 className="max-w-3xl text-5xl font-semibold leading-[.98] tracking-tight md:text-7xl">Alt utstyr.<br /><span className="text-slate-500">Én operativ flate.</span></h1>
-          <p className="mt-7 max-w-xl text-lg leading-8 text-slate-400">Ny arbeidsflate for lager, utlån, transport, samband og crew-operasjoner — koblet til eksisterende Bifrost-data.</p>
+          <h1 className="max-w-3xl text-4xl font-semibold leading-[.98] tracking-tight sm:text-5xl md:text-7xl">Alt utstyr.<br /><span className="text-slate-500">Én operativ flate.</span></h1>
+          <p className="mt-6 max-w-xl text-base leading-7 text-slate-400 sm:mt-7 sm:text-lg sm:leading-8">Ny arbeidsflate for lager, utlån, transport, samband og crew-operasjoner — koblet til eksisterende Bifrost-data.</p>
         </div>
-        <div className="rounded-3xl border border-white/10 bg-white/[.035] p-7 shadow-2xl shadow-black/30 backdrop-blur">
+        <div className="rounded-3xl border border-white/10 bg-white/[.035] p-5 shadow-2xl shadow-black/30 backdrop-blur sm:p-7">
           {session.status === "loading" && <Status title="Kobler til Bifrost" detail="Kontrollerer sikker økt …" />}
           {session.status === "anonymous" && <LoginPanel localLoginEnabled={session.localLoginEnabled} onLocalLogin={onLocalLogin} />}
           {session.status === "error" && <Status title="Kunne ikke koble til" detail={session.message} error />}

@@ -125,6 +125,7 @@ test("health returns API status", async () => {
   const response = await app.inject({ method: "GET", url: "/health" });
   assert.equal(response.statusCode, 200);
   assert.equal(response.json().status, "ok");
+  assert.equal(response.headers["cache-control"], "no-store");
   await app.close();
 });
 

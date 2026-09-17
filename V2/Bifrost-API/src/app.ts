@@ -92,6 +92,10 @@ export function buildApp(dependencies: AppDependencies): FastifyInstance {
     allowedHeaders: ["Authorization", "Content-Type", "X-Bifrost-Client", "X-Bifrost-Request", "X-Request-Id"],
     exposedHeaders: ["Content-Disposition", "X-Barcode-Count"],
   });
+  app.addHook("onSend", async (_request, reply, payload) => {
+    if (!reply.hasHeader("Cache-Control")) reply.header("Cache-Control", "no-store");
+    return payload;
+  });
 
   app.get("/health", async (): Promise<HealthResponse> => ({
     service: "bifrost-api",

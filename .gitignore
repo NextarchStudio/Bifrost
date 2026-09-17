@@ -3,6 +3,7 @@
 .env.*
 !.env.example
 !.env.compose.example
+!V2/Bifrost-Web/.env.production
 *.pem
 *.key
 *.p12

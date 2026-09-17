@@ -89,3 +89,18 @@ curl -fsS https://tg.legacyh.dev/ready
 ```
 
 Gjenta kontrollen for `https://bifrost.tg.no` etter at DNS og TLS er aktivt.
+
+## Cloudflare
+
+Begge produksjonsdomenene kan stå med proxystatus **Proxied** (oransje sky). Bruk SSL/TLS-modus **Full (strict)**, slik at Cloudflare validerer sertifikatet i CyberPanel/OpenLiteSpeed og aldri sender trafikk ukryptert til origin.
+
+Cloudflare skal respektere cache-headerne fra Bifrost-Web:
+
+- HTML og klientruter returneres med `Cache-Control: no-cache`.
+- Hash-versjonerte filer under `/assets/` returneres med `Cache-Control: public, max-age=31536000, immutable`.
+- API-et returnerer `Cache-Control: no-store` for `/api/*`, `/health` og `/ready`. Legg i tillegg inn en Cache Rule med **Bypass cache** for disse rutene dersom sonen har andre regler som kan overstyre origin-headerne.
+- Ikke aktiver «Cache Everything» for hele domenet.
+
+Cloudflare beholder original `Host`, og Bifrost-Web bruker samme origin som nettleseren. Derfor kreves det ikke et eget Web-bygg eller en hardkodet API-adresse per domene. Begge HTTPS-originene må fortsatt være aktive i `bifrost_web_origins`.
+
+Origin bør begrense offentlig HTTP/HTTPS-trafikk til Cloudflares publiserte IP-nett. Hvis origin også kan nås direkte, må klient-IP-headere fra Cloudflare ikke brukes som et sikkerhetsanker før denne begrensningen er på plass.

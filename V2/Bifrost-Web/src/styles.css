@@ -13,6 +13,24 @@
 html, body, #root { height: 100%; }
 body { margin: 0; min-width: 320px; overflow: hidden; }
 
+main { overflow-wrap: anywhere; }
+
+[role="dialog"][aria-modal="true"] {
+  overscroll-behavior: contain;
+}
+
+@media (max-width: 639px) {
+  [role="dialog"][aria-modal="true"] {
+    padding: 0.75rem;
+  }
+
+  [role="dialog"][aria-modal="true"] > :not(.overflow-hidden) {
+    max-height: calc(100dvh - 1.5rem);
+    margin-block: auto;
+    overflow-y: auto;
+  }
+}
+
 .bifrost-scrollbar {
   scrollbar-color: #294154 #091522;
   scrollbar-width: thin;

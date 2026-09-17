@@ -61,6 +61,100 @@ test("viser branding, låst skall og riktig accordion", async ({ page }) => {
   expect(layout.footerBottom).toBeCloseTo(layout.viewport, 0);
 });
 
+for (const viewport of [
+  { name: "mobil", width: 320, height: 568 },
+  { name: "nettbrett", width: 768, height: 1024 },
+  { name: "liten PC", width: 1024, height: 768 },
+  { name: "vanlig PC", width: 1440, height: 900 },
+  { name: "bred skjerm", width: 2560, height: 1440 },
+]) {
+  test(`holder skallet responsivt på ${viewport.name}`, async ({ page }) => {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    await mockApi(page);
+    await page.goto("/dashboard");
+    await expect(page.getByRole("heading", { name: "Dashboard", level: 1 })).toBeVisible();
+
+    const layout = await page.evaluate(() => ({
+      viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight,
+      documentWidth: document.documentElement.scrollWidth,
+      bodyHeight: document.body.scrollHeight,
+      mainOverflow: getComputedStyle(document.querySelector("main")!).overflowY,
+      headerTop: document.querySelector("header")!.getBoundingClientRect().top,
+      footerBottom: document.querySelector("footer")!.getBoundingClientRect().bottom,
+    }));
+    expect(layout.documentWidth).toBeLessThanOrEqual(layout.viewportWidth);
+    expect(layout.bodyHeight).toBeLessThanOrEqual(layout.viewportHeight);
+    expect(layout.mainOverflow).toBe("auto");
+    expect(layout.headerTop).toBeCloseTo(0, 0);
+    expect(layout.footerBottom).toBeCloseTo(layout.viewportHeight, 0);
+
+    const menu = page.getByRole("button", { name: "Åpne navigasjon" });
+    const sidebar = page.locator("#primary-navigation");
+    if (viewport.width < 1280) {
+      await expect(menu).toBeVisible();
+      const closed = await sidebar.boundingBox();
+      expect(closed).not.toBeNull();
+      expect(closed!.x + closed!.width).toBeLessThanOrEqual(1);
+      await menu.click();
+      await expect(menu).toHaveAttribute("aria-expanded", "true");
+      await expect(sidebar).toBeInViewport();
+      const opened = await sidebar.boundingBox();
+      expect(opened).not.toBeNull();
+      expect(opened!.x).toBeCloseTo(0, 0);
+      expect(opened!.width).toBeLessThanOrEqual(viewport.width);
+      await page.getByRole("button", { name: "Lukk meny" }).click();
+      await expect(menu).toHaveAttribute("aria-expanded", "false");
+    } else {
+      await expect(menu).toBeHidden();
+      await expect(sidebar).toBeInViewport();
+      const box = await sidebar.boundingBox();
+      expect(box).not.toBeNull();
+      expect(box!.x).toBeCloseTo(0, 0);
+    }
+  });
+}
+
+test("viser e-postbryter i systeminnstillinger og støtter Wannabe-ID ved provisjonering", async ({ page }) => {
+  let settingsBody: Record<string, unknown> | null = null;
+  let provisionBody: Record<string, unknown> | null = null;
+  const settings = {
+    appName: "Bifrost E2E", localLoginEnabled: true, crewProvisioningEmailEnabled: false,
+    webOrigins: ["https://tg.legacyh.dev", "https://bifrost.tg.no"], logoUrl: null, faviconUrl: null,
+    keycloakBaseUrl: "https://id.example.test", keycloakRealm: "bifrost", keycloakClientId: "bifrost-web", keycloakRedirectUri: null,
+    smtpFromEmail: "bifrost@example.test", smtpFromName: "Bifrost", smtpHost: "smtp.example.test", smtpPort: 587, smtpUser: "bifrost", smtpCrypto: "tls",
+    osrmBaseUrl: null, crewApiBaseUrl: "https://crew.example.test", crewApiProfileEndpoint: "/profile", crewApiPictureEndpoint: "/picture", crewCacheYear: 2026,
+    hasOidcClientSecret: true, hasSmtpPassword: true, hasVegvesenApiKey: false, hasCrewApiBearerToken: true,
+  };
+  const adminWorkspace = { canManageSettings: true, crewCacheEntries: 0, crewProvisioningRules: [], roles: [], users: [], settings };
+  await mockApi(page, async (request, url) => {
+    if (url.pathname === "/api/v1/admin" && request.method() === "GET") return { json: adminWorkspace };
+    if (url.pathname === "/api/v1/admin/statistics") return { json: emptyAdminStatistics() };
+    if (url.pathname === "/api/v1/admin/settings" && request.method() === "PUT") { settingsBody = request.postDataJSON() as Record<string, unknown>; return { status: 204, body: "" }; }
+    if (url.pathname === "/api/v1/admin/users/provision-from-crew" && request.method() === "POST") {
+      provisionBody = request.postDataJSON() as Record<string, unknown>;
+      return { status: 201, json: { created: true, emailQueued: false, profile: { id: 8468, name: "Crew User", nickname: "", crewName: "Arena:Logistikk", role: "Crew", displayName: "Crew User", source: "remote" }, user: { id: 8, name: "Crew User", firstName: "Crew", lastName: "User", email: "crew@example.test", wannabeId: 8468, badgeScanNumber: null, active: true, roleIds: [], roleNames: [], roleDisplayNames: [], competencies: [], createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z" }, matchedRoles: ["bruker"] } };
+    }
+    return undefined;
+  });
+  await page.goto("/admin");
+
+  await page.getByRole("tab", { name: "Systeminnstillinger" }).click();
+  const emailToggle = page.getByRole("checkbox", { name: "Send velkomst-e-post til nye Crew-brukere" });
+  await expect(emailToggle).toBeVisible();
+  await emailToggle.check();
+  await page.getByRole("button", { name: "Lagre innstillinger" }).click();
+  await expect.poll(() => settingsBody?.crewProvisioningEmailEnabled).toBe(true);
+
+  await page.getByRole("tab", { name: /Brukere/ }).click();
+  const provisionCard = page.locator("section").filter({ has: page.getByRole("heading", { name: "Finn person og opprett bruker" }) });
+  await provisionCard.getByRole("button", { name: "Wannabe-ID" }).click();
+  const wannabe = provisionCard.getByLabel("Wannabe-ID");
+  await wannabe.fill("8468");
+  await wannabe.press("Enter");
+  await expect.poll(() => provisionBody).toEqual({ lookup: "8468", lookupType: "wannabe" });
+});
+
 test("redigerer og sletter lokasjon med API-metoder og egen bekreftelse", async ({ page }) => {
   let locations = [{ id: 18, name: "Testlager", type: "Lager", address: null as string | null }];
   let patchBody: unknown;
@@ -228,6 +322,21 @@ async function mockApi(page: Page, override?: ApiOverride): Promise<void> {
 
 function emptyPage() {
   return { items: [], pagination: { page: 1, pageSize: 25, total: 0, pageCount: 0 } };
+}
+
+function emptyAdminStatistics() {
+  return {
+    users: { total: 0, active: 0, inactive: 0, withWannabeId: 0, withBadgeScan: 0, cached: 0 }, roles: [],
+    feedback: { total: 0, pending: 0, approved: 0, onHold: 0, inProgress: 0, implemented: 0, fixed: 0, completedTotal: 0, rejected: 0, needsDatabaseFix: 0, featureTotal: 0, bugTotal: 0 },
+    equipment: { totalItems: 0, totalQuantity: 0, availableQuantity: 0, loanedQuantity: 0, maintenanceQuantity: 0, activeLoans: 0, loanedOutQuantity: 0, returnedLoans: 0, returnedQuantity: 0, loanEventsTotal: 0, categories: [] },
+    comms: { totalItems: 0, totalQuantity: 0, availableQuantity: 0, loanedQuantity: 0, totalSets: 0, activeLoans: 0, returnedLoans: 0, loanedOutQuantity: 0, returnedQuantity: 0, loanEventsTotal: 0, types: [] },
+    vehicles: { total: 0, available: 0, loaned: 0, maintenance: 0, activeLoans: 0, returnedLoans: 0, loanEventsTotal: 0, assignedTransportJobs: 0 },
+    requests: { total: 0, pending: 0, partial: 0, fulfilled: 0, returned: 0, rejected: 0, requestedQuantity: 0, requestLines: 0 },
+    transport: { total: 0, open: 0, assigned: 0, inProgress: 0, completed: 0, peopleTransport: 0, equipmentTransport: 0 },
+    tasks: { total: 0, notStarted: 0, inProgress: 0, blocked: 0, completed: 0, linkedToTransport: 0 },
+    shop: { categories: 0, items: 0, totalQuantity: 0, checkoutCount: 0, checkoutQuantity: 0, checkinCount: 0, checkinQuantity: 0, movementsTotal: 0 },
+    privateEquipment: { prefixRules: 0 }, locations: { total: 0, withAddress: 0, types: [] }, warehouse: { pallets: 0, slots: 0, occupiedSlots: 0 },
+  };
 }
 
 function fulfill(route: Parameters<Parameters<Page["route"]>[1]>[0], response: MockResponse) {

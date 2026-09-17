@@ -13,9 +13,12 @@ function normalizeApiUrl(value: string): string {
   try {
     const target = new URL(value);
     const localHosts = new Set(["localhost", "127.0.0.1"]);
-    if (localHosts.has(target.hostname) && localHosts.has(window.location.hostname)) {
-      target.hostname = window.location.hostname;
-      return target.toString().replace(/\/$/, "");
+    if (localHosts.has(target.hostname)) {
+      if (localHosts.has(window.location.hostname)) {
+        target.hostname = window.location.hostname;
+        return target.toString().replace(/\/$/, "");
+      }
+      return window.location.origin;
     }
   } catch {
     // The request helpers will surface an actionable error if the configured URL is invalid.
@@ -718,9 +721,14 @@ export async function createAdminUser(accessToken: string, input: { firstName: s
   return response.json() as Promise<{ id: number }>;
 }
 
-export async function provisionAdminUserFromCrew(accessToken: string, badgeScanNumber: string, email?: string): Promise<AdminCrewProvisionResult> {
+export async function provisionAdminUserFromCrew(
+  accessToken: string,
+  lookup: string,
+  lookupType: "badge" | "wannabe",
+  email?: string,
+): Promise<AdminCrewProvisionResult> {
   const headers = createHeaders(accessToken); headers.set("Content-Type", "application/json");
-  const response = await fetch(`${apiUrl}/api/v1/admin/users/provision-from-crew`, { method: "POST", headers, body: JSON.stringify({ badgeScanNumber, email }) });
+  const response = await fetch(`${apiUrl}/api/v1/admin/users/provision-from-crew`, { method: "POST", headers, body: JSON.stringify({ lookup, lookupType, email }) });
   if (!response.ok) throw await createApiError(response, "Kunne ikke provisjonere Crew-brukeren.");
   return response.json() as Promise<AdminCrewProvisionResult>;
 }

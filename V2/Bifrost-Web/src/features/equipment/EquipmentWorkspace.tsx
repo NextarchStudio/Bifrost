@@ -11,6 +11,7 @@ import {
   updateEquipmentDetails,
   updateEquipmentStatus,
 } from "../../api/client";
+import { confirmAction } from "../../components/notifications";
 
 export function EquipmentWorkspace({ user, accessToken }: { user: CurrentUser; accessToken: string }) {
   const [search, setSearch] = useState("");
@@ -132,8 +133,8 @@ function CategoryManagementPanel({ accessToken, categories, onClose, onChanged }
           runAction("create", createEquipmentCategory(accessToken, name), "Kategorien ble opprettet.", formElement);
         }}><div className="min-w-0 flex-1"><Field label="Ny kategori" name="name" required /></div><button disabled={activeAction !== null} className="mt-7 rounded-xl bg-emerald-300 px-4 py-2.5 text-sm font-semibold text-slate-950 disabled:opacity-50">{activeAction === "create" ? "Lagrer …" : "Opprett"}</button></form>
         {error && <p className="mt-4 rounded-xl border border-rose-400/20 bg-rose-400/10 px-4 py-3 text-sm text-rose-200">{error}</p>}
-        <div className="mt-5 max-h-80 overflow-y-auto rounded-xl border border-white/10"><ul className="divide-y divide-white/[.06]">{categories.length === 0 && <li className="px-4 py-8 text-center text-sm text-slate-500">Ingen kategorier er registrert.</li>}{categories.map((category) => <li key={category.id} className="flex items-center justify-between gap-4 px-4 py-3"><span className="text-sm text-slate-300">{category.name}</span><button type="button" disabled={activeAction !== null} className="rounded-lg border border-rose-400/20 px-3 py-2 text-xs text-rose-300 hover:bg-rose-400/10 disabled:opacity-40" onClick={() => {
-          if (window.confirm(`Er du sikker på at du vil slette kategorien ${category.name}?`)) runAction(`delete-${category.id}`, deleteEquipmentCategory(accessToken, category.id), "Kategorien ble slettet.");
+        <div className="mt-5 max-h-80 overflow-y-auto rounded-xl border border-white/10"><ul className="divide-y divide-white/[.06]">{categories.length === 0 && <li className="px-4 py-8 text-center text-sm text-slate-500">Ingen kategorier er registrert.</li>}{categories.map((category) => <li key={category.id} className="flex items-center justify-between gap-4 px-4 py-3"><span className="text-sm text-slate-300">{category.name}</span><button type="button" disabled={activeAction !== null} className="rounded-lg border border-rose-400/20 px-3 py-2 text-xs text-rose-300 hover:bg-rose-400/10 disabled:opacity-40" onClick={async () => {
+          if (await confirmAction({ title: "Slett kategori?", message: `${category.name} slettes permanent dersom den ikke er i bruk.`, confirmLabel: "Slett kategori", danger: true })) runAction(`delete-${category.id}`, deleteEquipmentCategory(accessToken, category.id), "Kategorien ble slettet.");
         }}>{activeAction === `delete-${category.id}` ? "Sletter …" : "Slett"}</button></li>)}</ul></div>
       </div>
     </div>
@@ -205,8 +206,8 @@ function ManageEquipmentPanel({ accessToken, equipment, onClose, onChanged }: { 
 
         <div className="mt-4 flex flex-col gap-3 rounded-xl border border-rose-400/20 bg-rose-400/[.06] p-4 sm:flex-row sm:items-center sm:justify-between">
           <div><h3 className="font-medium text-rose-200">Slett utstyr</h3><p className="mt-1 text-xs text-slate-500">Aktive utlån eller forespørsler blokkerer sletting.</p></div>
-          <button type="button" disabled={activeAction !== null} className="rounded-xl border border-rose-400/30 px-4 py-2.5 text-sm font-medium text-rose-200 hover:bg-rose-400/10 disabled:opacity-50" onClick={() => {
-            if (window.confirm(`Er du sikker på at du vil slette ${equipment.name}?`)) runAction("delete", deleteEquipment(accessToken, equipment.id), "Utstyret ble slettet.");
+          <button type="button" disabled={activeAction !== null} className="rounded-xl border border-rose-400/30 px-4 py-2.5 text-sm font-medium text-rose-200 hover:bg-rose-400/10 disabled:opacity-50" onClick={async () => {
+            if (await confirmAction({ title: "Slett utstyr?", message: `${equipment.name} slettes permanent dersom det ikke er i bruk.`, confirmLabel: "Slett utstyr", danger: true })) runAction("delete", deleteEquipment(accessToken, equipment.id), "Utstyret ble slettet.");
           }}>{activeAction === "delete" ? "Sletter …" : "Slett utstyr"}</button>
         </div>
       </div>

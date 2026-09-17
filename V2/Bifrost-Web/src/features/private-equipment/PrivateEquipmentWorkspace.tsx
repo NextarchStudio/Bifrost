@@ -1,6 +1,7 @@
 import type { PrivateEquipmentRule } from "@bifrost/contracts";
 import { useEffect, useState } from "react";
 import { createPrivateEquipmentRule, deletePrivateEquipmentRule, getPrivateEquipment } from "../../api/client";
+import { confirmAction } from "../../components/notifications";
 
 export function PrivateEquipmentWorkspace({ accessToken }: { accessToken: string }) {
   const [rules, setRules] = useState<PrivateEquipmentRule[] | null>(null);
@@ -43,8 +44,8 @@ export function PrivateEquipmentWorkspace({ accessToken }: { accessToken: string
       <div className="overflow-x-auto"><table className="w-full min-w-[780px] text-left text-sm"><thead className="border-b border-white/10 text-xs uppercase tracking-wider text-slate-500"><tr><th className="px-5 py-4">Eier</th><th className="px-5 py-4">Prefiks</th><th className="px-5 py-4">Laveste / høyeste</th><th className="px-5 py-4">Treff</th><th className="px-5 py-4"><span className="sr-only">Handlinger</span></th></tr></thead><tbody className="divide-y divide-white/[.06]">
         {!rules && !error && <tr><td colSpan={5} className="px-5 py-12 text-center text-slate-500">Henter regler …</td></tr>}
         {rules?.length === 0 && <tr><td colSpan={5} className="px-5 py-12 text-center text-slate-500">Ingen regler for privat utstyr er registrert.</td></tr>}
-        {rules?.map((rule) => <tr key={rule.id} className="hover:bg-white/[.025]"><td className="px-5 py-4 font-medium text-slate-200">{rule.ownerName}</td><td className="px-5 py-4 font-mono text-amber-200">{rule.barcodePrefix}</td><td className="px-5 py-4 text-slate-400">{rule.lowestSerial ?? "–"}<span className="mx-2 text-slate-700">→</span>{rule.highestSerial ?? "–"}</td><td className="px-5 py-4 text-slate-300">{rule.equipmentCount}</td><td className="px-5 py-4"><div className="flex justify-end gap-2"><button type="button" className="rounded-lg border border-white/10 px-3 py-2 text-xs text-slate-300 hover:bg-white/5" onClick={() => setSelectedRule(rule)}>Info</button><button type="button" className="rounded-lg border border-rose-400/20 px-3 py-2 text-xs text-rose-300 hover:bg-rose-400/10" onClick={() => {
-          if (!window.confirm(`Slette regelen ${rule.barcodePrefix} for ${rule.ownerName}?`)) return;
+        {rules?.map((rule) => <tr key={rule.id} className="hover:bg-white/[.025]"><td className="px-5 py-4 font-medium text-slate-200">{rule.ownerName}</td><td className="px-5 py-4 font-mono text-amber-200">{rule.barcodePrefix}</td><td className="px-5 py-4 text-slate-400">{rule.lowestSerial ?? "–"}<span className="mx-2 text-slate-700">→</span>{rule.highestSerial ?? "–"}</td><td className="px-5 py-4 text-slate-300">{rule.equipmentCount}</td><td className="px-5 py-4"><div className="flex justify-end gap-2"><button type="button" className="rounded-lg border border-white/10 px-3 py-2 text-xs text-slate-300 hover:bg-white/5" onClick={() => setSelectedRule(rule)}>Info</button><button type="button" className="rounded-lg border border-rose-400/20 px-3 py-2 text-xs text-rose-300 hover:bg-rose-400/10" onClick={async () => {
+          if (!await confirmAction({ title: "Slett prefiksregel?", message: `${rule.barcodePrefix} for ${rule.ownerName} fjernes permanent.`, confirmLabel: "Slett regel", danger: true })) return;
           setError(null); setNotice(null);
           void deletePrivateEquipmentRule(accessToken, rule.id).then(() => { setNotice("Privat utstyr-regelen ble slettet."); setRefresh((value) => value + 1); }).catch((reason) => setError(messageFrom(reason)));
         }}>Slett</button></div></td></tr>)}

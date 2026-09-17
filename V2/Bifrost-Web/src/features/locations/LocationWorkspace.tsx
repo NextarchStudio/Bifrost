@@ -1,6 +1,7 @@
 import type { Location } from "@bifrost/contracts";
 import { useEffect, useState } from "react";
 import { createLocation, deleteLocation, getLocations, updateLocation } from "../../api/client";
+import { confirmAction } from "../../components/notifications";
 
 const LOCATION_TYPES = ["Lager", "Scene", "Transport", "Annet", "Arkiv"];
 
@@ -83,8 +84,8 @@ function LocationPanel({ accessToken, location, onClose, onChanged, onDeleted }:
           {error && <p className="rounded-xl border border-rose-400/20 bg-rose-400/10 px-4 py-3 text-sm text-rose-200">{error}</p>}
           <div className="mt-2 flex justify-end gap-3"><button type="button" className="rounded-xl border border-white/10 px-4 py-2.5 text-sm" onClick={onClose}>Avbryt</button><button disabled={saving} className="rounded-xl bg-emerald-300 px-5 py-2.5 text-sm font-semibold text-slate-950 disabled:opacity-50">{saving ? "Lagrer …" : isEditing ? "Lagre" : "Opprett"}</button></div>
         </form>
-        {location && onDeleted && <div className="mt-6 border-t border-white/10 pt-5"><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><p className="text-xs leading-5 text-slate-500">Sletting blokkeres hvis lokasjonen har paller eller aktive transportoppdrag.</p><button type="button" disabled={saving} className="shrink-0 rounded-xl border border-rose-400/30 px-4 py-2.5 text-sm font-medium text-rose-200 hover:bg-rose-400/10 disabled:opacity-50" onClick={() => {
-          if (!window.confirm(`Er du sikker på at du vil slette ${location.name}?`)) return;
+        {location && onDeleted && <div className="mt-6 border-t border-white/10 pt-5"><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><p className="text-xs leading-5 text-slate-500">Sletting blokkeres hvis lokasjonen har paller eller aktive transportoppdrag.</p><button type="button" disabled={saving} className="shrink-0 rounded-xl border border-rose-400/30 px-4 py-2.5 text-sm font-medium text-rose-200 hover:bg-rose-400/10 disabled:opacity-50" onClick={async () => {
+          if (!await confirmAction({ title: "Slett lokasjon?", message: `${location.name} slettes permanent dersom den ikke er i bruk.`, confirmLabel: "Slett lokasjon", danger: true })) return;
           setSaving(true); setError(null);
           void deleteLocation(accessToken, location.id).then(onDeleted).catch(fail);
         }}>Slett lokasjon</button></div></div>}

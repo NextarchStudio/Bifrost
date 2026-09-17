@@ -8,6 +8,7 @@ import {
   getPrivateEquipmentNotices,
   updateEquipmentRequestStatus,
 } from "../../api/client";
+import { confirmAction } from "../../components/notifications";
 
 interface SelectedItem {
   quantity: number;
@@ -53,8 +54,8 @@ export function RequestWorkspace({ accessToken }: { accessToken: string }) {
   }, [accessToken, refresh]);
 
   const changed = (message: string) => { setNotice(message); setError(null); setRefresh((value) => value + 1); };
-  const removeRequest = (request: EquipmentRequest) => {
-    if (!window.confirm(`Slette forespørsel #${request.id}?`)) return;
+  const removeRequest = async (request: EquipmentRequest) => {
+    if (!await confirmAction({ title: "Slett forespørsel?", message: `Forespørsel #${request.id} slettes permanent.`, confirmLabel: "Slett", danger: true })) return;
     setError(null); setNotice(null);
     void deleteEquipmentRequest(accessToken, request.id).then(() => changed("Forespørselen ble slettet.")).catch((reason) => setError(messageFrom(reason)));
   };

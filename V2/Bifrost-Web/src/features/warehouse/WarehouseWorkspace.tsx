@@ -10,6 +10,7 @@ import {
   getPallets,
   movePalletToLocation,
 } from "../../api/client";
+import { confirmAction } from "../../components/notifications";
 
 export function WarehouseWorkspace({ accessToken }: { accessToken: string }) {
   const [pallets, setPallets] = useState<Pallet[] | null>(null);
@@ -76,8 +77,8 @@ export function WarehouseWorkspace({ accessToken }: { accessToken: string }) {
         <div className="overflow-x-auto"><table className="w-full min-w-[860px] text-left text-sm"><thead className="border-b border-white/10 text-xs uppercase tracking-wider text-slate-500"><tr><th className="px-5 py-4">Palle</th><th className="px-5 py-4">Strekkode</th><th className="px-5 py-4">Lokasjon</th><th className="px-5 py-4">Flytt til</th><th className="px-5 py-4"><span className="sr-only">Handlinger</span></th></tr></thead><tbody className="divide-y divide-white/[.06]">
           {!pallets && !error && <tr><td colSpan={5} className="px-5 py-12 text-center text-slate-500">Henter paller …</td></tr>}
           {pallets?.length === 0 && <tr><td colSpan={5} className="px-5 py-12 text-center text-slate-500">Ingen paller er registrert.</td></tr>}
-          {pallets?.map((pallet) => <PalletRow key={pallet.id} pallet={pallet} locations={locations} busy={activeAction !== null} onInspect={() => setSelectedPalletId(pallet.id)} onMove={(locationId) => runAction(`move-${pallet.id}`, movePalletToLocation(accessToken, pallet.id, locationId), `${pallet.name} ble flyttet.`)} onDelete={() => {
-            if (window.confirm(`Er du sikker på at du vil slette ${pallet.name}?`)) runAction(`delete-${pallet.id}`, deletePallet(accessToken, pallet.id), `${pallet.name} ble slettet.`);
+          {pallets?.map((pallet) => <PalletRow key={pallet.id} pallet={pallet} locations={locations} busy={activeAction !== null} onInspect={() => setSelectedPalletId(pallet.id)} onMove={(locationId) => runAction(`move-${pallet.id}`, movePalletToLocation(accessToken, pallet.id, locationId), `${pallet.name} ble flyttet.`)} onDelete={async () => {
+            if (await confirmAction({ title: "Slett palle?", message: `${pallet.name} slettes permanent dersom den ikke er i bruk.`, confirmLabel: "Slett palle", danger: true })) runAction(`delete-${pallet.id}`, deletePallet(accessToken, pallet.id), `${pallet.name} ble slettet.`);
           }} />)}
         </tbody></table></div>
       </div>

@@ -19,6 +19,7 @@ import {
   saveVehicleCompetencyProfile,
   updateVehicle,
 } from "../../api/client";
+import { confirmAction } from "../../components/notifications";
 
 const REQUIREMENTS: Array<{ code: VehicleCompetencyRequirement; label: string }> = [
   { code: "none", label: "Ingen krav" }, { code: "kdo", label: "KDO" },
@@ -70,8 +71,8 @@ export function VehicleWorkspace({ accessToken }: { accessToken: string }) {
           {workspace.vehicles.map((vehicle) => <tr key={vehicle.id} className="align-top hover:bg-white/[.02]"><td className="px-5 py-4"><p className="font-medium text-slate-200">{vehicle.name}</p><p className="mt-1 font-mono text-xs text-slate-500">{vehicle.registrationNumber}</p>{!vehicle.vegvesenExempt && <a className="mt-2 inline-block text-xs text-emerald-300 hover:underline" href={vegvesenUrl(vehicle.registrationNumber)} target="_blank" rel="noreferrer">Vis hos Vegvesen</a>}</td><td className="px-5 py-4 text-slate-300">{vehicle.odometerExempt ? "Unntatt" : vehicle.currentOdometer === null ? "–" : `${vehicle.currentOdometer.toLocaleString("nb-NO")} km`}</td><td className="px-5 py-4 text-slate-300">{vehicle.vegvesenExempt ? "Unntatt" : vehicle.maxPayloadKg === null ? "–" : `${vehicle.maxPayloadKg.toLocaleString("nb-NO")} kg`}</td><td className="px-5 py-4"><p className="text-slate-300">{LABELS[vehicle.competencyRequirement]}</p>{vehicle.competencyOverrideRequirement && <p className="mt-1 text-xs text-slate-600">Overstyres av {LABELS[vehicle.competencyOverrideRequirement]}</p>}</td><td className="px-5 py-4"><StatusBadge status={vehicle.status} />{vehicle.activeLoanId && <div className="mt-2"><p className="text-slate-300">{vehicle.activeBorrowerName ?? `Wannabe ${vehicle.activeWannabeId}`}</p><p className="mt-1 text-xs text-slate-600">ID {vehicle.activeWannabeId}{vehicle.activeIssuedAt ? ` · ${formatDate(vehicle.activeIssuedAt)}` : ""}</p></div>}</td><td className="px-5 py-4"><div className="flex justify-end gap-2">{vehicle.activeLoanId && workspace.canManageLoans && <button className="rounded-lg border border-emerald-300/20 px-3 py-2 text-xs text-emerald-200 hover:bg-emerald-300/10" onClick={() => {
             setError(null);
             void returnVehicleLoan(accessToken, vehicle.activeLoanId!).then(() => reload("Kjøretøyet ble returnert.")).catch((reason) => setError(messageFrom(reason)));
-          }}>Returner</button>}{workspace.canEdit && <><button className="rounded-lg border border-white/10 px-3 py-2 text-xs text-slate-300 hover:bg-white/5" onClick={() => setEditing(vehicle)}>Rediger</button><button className="rounded-lg border border-rose-300/20 px-3 py-2 text-xs text-rose-200 hover:bg-rose-300/10" onClick={() => {
-            if (!window.confirm(`Slette ${vehicle.name}?`)) return;
+          }}>Returner</button>}{workspace.canEdit && <><button className="rounded-lg border border-white/10 px-3 py-2 text-xs text-slate-300 hover:bg-white/5" onClick={() => setEditing(vehicle)}>Rediger</button><button className="rounded-lg border border-rose-300/20 px-3 py-2 text-xs text-rose-200 hover:bg-rose-300/10" onClick={async () => {
+            if (!await confirmAction({ title: "Slett kjøretøy?", message: `${vehicle.name} slettes permanent dersom kjøretøyet ikke er i bruk.`, confirmLabel: "Slett kjøretøy", danger: true })) return;
             setError(null);
             void deleteVehicle(accessToken, vehicle.id).then(() => reload("Kjøretøyet ble slettet.")).catch((reason) => setError(messageFrom(reason)));
           }}>Slett</button></>}</div></td></tr>)}

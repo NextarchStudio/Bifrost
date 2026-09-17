@@ -1,5 +1,7 @@
 # Bifrost
 
+[![V2 CI](https://github.com/NextarchStudio/Bifrost/actions/workflows/v2-ci.yml/badge.svg)](https://github.com/NextarchStudio/Bifrost/actions/workflows/v2-ci.yml)
+
 Bifrost er Nextarch Studios interne logistikkplattform for utstyr, lager, utlån, kjøretøy, transport, samband, shop, oppgaver og administrasjon.
 
 Repositoryet inneholder både den operative V1-applikasjonen og den nye V2-plattformen. V1 beholdes intakt mens V2 bygges modulvis med full funksjonsparitet og samme MariaDB-datagrunnlag.
@@ -59,6 +61,8 @@ Opprett lokale miljøfiler fra `.env.example` i hver applikasjon:
 - Hemmelige nøkler skal aldri legges i Web-miljøet eller committes.
 
 API-et lytter på port `3001`, Web på port `3000`. Endepunktene `GET /health` og `GET /ready` brukes til driftssjekk.
+
+GitHub Actions kjører låst installasjon, produksjonsaudit og `pnpm check` ved V2-endringer og pull requests.
 
 Se [V2/README.md](V2/README.md) for utvikling, bygg og PM2.
 

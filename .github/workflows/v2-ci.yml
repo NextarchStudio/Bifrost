@@ -1,0 +1,52 @@
+name: V2 CI
+
+on:
+  push:
+    paths:
+      - "V2/**"
+      - ".github/workflows/v2-ci.yml"
+  pull_request:
+    paths:
+      - "V2/**"
+      - ".github/workflows/v2-ci.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v2-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Audit, build and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: V2
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.18.0
+          run_install: false
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: V2/pnpm-lock.yaml
+
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Audit production dependencies
+        run: pnpm audit --prod
+
+      - name: Lint, typecheck, build and test
+        run: pnpm check

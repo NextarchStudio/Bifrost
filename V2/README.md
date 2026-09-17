@@ -24,6 +24,8 @@ pnpm check
 
 `pnpm check` kjører lint, TypeScript-kontroll, tester og produksjonsbuild for hele workspace-et.
 
+Den samme kontrollen kjører i `.github/workflows/v2-ci.yml` ved endringer under `V2/`. Jobben bruker frosset låsefil, kjører produksjonsaudit og deretter lint, typekontroll, bygg og tester.
+
 ## Miljøfiler
 
 Kopier `.env.example` i API, Web og Worker til `.env` i samme katalog.

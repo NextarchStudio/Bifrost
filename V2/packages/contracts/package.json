@@ -15,7 +15,7 @@
     "dev": "tsc --watch",
     "typecheck": "tsc --noEmit",
     "lint": "tsc --noEmit",
-    "test": "node --test dist/**/*.test.js"
+    "test": "node --test \"dist/**/*.test.js\""
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

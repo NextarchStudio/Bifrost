@@ -11,7 +11,7 @@
     "preflight": "node --env-file-if-exists=.env dist/commands/preflight.js",
     "typecheck": "tsc --noEmit",
     "lint": "tsc --noEmit",
-    "test": "node --test dist/**/*.test.js"
+    "test": "node --test \"dist/**/*.test.js\""
   },
   "dependencies": {
     "@bifrost/contracts": "workspace:*",

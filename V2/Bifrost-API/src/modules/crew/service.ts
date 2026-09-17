@@ -30,7 +30,7 @@ export class CrewDirectoryError extends Error {
 }
 
 export interface CrewDirectoryService {
-  lookup(query: string): Promise<CrewProfile>;
+  lookup(query: string, mode?: "auto" | "wannabe" | "badge"): Promise<CrewProfile>;
   picture(wannabeId: number): Promise<{ contentType: string; body: Buffer } | null>;
 }
 
@@ -40,43 +40,37 @@ export function createCrewDirectoryService(
   fetchImplementation: typeof fetch = fetch,
 ): CrewDirectoryService {
   return {
-    async lookup(query) {
+    async lookup(query, mode = "auto") {
       await ensureFreshCacheYear(database);
-      const isWannabeId = /^\d+$/.test(query);
-      const wannabeId = isWannabeId ? Number(query) : null;
-      const [cached] = await database.db.select().from(crewDirectoryCache)
-        .where(isWannabeId ? eq(crewDirectoryCache.wannabeId, wannabeId!) : eq(crewDirectoryCache.scanNumber, query)).limit(1);
-      if (cached?.name && cached.wannabeId > 0) return toPublicProfile({
-        id: cached.wannabeId,
-        name: cached.name,
-        nickname: cached.nickname ?? "",
-        crewName: cached.crewName ?? "",
-        roleTitle: cached.crewRoleTitle ?? "",
-        roleName: cached.crewRoleName ?? "",
-      }, "cache");
-
+      const isNumeric = /^\d+$/.test(query);
+      const attempts: Array<"wannabe" | "badge"> = mode === "wannabe" ? ["wannabe"] : mode === "badge" ? ["badge"] : isNumeric ? ["wannabe", "badge"] : ["badge"];
       const config = await loadConfig(database, secureSettings);
-      if (config) {
-        const remote = await fetchRemoteProfile(config, isWannabeId ? "uid" : "sn", query, fetchImplementation);
-        if (remote) {
-          await saveProfile(database, remote, isWannabeId ? null : query);
-          return toPublicProfile(remote, "remote");
+      for (const attempt of attempts) {
+        const wannabeId = attempt === "wannabe" ? Number(query) : null;
+        if (attempt === "wannabe" && (!Number.isSafeInteger(wannabeId) || wannabeId! < 1)) continue;
+        const [cached] = await database.db.select().from(crewDirectoryCache)
+          .where(attempt === "wannabe" ? eq(crewDirectoryCache.wannabeId, wannabeId!) : eq(crewDirectoryCache.scanNumber, query)).limit(1);
+        if (cached?.name && cached.wannabeId > 0) return toPublicProfile({
+          id: cached.wannabeId,
+          name: cached.name,
+          nickname: cached.nickname ?? "",
+          crewName: cached.crewName ?? "",
+          roleTitle: cached.crewRoleTitle ?? "",
+          roleName: cached.crewRoleName ?? "",
+        }, "cache");
+        if (config) {
+          const remote = await fetchRemoteProfile(config, attempt === "wannabe" ? "uid" : "sn", query, fetchImplementation);
+          if (remote) {
+            await saveProfile(database, remote, attempt === "badge" ? query : null);
+            return toPublicProfile(remote, "remote");
+          }
         }
+        const [local] = await database.db.select({ id: users.wannabeId, name: users.name }).from(users)
+          .where(attempt === "wannabe" ? eq(users.wannabeId, wannabeId!) : eq(users.badgeScanNumber, query)).limit(1);
+        if (local?.id && local.name) return {
+          id: local.id, name: local.name, nickname: "", crewName: "", role: "", displayName: local.name, source: "local",
+        };
       }
-
-      const [local] = await database.db.select({
-        id: users.wannabeId,
-        name: users.name,
-      }).from(users).where(isWannabeId ? eq(users.wannabeId, wannabeId!) : eq(users.badgeScanNumber, query)).limit(1);
-      if (local?.id && local.name) return {
-        id: local.id,
-        name: local.name,
-        nickname: "",
-        crewName: "",
-        role: "",
-        displayName: local.name,
-        source: "local",
-      };
       if (!config) throw new CrewDirectoryError("Crew-oppslag er ikke konfigurert.", "NOT_CONFIGURED");
       throw new CrewDirectoryError("Fant ikke person for denne Wannabe-ID-en eller badge-scannen.", "NOT_FOUND");
     },

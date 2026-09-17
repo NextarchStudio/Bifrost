@@ -16,6 +16,8 @@ import { createProfileService } from "./modules/profiles/service.js";
 import { createTransportService } from "./modules/transport/service.js";
 import { createTransportRouting } from "./modules/transport/routing.js";
 import { createCommsService } from "./modules/comms/service.js";
+import { createShopService } from "./modules/shop/service.js";
+import { createCrewClothingService } from "./modules/crew-clothing/service.js";
 import { resolve } from "node:path";
 
 const database = createDatabase(readDatabaseConfig());
@@ -35,6 +37,8 @@ const app = buildApp({
   profiles: createProfileService(database),
   transport: createTransportService(database, createTransportRouting(database)),
   comms: createCommsService(database, crew),
+  shop: createShopService(database),
+  crewClothing: createCrewClothingService(database, crew),
   checkDatabase: async () => {
     const connection = await database.pool.getConnection();
     try {

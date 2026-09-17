@@ -76,6 +76,10 @@ Transportmodulen bruker V1-tabellene `transport_jobs` og `transport_job_stops` d
 
 Sambandsmodulen bruker V1-tabellene `comms_items`, `comms_sets`, `comms_set_items`, `comms_loans` og `comms_loan_items` direkte. Enheter, tilbehør, standardsett, badge-/personoppslag, enkelt- og settutlån, delretur og bytte er tilgjengelig for de samme fem V1-rollene. Beholdning og lånelinjer låses og oppdateres i én transaksjon, slik at mislykkede settutlån eller returer ikke etterlater delvis lagerendring.
 
+Shop-modulen bruker V1-tabellene `shop_categories`, `shop_items` og `shop_movements` direkte. Oppretting, inn-/utsjekk, sletting med historikk, ettårsopprydding, XLSX/XLS/CSV-varetelling og CSV/PDF-eksport er videreført. Import og lagerbevegelser er transaksjonelle, filstørrelsen er begrenset til 10 MB, og eksport krever samme API-autorisasjon som resten av Shop.
+
+Crewtøy bruker V1-tabellene `crew_clothing_crews`, `crew_clothing_members` og `crew_clothing_inventory`. Badge-/Wannabe-oppslag, automatisk crewoppretting, størrelser, utlevering av T-skjorte/genser og crewtøylager er levert. De fem V1-Shop-rollene har operativ tilgang; bare `developer`, `chief` og `co-chief` kan endre crew og maksgrenser, slik V1-adminrutene krever. Utleveringsstatus reduserer ikke crewtøylageret automatisk fordi V1 heller ikke kobler disse operasjonene.
+
 ## PM2
 
 ```bash

@@ -1,6 +1,7 @@
 import type { ApiError, HealthResponse, ReadyResponse } from "@bifrost/contracts";
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
+import multipart from "@fastify/multipart";
 import Fastify, { type FastifyInstance } from "fastify";
 import { registerAuthRoutes } from "./modules/auth/routes.js";
 import type { AuthService } from "./modules/auth/service.js";
@@ -28,6 +29,9 @@ import { registerTransportRoutes } from "./modules/transport/routes.js";
 import type { TransportService } from "./modules/transport/service.js";
 import { registerCommsRoutes } from "./modules/comms/routes.js";
 import type { CommsService } from "./modules/comms/service.js";
+import { registerShopRoutes } from "./modules/shop/routes.js";
+import type { ShopService } from "./modules/shop/service.js";
+import type { CrewClothingService } from "./modules/crew-clothing/service.js";
 
 export interface AppDependencies {
   checkDatabase: () => Promise<void>;
@@ -45,6 +49,8 @@ export interface AppDependencies {
   profiles?: ProfileService;
   transport?: TransportService;
   comms?: CommsService;
+  shop?: ShopService;
+  crewClothing?: CrewClothingService;
 }
 
 export function buildApp(dependencies: AppDependencies): FastifyInstance {
@@ -54,6 +60,7 @@ export function buildApp(dependencies: AppDependencies): FastifyInstance {
   });
 
   void app.register(helmet);
+  void app.register(multipart, { limits: { files: 1, fileSize: 10 * 1024 * 1024 } });
   void app.register(cors, {
     origin: [/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/],
     allowedHeaders: ["Authorization", "Content-Type", "X-Bifrost-Client", "X-Request-Id"],
@@ -89,6 +96,9 @@ export function buildApp(dependencies: AppDependencies): FastifyInstance {
   if (dependencies.auth && dependencies.profiles) void registerProfileRoutes(app, dependencies.auth, dependencies.profiles, dependencies.crew);
   if (dependencies.auth && dependencies.transport) void registerTransportRoutes(app, dependencies.auth, dependencies.transport);
   if (dependencies.auth && dependencies.comms) void registerCommsRoutes(app, dependencies.auth, dependencies.comms);
+  if (dependencies.auth && dependencies.shop && dependencies.crewClothing) {
+    void registerShopRoutes(app, dependencies.auth, dependencies.shop, dependencies.crewClothing);
+  }
 
   app.setNotFoundHandler((request, reply) => {
     const body: ApiError = { error: { code: "NOT_FOUND", message: "Ressursen finnes ikke.", requestId: request.id } };

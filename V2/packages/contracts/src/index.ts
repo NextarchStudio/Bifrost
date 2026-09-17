@@ -472,3 +472,102 @@ export interface CommsWorkspaceResponse {
   sets: CommsSet[];
   activeLoans: CommsLoan[];
 }
+
+export const SHOP_SIZE_OPTIONS = ["XXS", "XS", "S", "M", "L", "XL", "XXL", "XXXL", "XXXXL", "XXXXXL", "XXXXXXL"] as const;
+export type ShopSize = (typeof SHOP_SIZE_OPTIONS)[number];
+
+export interface ShopCategory {
+  id: number;
+  name: string;
+}
+
+export interface ShopItem {
+  id: number;
+  categoryId: number;
+  categoryName: string;
+  name: string;
+  size: string | null;
+  quantity: number;
+  status: string;
+  discontinuedAt: string | null;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ShopMovement {
+  id: number;
+  shopItemId: number;
+  itemName: string;
+  itemSize: string | null;
+  categoryName: string;
+  actorUserId: number;
+  actorName: string | null;
+  movementType: "checkin" | "checkout";
+  quantity: number;
+  notes: string | null;
+  createdAt: string;
+}
+
+export interface ShopWorkspaceResponse {
+  categories: ShopCategory[];
+  items: ShopItem[];
+  movements: ShopMovement[];
+  sizeOptions: readonly ShopSize[];
+}
+
+export interface ShopImportSummary {
+  created: number;
+  checkedIn: number;
+  checkedOut: number;
+  unchanged: number;
+}
+
+export type CrewClothingItemType = "tshirt" | "hoodie";
+
+export interface CrewClothingCrew {
+  id: number;
+  name: string;
+  tshirtMax: number;
+  hoodieMax: number;
+  membersTotal: number;
+  tshirtDeliveredTotal: number;
+  hoodieDeliveredTotal: number;
+}
+
+export interface CrewClothingMember {
+  id: number;
+  crewId: number | null;
+  crewName: string | null;
+  wannabeId: number | null;
+  badgeScanNumber: string | null;
+  name: string;
+  nickname: string | null;
+  tshirtSize: string | null;
+  tshirtDelivered: boolean;
+  tshirtDeliveredAt: string | null;
+  tshirtDeliveredByUserId: number | null;
+  hoodieSize: string | null;
+  hoodieDelivered: boolean;
+  hoodieDeliveredAt: string | null;
+  hoodieDeliveredByUserId: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CrewClothingInventoryItem {
+  id: number;
+  itemType: CrewClothingItemType;
+  size: ShopSize;
+  quantity: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CrewClothingWorkspaceResponse {
+  canManageCrews: boolean;
+  crews: CrewClothingCrew[];
+  members: CrewClothingMember[];
+  inventory: CrewClothingInventoryItem[];
+  sizeOptions: readonly ShopSize[];
+}

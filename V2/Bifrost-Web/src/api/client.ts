@@ -1,4 +1,4 @@
-import type { ApiError, CommsItemType, CommsWorkspaceResponse, CrewProfile, CurrentUser, EquipmentCategory, EquipmentListResponse, EquipmentLoanIssueResponse, EquipmentLoanListResponse, EquipmentLoanReturnResponse, EquipmentMutationResponse, EquipmentRequestWorkspaceResponse, Location, Pallet, PalletInspection, PrivateEquipmentNotice, PrivateEquipmentRule, TransportJob, TransportJobKind, TransportWorkspaceResponse, UserProfileResponse, VehicleCompetencyCode, VehicleCompetencyProfile, VehicleCompetencyRequirement, VehicleLoanIssueResponse, VehicleWorkspaceResponse } from "@bifrost/contracts";
+import type { ApiError, CommsItemType, CommsWorkspaceResponse, CrewClothingItemType, CrewClothingMember, CrewClothingWorkspaceResponse, CrewProfile, CurrentUser, EquipmentCategory, EquipmentListResponse, EquipmentLoanIssueResponse, EquipmentLoanListResponse, EquipmentLoanReturnResponse, EquipmentMutationResponse, EquipmentRequestWorkspaceResponse, Location, Pallet, PalletInspection, PrivateEquipmentNotice, PrivateEquipmentRule, ShopImportSummary, ShopWorkspaceResponse, TransportJob, TransportJobKind, TransportWorkspaceResponse, UserProfileResponse, VehicleCompetencyCode, VehicleCompetencyProfile, VehicleCompetencyRequirement, VehicleLoanIssueResponse, VehicleWorkspaceResponse } from "@bifrost/contracts";
 
 const apiUrl = (import.meta.env.VITE_API_URL || "http://localhost:3001").replace(/\/$/, "");
 
@@ -439,6 +439,98 @@ export async function issueCommsLoan(accessToken: string, input: { wannabeId: nu
 
 export async function returnCommsLoan(accessToken: string, id: number, input: { returns: Array<{ itemId: number; quantity: number }>; replacementItemId?: number | null; replacementQuantity?: number | null }): Promise<void> {
   await sendApiMutation(accessToken, `/api/v1/comms/loans/${id}/return`, "POST", input, "Kunne ikke lagre retur eller bytte.");
+}
+
+export async function getShopWorkspace(accessToken: string): Promise<ShopWorkspaceResponse> {
+  const response = await fetch(`${apiUrl}/api/v1/shop`, { headers: createHeaders(accessToken) });
+  if (!response.ok) throw await createApiError(response, "Kunne ikke hente butikkdata.");
+  return response.json() as Promise<ShopWorkspaceResponse>;
+}
+
+export async function createShopCategory(accessToken: string, name: string): Promise<{ id: number }> {
+  const headers = createHeaders(accessToken); headers.set("Content-Type", "application/json");
+  const response = await fetch(`${apiUrl}/api/v1/shop/categories`, { method: "POST", headers, body: JSON.stringify({ name }) });
+  if (!response.ok) throw await createApiError(response, "Kunne ikke opprette kategorien.");
+  return response.json() as Promise<{ id: number }>;
+}
+
+export async function createShopItem(accessToken: string, input: { name: string; categoryId?: number | null; newCategory?: string | null; size?: string | null; quantity: number; notes?: string | null }): Promise<{ id: number }> {
+  const headers = createHeaders(accessToken); headers.set("Content-Type", "application/json");
+  const response = await fetch(`${apiUrl}/api/v1/shop/items`, { method: "POST", headers, body: JSON.stringify(input) });
+  if (!response.ok) throw await createApiError(response, "Kunne ikke opprette varen.");
+  return response.json() as Promise<{ id: number }>;
+}
+
+export async function moveShopItem(accessToken: string, id: number, type: "check-in" | "check-out", quantity: number): Promise<void> {
+  await sendApiMutation(accessToken, `/api/v1/shop/items/${id}/${type}`, "POST", { quantity }, "Kunne ikke oppdatere lagerbeholdningen.");
+}
+
+export async function deleteShopItem(accessToken: string, id: number): Promise<void> {
+  const response = await fetch(`${apiUrl}/api/v1/shop/items/${id}`, { method: "DELETE", headers: createHeaders(accessToken) });
+  if (!response.ok) throw await createApiError(response, "Kunne ikke slette varen.");
+}
+
+export async function importShopInventory(accessToken: string, file: File): Promise<ShopImportSummary> {
+  const form = new FormData(); form.set("inventory_file", file);
+  const response = await fetch(`${apiUrl}/api/v1/shop/import`, { method: "POST", headers: createHeaders(accessToken), body: form });
+  if (!response.ok) throw await createApiError(response, "Kunne ikke importere varetellingen.");
+  return response.json() as Promise<ShopImportSummary>;
+}
+
+export async function downloadShopExport(accessToken: string, format: "csv" | "pdf"): Promise<{ blob: Blob; filename: string }> {
+  const response = await fetch(`${apiUrl}/api/v1/shop/export.${format}`, { headers: createHeaders(accessToken) });
+  if (!response.ok) throw await createApiError(response, "Kunne ikke eksportere varelageret.");
+  const disposition = response.headers.get("content-disposition") ?? "";
+  const filename = disposition.match(/filename="([^"]+)"/)?.[1] ?? `varelager.${format}`;
+  return { blob: await response.blob(), filename };
+}
+
+export async function getCrewClothingWorkspace(accessToken: string): Promise<CrewClothingWorkspaceResponse> {
+  const response = await fetch(`${apiUrl}/api/v1/crew-clothing`, { headers: createHeaders(accessToken) });
+  if (!response.ok) throw await createApiError(response, "Kunne ikke hente crewtøydata.");
+  return response.json() as Promise<CrewClothingWorkspaceResponse>;
+}
+
+export async function lookupCrewClothingMember(accessToken: string, query: string): Promise<CrewClothingMember> {
+  const headers = createHeaders(accessToken); headers.set("Content-Type", "application/json");
+  const response = await fetch(`${apiUrl}/api/v1/crew-clothing/lookup`, { method: "POST", headers, body: JSON.stringify({ query }) });
+  if (!response.ok) throw await createApiError(response, "Fant ikke crewmedlemmet.");
+  return response.json() as Promise<CrewClothingMember>;
+}
+
+export async function saveCrewClothingInventory(accessToken: string, input: { itemType: CrewClothingItemType; size: string; quantity: number }): Promise<{ id: number }> {
+  const headers = createHeaders(accessToken); headers.set("Content-Type", "application/json");
+  const response = await fetch(`${apiUrl}/api/v1/crew-clothing/inventory`, { method: "POST", headers, body: JSON.stringify(input) });
+  if (!response.ok) throw await createApiError(response, "Kunne ikke lagre varelinjen.");
+  return response.json() as Promise<{ id: number }>;
+}
+
+export async function updateCrewClothingInventory(accessToken: string, id: number, input: { itemType: CrewClothingItemType; size: string; quantity: number }): Promise<void> {
+  await sendApiMutation(accessToken, `/api/v1/crew-clothing/inventory/${id}`, "PATCH", input, "Kunne ikke oppdatere varelinjen.");
+}
+
+export async function deleteCrewClothingInventory(accessToken: string, id: number): Promise<void> {
+  const response = await fetch(`${apiUrl}/api/v1/crew-clothing/inventory/${id}`, { method: "DELETE", headers: createHeaders(accessToken) });
+  if (!response.ok) throw await createApiError(response, "Kunne ikke slette varelinjen.");
+}
+
+export async function updateCrewClothingMember(accessToken: string, id: number, input: { crewId?: number | null; tshirtSize?: string | null; hoodieSize?: string | null }): Promise<void> {
+  await sendApiMutation(accessToken, `/api/v1/crew-clothing/members/${id}`, "PATCH", input, "Kunne ikke oppdatere crewmedlemmet.");
+}
+
+export async function setCrewClothingDelivery(accessToken: string, id: number, itemTypes: CrewClothingItemType[], delivered: boolean): Promise<void> {
+  await sendApiMutation(accessToken, `/api/v1/crew-clothing/members/${id}/delivery`, "POST", { itemTypes, delivered }, "Kunne ikke oppdatere utleveringsstatusen.");
+}
+
+export async function createCrewClothingCrew(accessToken: string, input: { name: string; tshirtMax: number; hoodieMax: number }): Promise<{ id: number }> {
+  const headers = createHeaders(accessToken); headers.set("Content-Type", "application/json");
+  const response = await fetch(`${apiUrl}/api/v1/crew-clothing/crews`, { method: "POST", headers, body: JSON.stringify(input) });
+  if (!response.ok) throw await createApiError(response, "Kunne ikke opprette crewet.");
+  return response.json() as Promise<{ id: number }>;
+}
+
+export async function updateCrewClothingCrew(accessToken: string, id: number, input: { name: string; tshirtMax: number; hoodieMax: number }): Promise<void> {
+  await sendApiMutation(accessToken, `/api/v1/crew-clothing/crews/${id}`, "PATCH", input, "Kunne ikke oppdatere crewet.");
 }
 
 export async function getUserProfile(accessToken: string, wannabeId: number): Promise<UserProfileResponse> {

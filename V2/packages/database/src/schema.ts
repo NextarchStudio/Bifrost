@@ -233,6 +233,76 @@ export const commsLoanItems = mysqlTable("comms_loan_items", {
   quantity: int({ unsigned: true }).notNull().default(1),
 });
 
+export const shopCategories = mysqlTable("shop_categories", {
+  id: int({ unsigned: true }).primaryKey().autoincrement(),
+  name: varchar({ length: 80 }).notNull(),
+  createdAt: datetime("created_at", { mode: "date" }).notNull(),
+  updatedAt: datetime("updated_at", { mode: "date" }).notNull(),
+}, (table) => [uniqueIndex("shop_categories_name_unique").on(table.name)]);
+
+export const shopItems = mysqlTable("shop_items", {
+  id: bigint({ mode: "number", unsigned: true }).primaryKey().autoincrement(),
+  categoryId: int("category_id", { unsigned: true }).notNull(),
+  name: varchar({ length: 150 }).notNull(),
+  size: varchar({ length: 20 }),
+  quantity: int({ unsigned: true }).notNull().default(0),
+  status: varchar({ length: 20 }).notNull().default("active"),
+  discontinuedAt: datetime("discontinued_at", { mode: "date" }),
+  notes: text(),
+  createdAt: datetime("created_at", { mode: "date" }).notNull(),
+  updatedAt: datetime("updated_at", { mode: "date" }).notNull(),
+});
+
+export const shopMovements = mysqlTable("shop_movements", {
+  id: bigint({ mode: "number", unsigned: true }).primaryKey().autoincrement(),
+  shopItemId: bigint("shop_item_id", { mode: "number", unsigned: true }).notNull(),
+  actorUserId: bigint("actor_user_id", { mode: "number", unsigned: true }).notNull(),
+  movementType: varchar("movement_type", { length: 20 }).notNull(),
+  quantity: int({ unsigned: true }).notNull(),
+  notes: varchar({ length: 255 }),
+  createdAt: datetime("created_at", { mode: "date" }).notNull(),
+});
+
+export const crewClothingCrews = mysqlTable("crew_clothing_crews", {
+  id: int({ unsigned: true }).primaryKey().autoincrement(),
+  name: varchar({ length: 120 }).notNull(),
+  tshirtMax: int("tshirt_max", { unsigned: true }).notNull().default(1),
+  hoodieMax: int("hoodie_max", { unsigned: true }).notNull().default(1),
+  createdAt: datetime("created_at", { mode: "date" }).notNull(),
+  updatedAt: datetime("updated_at", { mode: "date" }).notNull(),
+}, (table) => [uniqueIndex("crew_clothing_crews_name_unique").on(table.name)]);
+
+export const crewClothingMembers = mysqlTable("crew_clothing_members", {
+  id: bigint({ mode: "number", unsigned: true }).primaryKey().autoincrement(),
+  crewId: int("crew_id", { unsigned: true }),
+  wannabeId: bigint("wannabe_id", { mode: "number", unsigned: true }),
+  badgeScanNumber: varchar("badge_scan_number", { length: 120 }),
+  name: varchar({ length: 180 }).notNull(),
+  nickname: varchar({ length: 120 }),
+  tshirtSize: varchar("tshirt_size", { length: 20 }),
+  tshirtDelivered: boolean("tshirt_delivered").notNull().default(false),
+  tshirtDeliveredAt: datetime("tshirt_delivered_at", { mode: "date" }),
+  tshirtDeliveredByUserId: bigint("tshirt_delivered_by_user_id", { mode: "number", unsigned: true }),
+  hoodieSize: varchar("hoodie_size", { length: 20 }),
+  hoodieDelivered: boolean("hoodie_delivered").notNull().default(false),
+  hoodieDeliveredAt: datetime("hoodie_delivered_at", { mode: "date" }),
+  hoodieDeliveredByUserId: bigint("hoodie_delivered_by_user_id", { mode: "number", unsigned: true }),
+  createdAt: datetime("created_at", { mode: "date" }).notNull(),
+  updatedAt: datetime("updated_at", { mode: "date" }).notNull(),
+}, (table) => [
+  uniqueIndex("crew_clothing_members_wannabe_id_unique").on(table.wannabeId),
+  uniqueIndex("crew_clothing_members_badge_scan_number_unique").on(table.badgeScanNumber),
+]);
+
+export const crewClothingInventory = mysqlTable("crew_clothing_inventory", {
+  id: int({ unsigned: true }).primaryKey().autoincrement(),
+  itemType: varchar("item_type", { length: 20 }).notNull(),
+  size: varchar({ length: 20 }).notNull(),
+  quantity: int({ unsigned: true }).notNull().default(0),
+  createdAt: datetime("created_at", { mode: "date" }).notNull(),
+  updatedAt: datetime("updated_at", { mode: "date" }).notNull(),
+}, (table) => [uniqueIndex("crew_clothing_inventory_type_size_unique").on(table.itemType, table.size)]);
+
 export const transportJobs = mysqlTable("transport_jobs", {
   id: bigint({ mode: "number", unsigned: true }).primaryKey().autoincrement(),
   description: text().notNull(),

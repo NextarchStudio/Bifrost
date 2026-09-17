@@ -5,6 +5,11 @@
   "packageManager": "pnpm@11.18.0",
   "scripts": {
     "build": "pnpm -r build",
+    "infra:up": "docker compose --env-file .env.compose up -d --wait",
+    "infra:down": "docker compose --env-file .env.compose down",
+    "infra:logs": "docker compose --env-file .env.compose logs --follow",
+    "infra:status": "docker compose --env-file .env.compose ps",
+    "infra:validate": "docker compose --env-file .env.compose.example config --quiet && node scripts/validate-local-realm.mjs",
     "dev": "pnpm --parallel --filter @bifrost/api --filter @bifrost/web --filter @bifrost/worker dev",
     "typecheck": "pnpm -r typecheck",
     "lint": "pnpm -r lint",

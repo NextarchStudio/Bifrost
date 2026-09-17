@@ -14,6 +14,7 @@ Delte kontrakter og database-definisjoner ligger under `packages/`.
 - pnpm 11+
 - MariaDB 10.6+
 - PM2 for produksjonsdrift
+- Docker Engine med Compose for valgfritt lokalmiljø
 
 ## Installasjon og kvalitetssjekk
 
@@ -31,6 +32,43 @@ Før stagingstart følges [staging-runbooken](docs/staging-runbook.md). Etter mi
 ```bash
 pnpm --filter @bifrost/api preflight
 ```
+
+## Lokalt utviklingsmiljø
+
+Compose-oppsettet starter en MariaDB 10.11-database på `127.0.0.1:3307` og Keycloak på `http://localhost:8081`. Imagene er versjons- og digestlåst. Databasen og Keycloak-data beholdes i navngitte Docker-volumer når miljøet stoppes.
+
+```powershell
+Copy-Item .env.compose.example .env.compose
+# Erstatt alle replace-with-verdier i .env.compose
+pnpm infra:up
+pnpm infra:status
+```
+
+Definisjonene kan valideres uten å starte containere, og den samme kontrollen kjører i CI:
+
+```powershell
+pnpm infra:validate
+```
+
+Opprett V1-skjemaet fra repositoryroten etter at `V1/.env` peker på port `3307` og de samme databaseverdiene:
+
+```powershell
+Set-Location V1
+php spark migrate
+php spark db:seed DatabaseSeeder
+Set-Location ../V2
+```
+
+Kjør deretter `database/migrations/0001_bifrost_v2_foundation.sql` eksplisitt mot den lokale databasen. Sett OIDC-feltene i `system_settings` til base-URL `http://localhost:8081`, realm `bifrost-local`, client-id `bifrost-web`, redirect URI `http://localhost:3000/`, `enable_keycloak_login=1` og `enable_local_login=0`.
+
+Realm-importen oppretter PKCE-klienten og alle 11 V1-roller, men med vilje ingen brukere eller standardpassord. Opprett en lokal testbruker i Keycloak-konsollen, tildel ønskede realm-roller og sett tilsvarende `wannabe_role_name` på Bifrost-rollene som skal mappes. Uten rollemapping får nye OIDC-brukere rollen `bruker`.
+
+```powershell
+pnpm infra:logs
+pnpm infra:down
+```
+
+`infra:down` sletter ikke volumene. Lokal database- eller realm-reset skal gjøres eksplisitt etter at det er kontrollert at prosjektet `bifrost-v2-local` er riktig mål.
 
 ## Miljøfiler
 

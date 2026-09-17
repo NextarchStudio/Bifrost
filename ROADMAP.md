@@ -31,7 +31,7 @@ V1 er i dag en CodeIgniter 4-applikasjon med PHP 8.2+, MariaDB, server-renderte 
 | Område | Status | Levert |
 |---|---|---|
 | Fase 0 – baseline | Pågår | V1 er bevart under `V1/`, rute-/rollematrisen er dokumentert og staging-runbook med lesebasert skjema-/rolle-/OIDC-preflight er levert. Kjøring mot anonymisert staging-database og verifisert restore gjenstår. |
-| Fase 1 – fundament | Nær ferdig | pnpm-monorepo, strict TypeScript, Fastify, React/Vite/Tailwind, Drizzle, health/readiness, PM2-oppsett, samlet kvalitetssjekk og GitHub CI med produksjonsaudit er på plass. Lokal databasecontainer gjenstår. |
+| Fase 1 – fundament | Implementert | pnpm-monorepo, strict TypeScript, Fastify, React/Vite/Tailwind, Drizzle, health/readiness, PM2-oppsett, samlet kvalitetssjekk, GitHub CI med produksjonsaudit og digestlåst lokal MariaDB/Keycloak Compose-stack er på plass. |
 | Fase 2 – identitet | Pågår | Obligatorisk Keycloak/OIDC med PKCE, JWT/JWKS-validering, automatisk V1-brukerprovisjonering og eksisterende roller er på plass. Audit av innlogging og full tilgangsmatrise gjenstår. |
 | Fase 3 – lager og utstyr | Nær ferdig | Utstyr, kategoriadministrasjon, lokasjoner, paller, palleplasser, strekkodeflyt, inspeksjon, flytting, slettingsvern, audit og nytt React-design er implementert. Playwright og paritetstest mot representativ V1-database gjenstår. |
 | Fase 4 – utlån og forespørsler | Implementert, ikke staging-verifisert | Transaksjonelt flerlinje-utlån, retur, person-/badge-oppslag, private-utstyrsregler, utstyrsforespørsler, kjøretøy, kompetanse/KDO, kjøretøylån og profiloversikt er implementert i API og Web. Paritetstest mot anonymiserte stagingdata gjenstår. |

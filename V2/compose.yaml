@@ -1,0 +1,52 @@
+name: bifrost-v2-local
+
+services:
+  database:
+    image: mariadb:10.11.19@sha256:07c0aaff7396b74cb7975cba78257178d188e30f531a5db2b617c48beef13c41
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: ${BIFROST_DB_NAME:?BIFROST_DB_NAME must be set}
+      MARIADB_USER: ${BIFROST_DB_USER:?BIFROST_DB_USER must be set}
+      MARIADB_PASSWORD: ${BIFROST_DB_PASSWORD:?BIFROST_DB_PASSWORD must be set}
+      MARIADB_ROOT_PASSWORD: ${BIFROST_DB_ROOT_PASSWORD:?BIFROST_DB_ROOT_PASSWORD must be set}
+    ports:
+      - "${BIFROST_DB_BIND_ADDRESS:-127.0.0.1}:${BIFROST_DB_PORT:-3307}:3306"
+    volumes:
+      - database-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 15s
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.7.4@sha256:82a77884f3af238beab1e7afd63b5f530e1b5c0590bd7aa60b40a40463e29b2c
+    restart: unless-stopped
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${BIFROST_KEYCLOAK_ADMIN:?BIFROST_KEYCLOAK_ADMIN must be set}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${BIFROST_KEYCLOAK_ADMIN_PASSWORD:?BIFROST_KEYCLOAK_ADMIN_PASSWORD must be set}
+      KC_HEALTH_ENABLED: "true"
+    ports:
+      - "${BIFROST_KEYCLOAK_BIND_ADDRESS:-127.0.0.1}:${BIFROST_KEYCLOAK_PORT:-8081}:8080"
+    volumes:
+      - ./keycloak/bifrost-local-realm.json:/opt/keycloak/data/import/bifrost-local-realm.json:ro
+      - keycloak-data:/opt/keycloak/data
+    healthcheck:
+      test:
+        - CMD
+        - bash
+        - -c
+        - >-
+          exec 3<>/dev/tcp/127.0.0.1/9000 &&
+          printf 'HEAD /health/ready HTTP/1.0\r\n\r\n' >&3 &&
+          grep -q 'HTTP/1.0 200' <&3
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+volumes:
+  database-data:
+  keycloak-data:

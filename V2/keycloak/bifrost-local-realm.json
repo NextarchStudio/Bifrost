@@ -1,0 +1,66 @@
+{
+  "realm": "bifrost-local",
+  "displayName": "Bifrost Local",
+  "enabled": true,
+  "registrationAllowed": false,
+  "resetPasswordAllowed": true,
+  "rememberMe": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "roles": {
+    "realm": [
+      { "name": "developer" },
+      { "name": "chief" },
+      { "name": "co-chief" },
+      { "name": "transport_ansvarlig" },
+      { "name": "skiftleder" },
+      { "name": "sambandsansvarlig" },
+      { "name": "logistikk" },
+      { "name": "shop" },
+      { "name": "innkjop" },
+      { "name": "bruker" },
+      { "name": "ingen_tilbakemeldinger" }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "bifrost-web",
+      "name": "Bifrost Web",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "fullScopeAllowed": true,
+      "redirectUris": [
+        "http://localhost:3000/*",
+        "http://127.0.0.1:3000/*"
+      ],
+      "webOrigins": [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:3000/*##http://127.0.0.1:3000/*"
+      },
+      "protocolMappers": [
+        {
+          "name": "Bifrost realm roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "multivalued": "true",
+            "userinfo.token.claim": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "roles",
+            "jsonType.label": "String"
+          }
+        }
+      ]
+    }
+  ]
+}

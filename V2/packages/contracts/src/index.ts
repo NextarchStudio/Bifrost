@@ -105,6 +105,24 @@ export interface OidcPublicConfig {
   faviconUrl?: string | null;
 }
 
+export interface OidcStartRequest {
+  origin: string;
+}
+
+export interface OidcStartResponse {
+  authorizationUrl: string;
+}
+
+export interface OidcCallbackRequest {
+  code: string;
+  state: string;
+}
+
+export interface OidcSessionResponse {
+  expiresAt: string;
+  user: CurrentUser;
+}
+
 export interface CurrentUser {
   id: number;
   name: string;
@@ -244,9 +262,13 @@ export interface EquipmentLoanReturnResponse {
 export interface CrewProfile {
   id: number;
   name: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  email?: string | null;
   nickname: string;
   crewName: string;
   role: string;
+  roleName?: string | null;
   displayName: string;
   source: "cache" | "remote" | "local";
 }
@@ -768,9 +790,30 @@ export interface AdminUser {
   updatedAt: string;
 }
 
+export interface CrewProvisioningRule {
+  id: number;
+  crewName: string;
+  crewRole: string | null;
+  roleId: number;
+  roleName: string;
+  roleDisplayName: string;
+  enabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminCrewProvisionResult {
+  created: boolean;
+  emailQueued: boolean;
+  profile: CrewProfile;
+  user: AdminUser;
+  matchedRoles: string[];
+}
+
 export interface AdminSettings {
   appName: string;
   localLoginEnabled: boolean;
+  crewProvisioningEmailEnabled: boolean;
   webOrigins: string[];
   logoUrl: string | null;
   faviconUrl: string | null;
@@ -798,6 +841,7 @@ export interface AdminSettings {
 export interface AdminWorkspaceResponse {
   canManageSettings: boolean;
   crewCacheEntries: number;
+  crewProvisioningRules: CrewProvisioningRule[];
   roles: AdminRole[];
   users: AdminUser[];
   settings: AdminSettings | null;

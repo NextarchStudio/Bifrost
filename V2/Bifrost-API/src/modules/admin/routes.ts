@@ -12,14 +12,24 @@ const createUserSchema = z.object({
   lastName: z.string().trim().min(1).max(80),
   email: z.email().max(180),
   wannabeId: z.number().int().positive().nullable().optional(),
+  badgeScanNumber: z.string().trim().max(64).nullable().optional(),
 });
+const crewProvisionSchema = z.object({ badgeScanNumber: z.string().trim().min(1).max(64) });
 const roleSchema = z.object({ name: z.string().trim().min(1).max(100), displayName: z.string().trim().max(100).nullable().optional(), wannabeRoleName: z.string().trim().max(100).nullable().optional() });
+const crewProvisioningRuleSchema = z.object({
+  crewName: z.string().trim().min(1).max(180),
+  crewRole: z.string().trim().max(180).nullable().optional(),
+  roleId: z.number().int().positive(),
+  enabled: z.boolean(),
+});
 const activeSchema = z.object({ active: z.boolean() });
+const crewProvisioningEmailSchema = z.object({ enabled: z.boolean() });
 const rolesSchema = z.object({ roleIds: z.array(z.number().int().positive()).max(100) });
 const competencySchema = z.object({ competencies: z.array(z.enum(["t1", "t2", "t3", "t4", "b", "be", "c1", "c1e", "c", "ce"])).max(10) });
 const settingsSchema = z.object({
   appName: z.string().trim().min(1).max(120),
   localLoginEnabled: z.boolean(),
+  crewProvisioningEmailEnabled: z.boolean(),
   webOrigins: z.array(z.string().trim().url().max(255)).min(1).max(10),
   logoUrl: z.string().trim().url().max(255).nullable().optional(),
   faviconUrl: z.string().trim().url().max(255).nullable().optional(),
@@ -57,6 +67,13 @@ export async function registerAdminRoutes(app: FastifyInstance, auth: AuthServic
     try { const user = await authorizeAdmin(request, auth); return reply.code(201).send(await admin.createUser(createUserSchema.parse(request.body), user.id)); }
     catch (error) { return sendError(error, request, reply); }
   });
+  app.post("/api/v1/admin/users/provision-from-crew", async (request, reply) => {
+    try {
+      const user = await authorizeAdmin(request, auth);
+      const { badgeScanNumber } = crewProvisionSchema.parse(request.body);
+      return reply.code(201).send(await admin.provisionCrewUser(badgeScanNumber, user.id));
+    } catch (error) { return sendError(error, request, reply); }
+  });
   app.patch("/api/v1/admin/users/:id/active", async (request, reply) => {
     try { const user = await authorizeAdmin(request, auth); const { id } = idSchema.parse(request.params); await admin.setUserActive(id, activeSchema.parse(request.body).active, user.id); return reply.code(204).send(); }
     catch (error) { return sendError(error, request, reply); }
@@ -84,6 +101,25 @@ export async function registerAdminRoutes(app: FastifyInstance, auth: AuthServic
   app.delete("/api/v1/admin/roles/:id", async (request, reply) => {
     try { const user = await authorizeAdmin(request, auth); const { id } = idSchema.parse(request.params); await admin.deleteRole(id, user.id); return reply.code(204).send(); }
     catch (error) { return sendError(error, request, reply); }
+  });
+  app.post("/api/v1/admin/crew-provisioning-rules", async (request, reply) => {
+    try { const user = await authorizeAdmin(request, auth); return reply.code(201).send(await admin.createCrewProvisioningRule(crewProvisioningRuleSchema.parse(request.body), user.id)); }
+    catch (error) { return sendError(error, request, reply); }
+  });
+  app.patch("/api/v1/admin/crew-provisioning-rules/:id", async (request, reply) => {
+    try { const user = await authorizeAdmin(request, auth); const { id } = idSchema.parse(request.params); await admin.updateCrewProvisioningRule(id, crewProvisioningRuleSchema.parse(request.body), user.id); return reply.code(204).send(); }
+    catch (error) { return sendError(error, request, reply); }
+  });
+  app.delete("/api/v1/admin/crew-provisioning-rules/:id", async (request, reply) => {
+    try { const user = await authorizeAdmin(request, auth); const { id } = idSchema.parse(request.params); await admin.deleteCrewProvisioningRule(id, user.id); return reply.code(204).send(); }
+    catch (error) { return sendError(error, request, reply); }
+  });
+  app.patch("/api/v1/admin/settings/crew-provisioning-email", async (request, reply) => {
+    try {
+      const user = await requireRoleAccess(request, auth, SYSTEM_SETTINGS_ROLES, "Bare developer kan endre e-postutsendelse.");
+      await admin.setCrewProvisioningEmailEnabled(crewProvisioningEmailSchema.parse(request.body).enabled, user.id);
+      return reply.code(204).send();
+    } catch (error) { return sendError(error, request, reply); }
   });
   app.put("/api/v1/admin/settings", async (request, reply) => {
     try { const user = await requireRoleAccess(request, auth, SYSTEM_SETTINGS_ROLES, "Bare developer kan administrere systeminnstillinger."); await admin.updateSettings(settingsSchema.parse(request.body), user.id); return reply.code(204).send(); }

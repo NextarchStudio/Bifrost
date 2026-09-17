@@ -3,6 +3,8 @@ import { createDatabase, readDatabaseConfig } from "@bifrost/database";
 import { createAuthService } from "./modules/auth/service.js";
 import { createAuthLoginService } from "./modules/auth/login-audit.js";
 import { createLocalAuthService } from "./modules/auth/local-login.js";
+import { createConfidentialOidcService } from "./modules/auth/confidential-oidc.js";
+import { issueStoredLocalSession } from "./modules/auth/local-session.js";
 import { createBarcodeService } from "./modules/barcodes/service.js";
 import { createEquipmentService } from "./modules/equipment/service.js";
 import { createCategoryService } from "./modules/categories/service.js";
@@ -32,6 +34,13 @@ const database = createDatabase(readDatabaseConfig());
 const secureSettings = await createSecureSettingsStore(database, resolve(process.cwd(), "../var/secrets/settings.key"));
 const crew = createCrewDirectoryService(database, secureSettings);
 const auth = createAuthService(database);
+const login = createAuthLoginService(database, auth);
+const oidc = createConfidentialOidcService(
+  auth,
+  login,
+  secureSettings,
+  (userId, now) => issueStoredLocalSession(database, userId, now),
+);
 const webOriginConfig = await loadActiveWebOrigins(database);
 const allowedWebOrigins = webOriginConfig.origins;
 if (allowedWebOrigins.length === 0) throw new Error("Ingen aktive Web-domener er konfigurert i bifrost_web_origins.");
@@ -39,8 +48,9 @@ if (webOriginConfig.usingBootstrapFallback) console.warn("bifrost_web_origins ma
 const app = buildApp({
   allowedWebOrigins,
   auth,
-  login: createAuthLoginService(database, auth),
+  login,
   localAuth: createLocalAuthService(database),
+  oidc,
   barcodes: createBarcodeService(),
   equipment: createEquipmentService(database),
   categories: createCategoryService(database),
@@ -62,7 +72,7 @@ const app = buildApp({
     mirrorWriteRoots: [resolve(process.cwd(), "../../V1/writable")],
     readRoots: [resolve(process.cwd(), "../../V1/writable")],
   }),
-  admin: createAdminService(database, secureSettings),
+  admin: createAdminService(database, secureSettings, crew),
   dashboard: createDashboardService(database),
   checkDatabase: async () => {
     const connection = await database.pool.getConnection();

@@ -8,6 +8,7 @@
     "dev": "tsc && node --env-file-if-exists=.env --watch dist/server.js",
     "start": "node --env-file-if-exists=.env dist/server.js",
     "migrate:secrets": "node --env-file-if-exists=.env dist/commands/migrate-secrets.js",
+    "inspect:crew": "node --env-file-if-exists=.env dist/commands/inspect-crew-profile.js",
     "preflight": "node --env-file-if-exists=.env dist/commands/preflight.js",
     "typecheck": "tsc --noEmit",
     "lint": "tsc --noEmit",

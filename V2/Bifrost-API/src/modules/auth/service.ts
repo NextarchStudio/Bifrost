@@ -269,7 +269,17 @@ export function extractWannabeId(claims: JWTPayload): number | null {
 
 export function extractRoleNames(claims: JWTPayload): string[] {
   const record = claims as Record<string, unknown>;
-  const values = [record.role, record.roles, record.crew_role, record.crewRole, record.crew_role_name, record.crew_role_title];
+  const values = [
+    record.role,
+    record.roles,
+    record.crew,
+    record.crew_role,
+    record.crewRole,
+    record.crew_role_name,
+    record.crew_role_title,
+    record.realm_access,
+    record.resource_access,
+  ];
   const names: string[] = [];
   for (const value of values) collectRoleNames(value, names);
   return [...new Set(names.map((name) => name.trim()).filter(Boolean))];
@@ -282,12 +292,16 @@ function collectRoleNames(value: unknown, target: string[]): void {
     const record = value as Record<string, unknown>;
     collectRoleNames(record.title, target);
     collectRoleNames(record.name, target);
+    collectRoleNames(record.roles, target);
+    for (const nested of Object.values(record)) {
+      if (nested && typeof nested === "object") collectRoleNames(nested, target);
+    }
   }
 }
 
 const keySets = new Map<string, ReturnType<typeof createRemoteJWKSet>>();
 
-async function verifyKeycloakToken(token: string, config: OidcPublicConfig): Promise<JWTPayload> {
+export async function verifyKeycloakToken(token: string, config: OidcPublicConfig): Promise<JWTPayload> {
   const jwksUrl = `${config.authority}/protocol/openid-connect/certs`;
   let keySet = keySets.get(jwksUrl);
   if (!keySet) {

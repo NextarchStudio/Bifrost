@@ -7,6 +7,7 @@ import { registerAuthRoutes } from "./modules/auth/routes.js";
 import type { AuthLoginService } from "./modules/auth/login-audit.js";
 import type { AuthService } from "./modules/auth/service.js";
 import type { LocalAuthService } from "./modules/auth/local-login.js";
+import type { ConfidentialOidcService } from "./modules/auth/confidential-oidc.js";
 import { registerBarcodeRoutes } from "./modules/barcodes/routes.js";
 import type { BarcodeService } from "./modules/barcodes/service.js";
 import { registerEquipmentRoutes } from "./modules/equipment/routes.js";
@@ -53,6 +54,7 @@ export interface AppDependencies {
   auth?: AuthService;
   login?: AuthLoginService;
   localAuth?: LocalAuthService;
+  oidc?: ConfidentialOidcService;
   barcodes?: BarcodeService;
   equipment?: EquipmentService;
   categories?: CategoryService;
@@ -85,8 +87,9 @@ export function buildApp(dependencies: AppDependencies): FastifyInstance {
   const allowedWebOrigins = dependencies.allowedWebOrigins ?? BOOTSTRAP_WEB_ORIGINS;
   void app.register(cors, {
     origin: [...allowedWebOrigins],
+    credentials: true,
     methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Authorization", "Content-Type", "X-Bifrost-Client", "X-Request-Id"],
+    allowedHeaders: ["Authorization", "Content-Type", "X-Bifrost-Client", "X-Bifrost-Request", "X-Request-Id"],
     exposedHeaders: ["Content-Disposition", "X-Barcode-Count"],
   });
 
@@ -107,7 +110,7 @@ export function buildApp(dependencies: AppDependencies): FastifyInstance {
     }
   });
 
-  if (dependencies.auth) void registerAuthRoutes(app, dependencies.auth, dependencies.login, dependencies.localAuth);
+  if (dependencies.auth) void registerAuthRoutes(app, dependencies.auth, dependencies.login, dependencies.localAuth, dependencies.oidc);
   if (dependencies.auth && dependencies.barcodes) void registerBarcodeRoutes(app, dependencies.auth, dependencies.barcodes);
   if (dependencies.auth && dependencies.equipment) void registerEquipmentRoutes(app, dependencies.auth, dependencies.equipment);
   if (dependencies.auth && dependencies.categories) void registerCategoryRoutes(app, dependencies.auth, dependencies.categories);

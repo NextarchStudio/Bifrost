@@ -73,6 +73,19 @@ export const webOrigins = mysqlTable("bifrost_web_origins", {
   updatedAt: datetime("updated_at", { mode: "date" }).notNull(),
 }, (table) => [uniqueIndex("bifrost_web_origins_origin_unique").on(table.origin)]);
 
+export const crewProvisioningRules = mysqlTable("bifrost_crew_provisioning_rules", {
+  id: int({ unsigned: true }).primaryKey().autoincrement(),
+  crewName: varchar("crew_name", { length: 180 }).notNull(),
+  crewRole: varchar("crew_role", { length: 180 }),
+  roleId: smallint("role_id", { unsigned: true }).notNull(),
+  enabled: boolean().notNull().default(true),
+  createdAt: datetime("created_at", { mode: "date" }).notNull(),
+  updatedAt: datetime("updated_at", { mode: "date" }).notNull(),
+}, (table) => [
+  index("bifrost_crew_rules_match_idx").on(table.enabled, table.crewName, table.crewRole),
+  index("bifrost_crew_rules_role_idx").on(table.roleId),
+]);
+
 export const systemSettings = mysqlTable("system_settings", {
   id: tinyint({ unsigned: true }).primaryKey(),
   appName: varchar("app_name", { length: 120 }),
@@ -100,6 +113,7 @@ export const systemSettings = mysqlTable("system_settings", {
   vegvesenApiKey: varchar("vegvesen_api_key", { length: 255 }),
   crewApiBearerToken: text("crew_api_bearer_token"),
   crewCacheYear: int("crew_cache_year"),
+  crewProvisioningEmailEnabled: boolean("crew_provisioning_email_enabled").notNull().default(false),
 });
 
 export const crewDirectoryCache = mysqlTable("crew_directory_cache", {

@@ -1,39 +1,18 @@
-import { UserManager, WebStorageStateStore, type User } from "oidc-client-ts";
-import { getAuthConfig } from "../api/client";
-
-let managerPromise: Promise<UserManager> | undefined;
-
-export function getUserManager(): Promise<UserManager> {
-  managerPromise ??= getAuthConfig()
-    .then((config) => {
-      return new UserManager({
-        authority: config.authority,
-        client_id: config.clientId,
-        redirect_uri: config.redirectUri,
-        response_type: "code",
-        scope: config.scope,
-        userStore: new WebStorageStateStore({ store: window.sessionStorage }),
-        stateStore: new WebStorageStateStore({ store: window.sessionStorage }),
-        loadUserInfo: true,
-      });
-    });
-  return managerPromise;
-}
+import type { OidcSessionResponse } from "@bifrost/contracts";
+import { completeOidcLogin, startOidcLogin } from "../api/client";
 
 export async function beginSignIn(): Promise<void> {
-  await (await getUserManager()).signinRedirect();
+  const { authorizationUrl } = await startOidcLogin(window.location.origin);
+  window.location.assign(authorizationUrl);
 }
 
-export async function completeSignIn(): Promise<User> {
-  return (await getUserManager()).signinRedirectCallback();
-}
+export async function completeSignIn(): Promise<OidcSessionResponse> {
+  const query = new URLSearchParams(window.location.search);
+  const providerError = query.get("error_description") || query.get("error");
+  if (providerError) throw new Error(`Keycloak avbrøt innloggingen: ${providerError}`);
 
-export async function getSignedInUser(): Promise<User | null> {
-  return (await getUserManager()).getUser();
-}
-
-export async function signOut(): Promise<void> {
-  const manager = await getUserManager();
-  await manager.removeUser();
-  window.location.assign("/");
+  const code = query.get("code");
+  const state = query.get("state");
+  if (!code || !state) throw new Error("Keycloak-callback mangler code eller state.");
+  return completeOidcLogin({ code, state });
 }

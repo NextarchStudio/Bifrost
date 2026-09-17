@@ -15,6 +15,16 @@ test("extracts unique role titles from Keycloak claims", () => {
   );
 });
 
+test("extracts standard Keycloak realm and client roles", () => {
+  assert.deepEqual(
+    extractRoleNames({
+      realm_access: { roles: ["logistikk", "bruker"] },
+      resource_access: { bifrost: { roles: ["skiftleder", "logistikk"] } },
+    }),
+    ["logistikk", "bruker", "skiftleder"],
+  );
+});
+
 test("normalizes only absolute HTTP origins", () => {
   assert.equal(normalizeWebOrigin("https://bifrost.tg.no/"), "https://bifrost.tg.no");
   assert.equal(normalizeWebOrigin("http://127.0.0.1:3000"), "http://127.0.0.1:3000");

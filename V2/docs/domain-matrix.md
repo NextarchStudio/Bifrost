@@ -43,14 +43,15 @@ Brukere kan ha flere roller. `ingen_tilbakemeldinger` skal behandles som en eksp
 | Shop og crew clothing | `developer`, `chief`, `co-chief`, `logistikk`, `shop`; crewadministrasjon bare `developer`, `chief`, `co-chief` | Varer/kategorier, checkout/checkin, sletting av varehistorikk, ettårsopprydding, XLSX/XLS/CSV-import, CSV/PDF-eksport, crewtøylager, badge-/Wannabe-oppslag, størrelser og utleveringsstatus | API og Web levert; lager/import er transaksjonelt, 10 MB filgrense og autorisert eksport er håndhevet; staging-paritet gjenstår |
 | Oppgaver | Alle innloggede; oppretting/full oversikt: `developer`, `chief`, `co-chief`, `logistikk` | Alle ser og oppdaterer egne oppgaver; lederrollene oppretter, tildeler, ser alt og kan koble til aktive transportoppdrag | API og Web levert; oppretting/status har audit og transaksjon, staging-paritet gjenstår |
 | Feedback og varsler | Feedback: alle innloggede uten `ingen_tilbakemeldinger`; samlet innsyn: `developer`, `logistikk`; status: `developer`; varsler: alle innloggede | Egen ventende innmelding kan slettes; bildevedlegg bare på bugs, maks 5 MB, og kan åpnes av eier/`developer`/`logistikk`; V1s tre nyeste globale `fixed`/`added`-varsler beholdes | API og Web levert med lokal V1/V2-filstøtte, audit og tilgangstester; staging-paritet gjenstår |
-| Admin og statistikk | `developer`, `chief`, `co-chief`; systeminnstillinger/destruktiv crew-reset: `developer` | Brukere, roller, aktiv-status, kompetanser, krypterte systeminnstillinger, alle V1-statistikkgrupper og V1s crew-/brukerreset er levert | API/Web levert med audit og tilgangstester; reset krever forhåndsvisning, eksakt frase og bevart bruker-ID 2; staging-paritet gjenstår |
+| Admin og statistikk | `developer`, `chief`, `co-chief`; systeminnstillinger, e-postbryter og destruktiv crew-reset: `developer` | Brukere, badge-provisjonering fra Crew API, crew-/crewrolle-regler til eksisterende V1-roller, valgfri Worker-basert velkomst-e-post, aktiv-status, kompetanser, krypterte systeminnstillinger, alle V1-statistikkgrupper og V1s crew-/brukerreset er levert | API/Web levert med audit og tilgangstester; Crew-match er eksakt og legger til roller uten å fjerne manuelle roller; reset krever forhåndsvisning, eksakt frase og bevart bruker-ID 2; staging-paritet gjenstår |
 
 ## Implementert V2-tilgang
 
 | API-område | Tillatte roller | Skriveoperasjoner med audit | Positive/negative rutetester |
 |---|---|---|---|
+| `/api/v1/auth/oidc/start`, `/api/v1/auth/oidc/callback` | Offentlig start/callback med aktivt, godkjent Web-origin; confidential secret brukes kun server-side | PKCE/state/nonce, tokenvalidering, audit og hash-lagret `HttpOnly` Bifrost-sesjon | Ja |
 | `/api/v1/auth/local`, `/api/v1/auth/logout` | Lokal innlogging når DB-bryteren er aktiv; Keycloak forblir obligatorisk | Innloggingsforsøk, audit og hash-lagret/revokert sesjon | Ja |
-| `/api/v1/me` | Alle med gyldig Keycloak- eller lokalt sesjonstoken | Ikke relevant | Ja |
+| `/api/v1/me` | Alle med gyldig bearer-token eller Bifrost-sesjonscookie | Ikke relevant | Ja |
 | `/api/v1/equipment*` | `developer`, `chief`, `co-chief`, `logistikk` | Ja | Ja |
 | `/api/v1/equipment-categories*` | `developer`, `chief`, `co-chief`, `logistikk` | Ja | Delvis |
 | `/api/v1/locations*` | `developer`, `chief`, `co-chief`, `logistikk` | Ja | Delvis |
@@ -66,12 +67,12 @@ Brukere kan ha flere roller. `ingen_tilbakemeldinger` skal behandles som en eksp
 | `/api/v1/shop*`, `/api/v1/crew-clothing*` | Operativt: `developer`, `chief`, `co-chief`, `logistikk`, `shop`; crewadministrasjon: `developer`, `chief`, `co-chief` | Ja; varebevegelser, import, historikksletting, crew, medlem, utlevering og crewtøylager har audit/transaksjoner i tråd med V1 | Ja |
 | `/api/v1/tasks*` | Egen liste/status: alle innloggede; oppretting/full oversikt: `developer`, `chief`, `co-chief`, `logistikk` | Ja; oppretting og statusendring har audit og transaksjoner | Ja |
 | `/api/v1/feedback*` | Innmelding/eget innsyn: alle uten `ingen_tilbakemeldinger`; alt innsyn/vedlegg: `developer`, `logistikk`; status: `developer`; varsler: alle innloggede | Ja; oppretting, status og sletting har audit; vedlegg har type-, størrelses- og tilgangskontroll | Ja |
-| `/api/v1/admin*` | Bruker-/rolleadmin og statistikk: `developer`, `chief`, `co-chief`; systeminnstillinger og crew-reset: `developer` | Ja; bruker, rolle, aktiv-status, kompetanser, innstillinger og reset har audit; statistikk/preview er lesebasert; hemmeligheter krypteres og eksponeres ikke | Ja |
+| `/api/v1/admin*` | Bruker-/rolle-/Crew-regeladmin og statistikk: `developer`, `chief`, `co-chief`; systeminnstillinger, e-postbryter og crew-reset: `developer` | Ja; badge-provisjonering, Crew-regler, bruker, rolle, aktiv-status, kompetanser, innstillinger og reset har audit; e-post sendes via kø uten hemmeligheter i payload; statistikk/preview er lesebasert; hemmeligheter krypteres og eksponeres ikke | Ja |
 | `/api/v1/dashboard` | Alle innloggede | Lesebasert V1-oppsummering | Ja |
 | `/api/v1/search` | `developer`, `chief`, `co-chief`, `logistikk` | Lesebasert; input begrenses og LIKE-jokertegn escapes | Ja |
 | `/api/v1/barcodes/export` | `developer`, `chief`, `co-chief`, `logistikk` | Genererer fil i minnet; ingen databaseskriving | Ja |
 
-API-et bruker én felles Bearer-token- og rollekontroll for Keycloak-token og lokale, hash-lagrede sesjonstoken. Manglende token gir `401`, manglende rolle gir `403`, og manglende OIDC-konfigurasjon beholdes som `503` med kode `OIDC_NOT_CONFIGURED`. Policytesten evaluerer hver av de 11 V1-rollene mot alle tilgangsområder og låser de negative reglene; rutetestene verifiserer i tillegg autentisering og kritiske positive/negative API-flyter.
+API-et bruker én felles bearer/cookie- og rollekontroll for lokale og SSO-utstedte, hash-lagrede Bifrost-sesjoner. Keycloak-token brukes bare inne i API-et under confidential callback og eksponeres ikke til Web. Cookie-baserte mutasjoner krever CSRF-header. Manglende token gir `401`, manglende rolle gir `403`, og manglende OIDC-konfigurasjon beholdes som `503` med kode `OIDC_NOT_CONFIGURED`. Policytesten evaluerer hver av de 11 V1-rollene mot alle tilgangsområder og låser de negative reglene; rutetestene verifiserer i tillegg autentisering og kritiske positive/negative API-flyter.
 
 ## Åpne verifikasjonspunkter
 

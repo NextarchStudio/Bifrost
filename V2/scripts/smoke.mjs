@@ -28,6 +28,20 @@ await check("OIDC callback", `${apiBase}/api/v1/auth/config?origin=${encodeURICo
   assert(authority.protocol === "https:" || (authority.protocol === "http:" && ["127.0.0.1", "localhost"].includes(authority.hostname)), "OIDC authority må bruke HTTPS utenfor lokalmiljøet");
 });
 
+await check("Confidential OIDC-start", `${apiBase}/api/v1/auth/oidc/start`, async (response) => {
+  assert(response.ok, `HTTP ${response.status}`);
+  const body = await response.json();
+  const authorizationUrl = new URL(body.authorizationUrl);
+  assert(authorizationUrl.searchParams.get("redirect_uri") === `${webOrigin}/auth/callback`, "OIDC-start bruker feil callback");
+  assert(authorizationUrl.searchParams.get("code_challenge_method") === "S256", "PKCE S256 mangler");
+  assert(Boolean(authorizationUrl.searchParams.get("state")), "OIDC state mangler");
+  assert(Boolean(authorizationUrl.searchParams.get("nonce")), "OIDC nonce mangler");
+}, {
+  method: "POST",
+  headers: { "Content-Type": "application/json", "X-Bifrost-Request": "web" },
+  body: JSON.stringify({ origin: webOrigin }),
+});
+
 await check("CORS mutasjoner", `${apiBase}/api/v1/locations/1`, async (response) => {
   assert(response.status === 204, `HTTP ${response.status}`);
   assert(response.headers.get("access-control-allow-origin") === webOrigin, "origin er ikke tillatt");
@@ -35,7 +49,7 @@ await check("CORS mutasjoner", `${apiBase}/api/v1/locations/1`, async (response)
   for (const method of ["PUT", "PATCH", "DELETE"]) assert(methods.includes(method), `${method} mangler`);
 }, {
   method: "OPTIONS",
-  headers: { Origin: webOrigin, "Access-Control-Request-Method": "PATCH", "Access-Control-Request-Headers": "authorization,content-type" },
+  headers: { Origin: webOrigin, "Access-Control-Request-Method": "PATCH", "Access-Control-Request-Headers": "authorization,content-type,x-bifrost-request" },
 });
 
 if (failures > 0) {

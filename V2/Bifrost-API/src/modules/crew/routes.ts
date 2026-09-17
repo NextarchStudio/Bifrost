@@ -5,7 +5,10 @@ import { authenticationErrorCode, requireRoleAccess } from "../../http/authoriza
 import { AuthenticationError, type AuthService } from "../auth/service.js";
 import { CrewDirectoryError, type CrewDirectoryService } from "./service.js";
 
-const querySchema = z.object({ query: z.string().trim().min(1).max(120) });
+const querySchema = z.object({
+  query: z.string().trim().min(1).max(120),
+  refresh: z.enum(["true", "false", "1", "0"]).optional(),
+});
 const CREW_LOOKUP_ROLES = BIFROST_ACCESS.crewLookup;
 
 export async function registerCrewRoutes(app: FastifyInstance, auth: AuthService, crew: CrewDirectoryService): Promise<void> {
@@ -13,7 +16,7 @@ export async function registerCrewRoutes(app: FastifyInstance, auth: AuthService
     try {
       await requireRoleAccess(request, auth, CREW_LOOKUP_ROLES, "Du har ikke tilgang til personoppslag.");
       const query = querySchema.parse(request.query);
-      return await crew.lookup(query.query);
+      return await crew.lookup(query.query, "auto", query.refresh === "true" || query.refresh === "1");
     } catch (error) { return sendError(error, request, reply); }
   });
 }

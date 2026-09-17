@@ -62,9 +62,9 @@ php spark db:seed DatabaseSeeder
 Set-Location ../V2
 ```
 
-Kjør deretter alle filene i `database/migrations/` i nummerrekkefølge mot den lokale databasen. Migrering `0003_web_origins.sql` registrerer de to produksjonsdomenene og utviklingsadressen i `bifrost_web_origins`. Sett OIDC-feltene i `system_settings` til base-URL `http://localhost:8081`, realm `bifrost-local`, client-id `bifrost-web`, fallback redirect URI `http://127.0.0.1:3000/auth/callback` og `enable_keycloak_login=1`. `enable_local_login=1` viser i tillegg lokal V1-innlogging som reserve.
+Kjør deretter alle filene i `database/migrations/` i nummerrekkefølge mot den lokale databasen. Migrering `0003_web_origins.sql` registrerer de to produksjonsdomenene og utviklingsadressen i `bifrost_web_origins`. Migrering `0004_crew_provisioning.sql` oppretter Crew-reglene og e-postbryteren; bryteren er av som standard. Sett OIDC-feltene i `system_settings` til base-URL `http://localhost:8081`, realm `bifrost-local`, client-id `bifrost-web`, client secret `bifrost-local-development-only`, fallback redirect URI `http://127.0.0.1:3000/auth/callback` og `enable_keycloak_login=1`. Kjør deretter `pnpm --filter @bifrost/api migrate:secrets` slik at secret brukes fra kryptert V2-lagring. `enable_local_login=1` viser i tillegg lokal V1-innlogging som reserve.
 
-Realm-importen oppretter PKCE-klienten og alle 11 V1-roller, men med vilje ingen brukere eller standardpassord. Opprett en lokal testbruker i Keycloak-konsollen, tildel ønskede realm-roller og sett tilsvarende `wannabe_role_name` på Bifrost-rollene som skal mappes. Uten rollemapping får nye OIDC-brukere rollen `bruker`.
+Realm-importen oppretter en confidential Authorization Code-klient med PKCE S256 og alle 11 V1-roller, men med vilje ingen brukere eller standardpassord. Den dokumenterte development-secreten gjelder bare lokal Compose. Opprett en lokal testbruker i Keycloak-konsollen, tildel ønskede realm-roller og sett tilsvarende `wannabe_role_name` på Bifrost-rollene som skal mappes. Uten rollemapping får nye OIDC-brukere rollen `bruker`.
 
 ```powershell
 pnpm infra:logs
@@ -95,11 +95,11 @@ VITE_API_URL
 VITE_API_TOKEN
 ```
 
-`VITE_API_TOKEN` er synlig i browser-bundlen og må derfor aldri være en serverhemmelighet. Brukeridentitet og tilgang håndheves i API-et med enten OIDC/Keycloak-token eller et utløpende, ugjenfinnbart lokalt sesjonstoken.
+`VITE_API_TOKEN` er synlig i browser-bundlen og må derfor aldri være en serverhemmelighet. Keycloak client secret og Keycloak-token forlater aldri API-et. Etter server-side kodeutveksling får nettleseren bare en utløpende, ugjennomsiktig Bifrost-økt i en `HttpOnly`, `SameSite=Lax` og produksjonsmessig `Secure` cookie.
 
 I utvikling brukes `VITE_API_URL=http://127.0.0.1:3001`. Produksjonsbygget skal bruke `VITE_API_URL=same-origin`; da kan samme statiske build kjøre på både `https://tg.legacyh.dev` og `https://bifrost.tg.no`. PM2-produksjonsprofilen bruker `127.0.0.1:3102` for Web og `127.0.0.1:3103` for API etter portkartlegging på målserveren. Reverse proxy sender `/api/`, `/health` og `/ready` til API-porten og øvrige ruter til Web-porten. Se [CyberPanel/OpenLiteSpeed-oppsettet](docs/cyberpanel-openlitespeed.md); et alternativt Nginx-eksempel ligger i [docs/nginx-bifrost.conf.example](docs/nginx-bifrost.conf.example).
 
-Etter OIDC-callback fullfører Web innloggingen mot `POST /api/v1/auth/session`. Lokal innlogging bruker eksisterende Argon2id-hash i V1-tabellen `users` via `POST /api/v1/auth/local`; rått passord lagres aldri. Det tilfeldige lokale sesjonstokenet returneres én gang, mens bare SHA-256-hashen lagres i `bifrost_local_sessions` med 12 timers utløp og eksplisitt revokering ved utlogging. Vellykkede forsøk skrives til både V1-tabellen `login_attempts` og `audit_logs`; avviste bearer-token registreres anonymt i `login_attempts`. Token og claims lagres aldri i auditdata. V1-grensen på fem mislykkede forsøk per e-post/IP på 15 minutter beholdes, og videre forsøk får HTTP 429.
+Web starter SSO mot `POST /api/v1/auth/oidc/start`. API-et oppretter state, nonce og PKCE S256 før redirect til Keycloak. Etter callback sender Web bare engangskoden og state til `POST /api/v1/auth/oidc/callback`; API-et validerer flyten og veksler koden server-side med kryptert client secret. Keycloak access- og refresh-token returneres aldri til Web. Den resulterende Bifrost-økten lagres kun som SHA-256-hash i `bifrost_local_sessions`, varer i 12 timer og revokeres ved utlogging. Cookie-baserte mutasjoner krever i tillegg en CORS-beskyttet `X-Bifrost-Request`-header. Lokal innlogging bruker eksisterende Argon2id-hash i V1-tabellen `users` via `POST /api/v1/auth/local`; rått passord lagres aldri. Vellykkede forsøk skrives til både V1-tabellen `login_attempts` og `audit_logs`, mens token og claims aldri lagres i auditdata.
 
 Alle autoritative V1-roller og tilgangsgrupper er definert én gang i `packages/contracts`. API-et håndhever matrisen, Web bruker den samme katalogen til navigasjon, og CI tester alle 11 roller mot hvert tilgangsområde. Den dokumenterte matrisen og åpne stagingavklaringer ligger i [docs/domain-matrix.md](docs/domain-matrix.md).
 
@@ -125,7 +125,16 @@ pnpm --filter @bifrost/api migrate:secrets
 
 Kommandoen oppretter en lokal master key i `V2/var/secrets/settings.key` og kopierer hemmelighetene til `bifrost_secure_settings`. Nøkkelfilen og databasebackupen må sikres separat. Kommandoen fjerner ikke V1-feltene, fordi V1 må fortsette å fungere under parallell drift.
 
-Crew-/badge-oppslaget leser URL og endepunkt fra V1-tabellen `system_settings`, mens bearer-tokenet leses dekryptert fra `bifrost_secure_settings`. Eksisterende `crew_directory_cache`, årlig cache-nullstilling og brukerens `badge_scan_number` gjenbrukes, slik at V1 og V2 kan kjøre parallelt.
+Crew-/badge-oppslaget leser URL og endepunkt fra V1-tabellen `system_settings`, mens bearer-tokenet leses dekryptert fra `bifrost_secure_settings`. Eksisterende `crew_directory_cache`, årlig cache-nullstilling og brukerens `badge_scan_number` gjenbrukes, slik at V1 og V2 kan kjøre parallelt. Den faktiske Crew-responsen for en Wannabe-ID kan inspiseres uten å skrive data eller vise bearer-tokenet:
+
+```bash
+pnpm --filter @bifrost/api build
+pnpm --filter @bifrost/api inspect:crew -- 8468
+```
+
+Admin → Brukere kan provisjonere en bruker ved å skanne badge og trykke Enter. API-et henter navn, e-post, Wannabe-ID, crew og crewrolle direkte fra Crew API uten cache, krever treff på minst én aktiv regel i `bifrost_crew_provisioning_rules`, oppretter eller synkroniserer brukeren og legger til alle matchende V1-roller. Generelle crewregler og mer spesifikke crewrolle-regler kan kombineres, for eksempel `Arena:Logistikk` → `logistikk` og `Arena:Logistikk` + `Chief` → `chief`. Manuelt tildelte roller fjernes ikke ved synkronisering.
+
+Bare `developer` kan slå velkomst-e-post av eller på under Admin → Crew-regler. Bryteren `crew_provisioning_email_enabled` er av som standard og gjelder bare helt nye brukere opprettet med badge; eksisterende brukere får ikke ny e-post ved synkronisering. Aktivering avvises til SMTP-avsender, vert og port er satt, og et kryptert `smtp.password` kreves når SMTP-brukernavn brukes. Når bryteren er på, legger API-et en `send_user_welcome_email`-jobb i `bifrost_jobs`, og Bifrost-Worker sender via SMTP-verdiene i `system_settings`. Worker kontrollerer bryteren på nytt før utsendelse og prøver midlertidige feil på nytt uten å lagre SMTP-passord eller Crew-token i jobbdata.
 
 Regler for privat utstyr leses og administreres direkte i V1-tabellen `private_equipment_prefixes`. V2 krever eksplisitt bekreftelse både i Web og API før utstyr med et registrert prefiks kan lånes ut, og viser eierpåminnelse ved retur.
 
@@ -147,7 +156,7 @@ Oppgavemodulen bruker V1-tabellen `tasks` og beholder V1s eierregler. Alle innlo
 
 Tilbakemeldinger og varsler bruker V1-tabellene `feedback_entries`, `feedback_notifications` og `feedback_notification_reads`. Alle innloggede uten `ingen_tilbakemeldinger` kan melde inn bugs/features, se egne åpne innmeldinger og slette egne ventende innmeldinger. `developer` og `logistikk` ser alle åpne innmeldinger, mens bare `developer` kan endre status. Nye vedlegg lagres under `V2/var/uploads/feedback` og speiles til `V1/writable/uploads/feedback`, slik at begge versjoner kan åpne dem under parallell drift; API-et leser fra begge områdene. Vedlegg er begrenset til validerte JPG/PNG/WEBP/GIF-filer på 5 MB, og alle filnedlastinger har eier-/rollekontroll. Det globale varselet beholder V1-flyten med de tre nyeste `fixed`/`added`-hendelsene og markering som lest.
 
-Kjerneadministrasjon bruker V1-tabellene `users`, `roles`, `user_roles`, `wannabe_competencies` og `system_settings`. `developer`, `chief` og `co-chief` kan opprette OIDC-klare brukere, styre aktiv-status, roller og kompetanser samt administrere lokale roller med de samme beskyttede rollenavnene som V1. De samme tre rollene har statistikk for alle V1-domenene direkte fra eksisterende tabeller. Bare `developer` ser og endrer systeminnstillinger, inkludert databasebryteren for lokal reserveinnlogging; Keycloak kan ikke slås av i V2. Hemmeligheter returneres aldri til Web og nye verdier skrives kun kryptert til `bifrost_secure_settings`; audit inneholder bare hvilke hemmelighetsnøkler som ble endret.
+Kjerneadministrasjon bruker V1-tabellene `users`, `roles`, `user_roles`, `wannabe_competencies` og `system_settings`, i tillegg til V2-tabellen for Crew-regler. `developer`, `chief` og `co-chief` kan opprette OIDC-klare brukere, provisjonere dem fra Crew API, styre aktiv-status, roller og kompetanser samt administrere lokale roller med de samme beskyttede rollenavnene som V1. De samme tre rollene har statistikk for alle V1-domenene direkte fra eksisterende tabeller. Bare `developer` ser og endrer systeminnstillinger, inkludert databasebryterne for lokal reserveinnlogging og velkomst-e-post; Keycloak kan ikke slås av i V2. Hemmeligheter returneres aldri til Web og nye verdier skrives kun kryptert til `bifrost_secure_settings`; audit inneholder bare hvilke hemmelighetsnøkler som ble endret.
 
 V1-funksjonen «Tøm crew-cache og brukere» er bevart med samme sluttresultat, men er eksplisitt merket som destruktiv crew-reset. Bare `developer` får forhåndsvise eller kjøre den. Web viser antall rader som berøres, krever en eksakt bekreftelsesfrase og en siste dialog; API-et validerer frasen på nytt, blokkerer hvis beskyttet bruker-ID 2 mangler og utfører slettingene i én transaksjon uten `TRUNCATE`. Operasjonen skal aldri brukes som vanlig cachevedlikehold.
 
@@ -175,7 +184,7 @@ pnpm smoke
 BIFROST_WEB_URL=https://bifrost.tg.no BIFROST_API_URL=https://bifrost.tg.no pnpm smoke
 ```
 
-Smoke-testen kontrollerer Web, health, readiness/database, origin-spesifikk OIDC callback og CORS for `PUT`, `PATCH` og `DELETE`.
+Smoke-testen kontrollerer Web, health, readiness/database, origin-spesifikk OIDC callback, confidential OIDC-start med PKCE og CORS for `PUT`, `PATCH` og `DELETE`.
 
 ## Viktige regler
 

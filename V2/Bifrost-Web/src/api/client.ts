@@ -1,7 +1,11 @@
-import type { AdminCrewResetPreview, AdminRole, AdminSettings, AdminStatistics, AdminWorkspaceResponse, ApiError, BarcodeExportRequest, CommsItemType, CommsWorkspaceResponse, CrewClothingItemType, CrewClothingMember, CrewClothingWorkspaceResponse, CrewProfile, CurrentUser, DashboardSummary, EquipmentCategory, EquipmentListResponse, EquipmentLoanIssueResponse, EquipmentLoanListResponse, EquipmentLoanReturnResponse, EquipmentMutationResponse, EquipmentRequestWorkspaceResponse, FeedbackNotificationResponse, FeedbackStatus, FeedbackType, FeedbackWorkspaceResponse, GlobalSearchResponse, LocalLoginRequest, LocalLoginResponse, Location, OidcPublicConfig, Pallet, PalletInspection, PrivateEquipmentNotice, PrivateEquipmentRule, ShopImportSummary, ShopWorkspaceResponse, TaskPriority, TaskStatus, TaskType, TaskWorkspaceResponse, TransportJob, TransportJobKind, TransportWorkspaceResponse, UserProfileResponse, VehicleCompetencyCode, VehicleCompetencyProfile, VehicleCompetencyRequirement, VehicleLoanIssueResponse, VehicleWorkspaceResponse } from "@bifrost/contracts";
+import type { AdminCrewProvisionResult, AdminCrewResetPreview, AdminRole, AdminSettings, AdminStatistics, AdminWorkspaceResponse, ApiError, BarcodeExportRequest, CommsItemType, CommsWorkspaceResponse, CrewClothingItemType, CrewClothingMember, CrewClothingWorkspaceResponse, CrewProfile, CrewProvisioningRule, CurrentUser, DashboardSummary, EquipmentCategory, EquipmentListResponse, EquipmentLoanIssueResponse, EquipmentLoanListResponse, EquipmentLoanReturnResponse, EquipmentMutationResponse, EquipmentRequestWorkspaceResponse, FeedbackNotificationResponse, FeedbackStatus, FeedbackType, FeedbackWorkspaceResponse, GlobalSearchResponse, LocalLoginRequest, LocalLoginResponse, Location, OidcCallbackRequest, OidcPublicConfig, OidcSessionResponse, OidcStartResponse, Pallet, PalletInspection, PrivateEquipmentNotice, PrivateEquipmentRule, ShopImportSummary, ShopWorkspaceResponse, TaskPriority, TaskStatus, TaskType, TaskWorkspaceResponse, TransportJob, TransportJobKind, TransportWorkspaceResponse, UserProfileResponse, VehicleCompetencyCode, VehicleCompetencyProfile, VehicleCompetencyRequirement, VehicleLoanIssueResponse, VehicleWorkspaceResponse } from "@bifrost/contracts";
 
 const configuredApiUrl = (import.meta.env.VITE_API_URL || "http://127.0.0.1:3001").replace(/\/$/, "");
 const apiUrl = normalizeApiUrl(configuredApiUrl);
+
+function fetch(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
+  return globalThis.fetch(input, { ...init, credentials: "include" });
+}
 
 function normalizeApiUrl(value: string): string {
   if (typeof window === "undefined") return value;
@@ -35,7 +39,23 @@ export async function loginLocal(input: LocalLoginRequest): Promise<LocalLoginRe
   return response.json() as Promise<LocalLoginResponse>;
 }
 
-export async function logoutLocal(accessToken: string): Promise<void> {
+export async function startOidcLogin(origin: string): Promise<OidcStartResponse> {
+  const headers = createHeaders();
+  headers.set("Content-Type", "application/json");
+  const response = await fetch(`${apiUrl}/api/v1/auth/oidc/start`, { method: "POST", headers, body: JSON.stringify({ origin }) });
+  if (!response.ok) throw await createApiError(response, "Keycloak-innloggingen kunne ikke startes.");
+  return response.json() as Promise<OidcStartResponse>;
+}
+
+export async function completeOidcLogin(input: OidcCallbackRequest): Promise<OidcSessionResponse> {
+  const headers = createHeaders();
+  headers.set("Content-Type", "application/json");
+  const response = await fetch(`${apiUrl}/api/v1/auth/oidc/callback`, { method: "POST", headers, body: JSON.stringify(input) });
+  if (!response.ok) throw await createApiError(response, "Keycloak-innloggingen kunne ikke fullføres.");
+  return response.json() as Promise<OidcSessionResponse>;
+}
+
+export async function logoutLocal(accessToken?: string): Promise<void> {
   const response = await fetch(`${apiUrl}/api/v1/auth/logout`, { method: "POST", headers: createHeaders(accessToken) });
   if (!response.ok) throw await createApiError(response, "Lokal utlogging feilet.");
 }
@@ -70,7 +90,7 @@ export async function exportBarcodes(
   return { content: await response.blob(), filename, count };
 }
 
-export async function getCurrentUser(accessToken: string): Promise<CurrentUser> {
+export async function getCurrentUser(accessToken?: string): Promise<CurrentUser> {
   const response = await fetch(`${apiUrl}/api/v1/me`, { headers: createHeaders(accessToken) });
   if (!response.ok) throw new Error(`API svarte med ${response.status}`);
   return response.json() as Promise<CurrentUser>;
@@ -236,8 +256,9 @@ export async function getEquipmentLoans(
   return response.json() as Promise<EquipmentLoanListResponse>;
 }
 
-export async function lookupCrewProfile(accessToken: string, query: string): Promise<CrewProfile> {
+export async function lookupCrewProfile(accessToken: string, query: string, refresh = false): Promise<CrewProfile> {
   const params = new URLSearchParams({ query });
+  if (refresh) params.set("refresh", "true");
   const response = await fetch(`${apiUrl}/api/v1/crew/lookup?${params}`, { headers: createHeaders(accessToken) });
   if (!response.ok) throw await createApiError(response, "Kunne ikke slå opp personen.");
   return response.json() as Promise<CrewProfile>;
@@ -690,11 +711,18 @@ export async function getAdminStatistics(accessToken: string): Promise<AdminStat
   return response.json() as Promise<AdminStatistics>;
 }
 
-export async function createAdminUser(accessToken: string, input: { firstName: string; lastName: string; email: string; wannabeId?: number | null }): Promise<{ id: number }> {
+export async function createAdminUser(accessToken: string, input: { firstName: string; lastName: string; email: string; wannabeId?: number | null; badgeScanNumber?: string | null }): Promise<{ id: number }> {
   const headers = createHeaders(accessToken); headers.set("Content-Type", "application/json");
   const response = await fetch(`${apiUrl}/api/v1/admin/users`, { method: "POST", headers, body: JSON.stringify(input) });
   if (!response.ok) throw await createApiError(response, "Kunne ikke opprette brukeren.");
   return response.json() as Promise<{ id: number }>;
+}
+
+export async function provisionAdminUserFromCrew(accessToken: string, badgeScanNumber: string): Promise<AdminCrewProvisionResult> {
+  const headers = createHeaders(accessToken); headers.set("Content-Type", "application/json");
+  const response = await fetch(`${apiUrl}/api/v1/admin/users/provision-from-crew`, { method: "POST", headers, body: JSON.stringify({ badgeScanNumber }) });
+  if (!response.ok) throw await createApiError(response, "Kunne ikke provisjonere Crew-brukeren.");
+  return response.json() as Promise<AdminCrewProvisionResult>;
 }
 
 export async function setAdminUserActive(accessToken: string, id: number, active: boolean): Promise<void> {
@@ -726,6 +754,32 @@ export async function updateAdminRole(accessToken: string, id: number, input: Om
 
 export async function deleteAdminRole(accessToken: string, id: number): Promise<void> {
   await sendApiDelete(accessToken, `/api/v1/admin/roles/${id}`, "Kunne ikke slette rollen.");
+}
+
+export async function createCrewProvisioningRule(
+  accessToken: string,
+  input: Pick<CrewProvisioningRule, "crewName" | "crewRole" | "roleId" | "enabled">,
+): Promise<{ id: number }> {
+  const headers = createHeaders(accessToken); headers.set("Content-Type", "application/json");
+  const response = await fetch(`${apiUrl}/api/v1/admin/crew-provisioning-rules`, { method: "POST", headers, body: JSON.stringify(input) });
+  if (!response.ok) throw await createApiError(response, "Kunne ikke opprette Crew-regelen.");
+  return response.json() as Promise<{ id: number }>;
+}
+
+export async function updateCrewProvisioningRule(
+  accessToken: string,
+  id: number,
+  input: Pick<CrewProvisioningRule, "crewName" | "crewRole" | "roleId" | "enabled">,
+): Promise<void> {
+  await sendApiMutation(accessToken, `/api/v1/admin/crew-provisioning-rules/${id}`, "PATCH", input, "Kunne ikke oppdatere Crew-regelen.");
+}
+
+export async function deleteCrewProvisioningRule(accessToken: string, id: number): Promise<void> {
+  await sendApiDelete(accessToken, `/api/v1/admin/crew-provisioning-rules/${id}`, "Kunne ikke slette Crew-regelen.");
+}
+
+export async function setCrewProvisioningEmailEnabled(accessToken: string, enabled: boolean): Promise<void> {
+  await sendApiMutation(accessToken, "/api/v1/admin/settings/crew-provisioning-email", "PATCH", { enabled }, "Kunne ikke endre e-postutsendelsen.");
 }
 
 export async function updateAdminSettings(accessToken: string, input: AdminSettings & { keycloakClientSecret?: string | null; smtpPassword?: string | null; vegvesenApiKey?: string | null; crewApiBearerToken?: string | null }): Promise<void> {
@@ -799,6 +853,7 @@ export function getApiUrl(): string {
 
 export function createHeaders(accessToken?: string): Headers {
   const headers = new Headers({ Accept: "application/json" });
+  headers.set("X-Bifrost-Request", "web");
   if (import.meta.env.VITE_API_TOKEN) headers.set("X-Bifrost-Client", import.meta.env.VITE_API_TOKEN);
   if (accessToken) headers.set("Authorization", `Bearer ${accessToken}`);
   return headers;

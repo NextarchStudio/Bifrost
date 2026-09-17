@@ -107,17 +107,13 @@ export function createLocalAuthService(
           wannabeId: first.wannabeId,
           roles: [...new Set(userRows.flatMap((row) => row.role ? [row.role] : []))],
         };
-        const accessToken = issueLocalSessionToken();
-        const expiresAt = new Date(now.getTime() + LOCAL_SESSION_TTL_MS);
+        let issuedSession: { accessToken: string; expiresAt: Date } | undefined;
 
         await database.db.transaction(async (tx) => {
-          await tx.insert(localSessions).values({
-            userId: user.id,
-            tokenHash: hashLocalSessionToken(accessToken),
-            expiresAt,
-            lastSeenAt: now,
-            createdAt: now,
-          });
+          const accessToken = issueLocalSessionToken();
+          const expiresAt = new Date(now.getTime() + LOCAL_SESSION_TTL_MS);
+          issuedSession = { accessToken, expiresAt };
+          await tx.insert(localSessions).values({ userId: user.id, tokenHash: hashLocalSessionToken(accessToken), expiresAt, lastSeenAt: now, createdAt: now });
           await tx.insert(loginAttempts).values({
             email: user.email,
             ipAddress: normalizedIp,
@@ -134,7 +130,8 @@ export function createLocalAuthService(
           });
         });
 
-        return { accessToken, expiresAt: expiresAt.toISOString(), user };
+        if (!issuedSession) throw new AuthenticationError("Innloggingstjenesten er utilgjengelig.", 503);
+        return { accessToken: issuedSession.accessToken, expiresAt: issuedSession.expiresAt.toISOString(), user };
       } catch (error) {
         if (error instanceof AuthenticationError) throw error;
         throw new AuthenticationError("Innloggingstjenesten er utilgjengelig.", 503);

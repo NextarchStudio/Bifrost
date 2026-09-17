@@ -16,7 +16,7 @@ try {
   const [versionResult, columnsResult, settingsResult, userResult, rolesResult, secureKeysResult] = await Promise.all([
     connection.pool.query("SELECT VERSION() AS version, DATABASE() AS databaseName"),
     connection.pool.query("SELECT TABLE_NAME AS tableName, COLUMN_NAME AS columnName FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE()"),
-    connection.pool.query("SELECT id, enable_local_login AS enableLocalLogin, enable_keycloak_login AS enableKeycloakLogin, keycloak_base_url AS keycloakBaseUrl, keycloak_realm AS keycloakRealm, keycloak_client_id AS keycloakClientId, keycloak_redirect_uri AS keycloakRedirectUri, NULLIF(TRIM(keycloak_client_secret), '') IS NOT NULL AS hasLegacyOidcSecret, NULLIF(TRIM(smtp_pass), '') IS NOT NULL AS hasLegacySmtpPassword, NULLIF(TRIM(vegvesen_api_key), '') IS NOT NULL AS hasLegacyVegvesenKey, NULLIF(TRIM(crew_api_bearer_token), '') IS NOT NULL AS hasLegacyCrewToken FROM system_settings WHERE id = 1 LIMIT 1"),
+    connection.pool.query("SELECT id, enable_local_login AS enableLocalLogin, enable_keycloak_login AS enableKeycloakLogin, keycloak_base_url AS keycloakBaseUrl, keycloak_realm AS keycloakRealm, keycloak_client_id AS keycloakClientId, keycloak_redirect_uri AS keycloakRedirectUri, crew_provisioning_email_enabled AS crewProvisioningEmailEnabled, smtp_from_email AS smtpFromEmail, smtp_host AS smtpHost, smtp_port AS smtpPort, smtp_user AS smtpUser, NULLIF(TRIM(keycloak_client_secret), '') IS NOT NULL AS hasLegacyOidcSecret, NULLIF(TRIM(smtp_pass), '') IS NOT NULL AS hasLegacySmtpPassword, NULLIF(TRIM(vegvesen_api_key), '') IS NOT NULL AS hasLegacyVegvesenKey, NULLIF(TRIM(crew_api_bearer_token), '') IS NOT NULL AS hasLegacyCrewToken FROM system_settings WHERE id = 1 LIMIT 1"),
     connection.pool.query("SELECT id, name, email FROM users WHERE id = 2 LIMIT 1"),
     connection.pool.query("SELECT name FROM roles ORDER BY name"),
     connection.pool.query("SELECT `key` FROM bifrost_secure_settings ORDER BY `key`"),
@@ -40,13 +40,15 @@ try {
   if (schema.missingTables.length) fail("Tabeller", `Mangler: ${schema.missingTables.join(", ")}`); else pass("Tabeller", `${Object.keys(expectedSchema).length} forventede tabeller finnes.`);
   if (schema.missingColumns.length) fail("Kolonner", `Mangler: ${schema.missingColumns.join(", ")}`); else pass("Kolonner", "Alle forventede kolonner finnes.");
 
-  const settings = rows<{ id: number; enableLocalLogin: number; enableKeycloakLogin: number; keycloakBaseUrl: string | null; keycloakRealm: string | null; keycloakClientId: string | null; keycloakRedirectUri: string | null; hasLegacyOidcSecret: number; hasLegacySmtpPassword: number; hasLegacyVegvesenKey: number; hasLegacyCrewToken: number }>(settingsResult)[0];
+  const settings = rows<{ id: number; enableLocalLogin: number; enableKeycloakLogin: number; keycloakBaseUrl: string | null; keycloakRealm: string | null; keycloakClientId: string | null; keycloakRedirectUri: string | null; crewProvisioningEmailEnabled: number; smtpFromEmail: string | null; smtpHost: string | null; smtpPort: number | null; smtpUser: string | null; hasLegacyOidcSecret: number; hasLegacySmtpPassword: number; hasLegacyVegvesenKey: number; hasLegacyCrewToken: number }>(settingsResult)[0];
   if (!settings) fail("Systeminnstillinger", "system_settings.id=1 mangler.");
   else {
     pass("Systeminnstillinger", "system_settings.id=1 finnes.");
     const oidcFields = [settings.keycloakBaseUrl, settings.keycloakRealm, settings.keycloakClientId, settings.keycloakRedirectUri];
     if (!settings.enableKeycloakLogin || oidcFields.some((value) => !value?.trim())) fail("OIDC", "Keycloak må være aktiv og alle offentlige OIDC-felt utfylt.");
     else pass("OIDC", `Keycloak er aktiv; lokal reserveinnlogging er ${settings.enableLocalLogin ? "på" : "av"}.`);
+    if (settings.crewProvisioningEmailEnabled && (!settings.smtpFromEmail || !settings.smtpHost || !settings.smtpPort)) fail("Crew-e-post", "E-postutsendelse er aktiv, men SMTP-avsender, vert eller port mangler.");
+    else pass("Crew-e-post", `Automatisk velkomst-e-post er ${settings.crewProvisioningEmailEnabled ? "på" : "av"}.`);
   }
 
   const protectedUser = rows<{ id: number; name: string; email: string }>(userResult)[0];
@@ -59,8 +61,8 @@ try {
 
   const secureKeys = rows<{ key: string }>(secureKeysResult).map((row) => row.key);
   const requiredSecureKeys = settings ? [
-    settings.hasLegacyOidcSecret ? "oidc.client_secret" : null,
-    settings.hasLegacySmtpPassword ? "smtp.password" : null,
+    settings.enableKeycloakLogin ? "oidc.client_secret" : null,
+    (settings.crewProvisioningEmailEnabled && settings.smtpUser) || settings.hasLegacySmtpPassword ? "smtp.password" : null,
     settings.hasLegacyVegvesenKey ? "vegvesen.api_key" : null,
     settings.hasLegacyCrewToken ? "crew.api_bearer_token" : null,
   ].filter((key): key is string => Boolean(key)) : [];
@@ -78,6 +80,9 @@ try {
     const missingOrigins = requiredOrigins.filter((origin) => !configuredOrigins.has(origin));
     if (missingOrigins.length) fail("Web-domener", `Mangler aktive origins: ${missingOrigins.join(", ")}`);
     else pass("Web-domener", "Begge HTTPS-domener og lokal utviklingsadresse er aktive.");
+  }
+  if (schema.missingTables.includes("bifrost_crew_provisioning_rules") || schema.missingColumns.includes("system_settings.crew_provisioning_email_enabled")) {
+    fail("Crew-provisjonering", "Migrering 0004_crew_provisioning.sql er ikke kjørt.");
   }
 
   try {

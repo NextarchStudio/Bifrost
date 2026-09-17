@@ -1,8 +1,8 @@
 import { hasBifrostAccess, isBifrostDenied, type CurrentUser, type OidcPublicConfig } from "@bifrost/contracts";
 import { StrictMode, useEffect, useState, type FormEvent } from "react";
 import { createRoot } from "react-dom/client";
-import { completeLoginSession, getAuthConfig, getCurrentUser, loginLocal, logoutLocal } from "./api/client";
-import { beginSignIn, completeSignIn, getSignedInUser, signOut } from "./auth/oidc";
+import { getAuthConfig, getCurrentUser, loginLocal, logoutLocal } from "./api/client";
+import { beginSignIn, completeSignIn } from "./auth/oidc";
 import { NotificationsProvider } from "./components/notifications";
 import { EquipmentWorkspace } from "./features/equipment/EquipmentWorkspace";
 import { LocationWorkspace } from "./features/locations/LocationWorkspace";
@@ -55,15 +55,21 @@ function App() {
 
         const config = await getAuthConfig();
         updateBranding(config, setBranding);
-        const oidcUser = isCallback ? await completeSignIn() : await getSignedInUser();
-        if (isCallback) window.history.replaceState({}, "", "/dashboard");
-        if (!oidcUser || oidcUser.expired) {
-          return setSession({ status: "anonymous", localLoginEnabled: Boolean(config.localLoginEnabled) });
+
+        if (isCallback) {
+          const result = await completeSignIn();
+          window.history.replaceState({}, "", "/dashboard");
+          setWorkspace("dashboard");
+          setSession({ status: "authenticated", user: result.user, accessToken: "" });
+          return;
         }
-        const user = isCallback
-          ? await completeLoginSession(oidcUser.access_token)
-          : await getCurrentUser(oidcUser.access_token);
-        setSession({ status: "authenticated", user, accessToken: oidcUser.access_token });
+
+        try {
+          const user = await getCurrentUser();
+          setSession({ status: "authenticated", user, accessToken: "" });
+        } catch {
+          setSession({ status: "anonymous", localLoginEnabled: Boolean(config.localLoginEnabled) });
+        }
       } catch (error) {
         setSession({ status: "error", message: error instanceof Error ? error.message : "Innlogging feilet." });
       }
@@ -92,14 +98,12 @@ function App() {
 
   const handleSignOut = async () => {
     if (session.status !== "authenticated") return;
-    if (session.accessToken.startsWith("bfl_")) {
-      try { await logoutLocal(session.accessToken); } finally {
-        window.sessionStorage.removeItem(LOCAL_TOKEN_STORAGE_KEY);
-        window.location.assign("/");
-      }
-      return;
+    try {
+      await logoutLocal(session.accessToken || undefined);
+    } finally {
+      window.sessionStorage.removeItem(LOCAL_TOKEN_STORAGE_KEY);
+      window.location.assign("/");
     }
-    await signOut();
   };
 
   const hasLogisticsAccess = session.status === "authenticated" && hasBifrostAccess(session.user.roles, "logistics");
@@ -394,6 +398,16 @@ function LoginPanel({ localLoginEnabled, onLocalLogin }: { localLoginEnabled: bo
       setBusy(false);
     }
   };
+  const startSso = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await beginSignIn();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Keycloak-innloggingen kunne ikke startes.");
+      setBusy(false);
+    }
+  };
 
   return <>
     <p className="text-sm font-medium text-emerald-300">Sikker innlogging</p>
@@ -406,7 +420,8 @@ function LoginPanel({ localLoginEnabled, onLocalLogin }: { localLoginEnabled: bo
       <button disabled={busy} className="rounded-xl border border-emerald-300/30 px-5 py-3.5 font-semibold text-emerald-200 hover:bg-emerald-300/10 disabled:opacity-50">{busy ? "Logger inn …" : "Logg inn lokalt"}</button>
     </form>}
     {localLoginEnabled && <div className="my-5 flex items-center gap-3 text-xs text-slate-600"><span className="h-px flex-1 bg-white/10" />eller<span className="h-px flex-1 bg-white/10" /></div>}
-    <button className={`${localLoginEnabled ? "" : "mt-8 "}w-full rounded-xl bg-emerald-300 px-5 py-3.5 font-semibold text-slate-950 hover:bg-emerald-200`} onClick={() => void beginSignIn()}>Fortsett med Keycloak</button>
+    {!localLoginEnabled && error && <p className="mt-5 text-sm text-rose-300" role="alert">{error}</p>}
+    <button disabled={busy} className={`${localLoginEnabled ? "" : "mt-8 "}w-full rounded-xl bg-emerald-300 px-5 py-3.5 font-semibold text-slate-950 hover:bg-emerald-200 disabled:opacity-50`} onClick={() => void startSso()}>{busy ? "Kobler til Keycloak …" : "Fortsett med Keycloak"}</button>
   </>;
 }
 

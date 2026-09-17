@@ -28,15 +28,17 @@
       "name": "Bifrost Web",
       "enabled": true,
       "protocol": "openid-connect",
-      "publicClient": true,
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "bifrost-local-development-only",
       "standardFlowEnabled": true,
       "directAccessGrantsEnabled": false,
       "serviceAccountsEnabled": false,
       "fullScopeAllowed": true,
       "redirectUris": [
-        "http://127.0.0.1:3000/*",
-        "https://tg.legacyh.dev/*",
-        "https://bifrost.tg.no/*"
+        "http://127.0.0.1:3000/auth/callback",
+        "https://tg.legacyh.dev/auth/callback",
+        "https://bifrost.tg.no/auth/callback"
       ],
       "webOrigins": [
         "http://127.0.0.1:3000",

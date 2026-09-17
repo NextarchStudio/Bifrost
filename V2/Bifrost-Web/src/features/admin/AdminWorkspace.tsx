@@ -1,20 +1,25 @@
-import type { AdminCrewResetPreview, AdminRole, AdminSettings, AdminStatistics, AdminUser, AdminWorkspaceResponse, VehicleCompetencyCode } from "@bifrost/contracts";
+import type { AdminCrewProvisionResult, AdminCrewResetPreview, AdminRole, AdminSettings, AdminStatistics, AdminUser, AdminWorkspaceResponse, CrewProvisioningRule, VehicleCompetencyCode } from "@bifrost/contracts";
 import { VEHICLE_COMPETENCY_CODES } from "@bifrost/contracts";
 import { useEffect, useState, type ReactNode } from "react";
 import {
   createAdminRole,
   createAdminUser,
+  createCrewProvisioningRule,
   clearAdminCrewCache,
   deleteAdminRole,
   deleteAdminUser,
+  deleteCrewProvisioningRule,
   getAdminStatistics,
   getAdminCrewResetPreview,
   getAdminWorkspace,
+  provisionAdminUserFromCrew,
+  setCrewProvisioningEmailEnabled,
   setAdminUserActive,
   syncAdminUserRoles,
   updateAdminRole,
   updateAdminSettings,
   updateAdminUserCompetencies,
+  updateCrewProvisioningRule,
 } from "../../api/client";
 import { confirmAction } from "../../components/notifications";
 
@@ -23,7 +28,7 @@ export function AdminWorkspace({ accessToken }: { accessToken: string }) {
   const [statistics, setStatistics] = useState<AdminStatistics | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"overview" | "users" | "roles" | "settings">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "users" | "crew" | "roles" | "settings">("overview");
   const reload = async () => { const [workspace, stats] = await Promise.all([getAdminWorkspace(accessToken), getAdminStatistics(accessToken)]); setData(workspace); setStatistics(stats); };
   useEffect(() => { void reload().catch((reason) => setError(messageFrom(reason))); }, [accessToken]);
   const run = async (action: () => Promise<unknown>, message: string) => { setError(null); setSuccess(null); try { await action(); await reload(); setSuccess(message); } catch (reason) { setError(messageFrom(reason)); throw reason; } };
@@ -34,12 +39,14 @@ export function AdminWorkspace({ accessToken }: { accessToken: string }) {
     <div className={tabsClass} role="tablist" aria-label="Administrasjonsområder">
       <Tab active={activeTab === "overview"} onClick={() => setActiveTab("overview")}>Oversikt</Tab>
       <Tab active={activeTab === "users"} onClick={() => setActiveTab("users")}>Brukere ({data.users.length})</Tab>
+      <Tab active={activeTab === "crew"} onClick={() => setActiveTab("crew")}>Crew-regler ({data.crewProvisioningRules.length})</Tab>
       <Tab active={activeTab === "roles"} onClick={() => setActiveTab("roles")}>Roller ({data.roles.length})</Tab>
       {data.canManageSettings && data.settings && <Tab active={activeTab === "settings"} onClick={() => setActiveTab("settings")}>Systeminnstillinger</Tab>}
     </div>
     <div className="mt-5">
       {activeTab === "overview" && statistics && <Statistics data={statistics} />}
       {activeTab === "users" && <><NewUser accessToken={accessToken} run={run} /><Users data={data} accessToken={accessToken} run={run} /></>}
+      {activeTab === "crew" && <CrewRules rules={data.crewProvisioningRules} roles={data.roles} settings={data.settings} accessToken={accessToken} run={run} />}
       {activeTab === "roles" && <Roles roles={data.roles} accessToken={accessToken} run={run} />}
       {activeTab === "settings" && data.canManageSettings && data.settings && <><SettingsForm accessToken={accessToken} settings={data.settings} cacheCount={data.crewCacheEntries} run={run} /><CrewReset accessToken={accessToken} /></>}
     </div>
@@ -74,11 +81,46 @@ function Breakdown({ rows }: { rows: Array<{ label: string; value: number; suffi
 
 function NewUser({ accessToken, run }: { accessToken: string; run: RunAction }) {
   const [saving, setSaving] = useState(false);
-  return <form className={`${cardClass} mt-5`} onSubmit={(event) => { event.preventDefault(); const target = event.currentTarget; const form = new FormData(target); setSaving(true); void run(() => createAdminUser(accessToken, { firstName: String(form.get("firstName")), lastName: String(form.get("lastName")), email: String(form.get("email")), wannabeId: Number(form.get("wannabeId")) || null }), "Brukeren er opprettet for OIDC-innlogging.").then(() => target.reset()).catch(() => undefined).finally(() => setSaving(false)); }}><p className="text-sm text-amber-300">Ny bruker</p><h2 className="mt-1 text-xl font-semibold">Forhåndsprovisjoner konto</h2><div className="mt-5 grid gap-4 md:grid-cols-2 lg:grid-cols-4"><Field label="Fornavn" name="firstName" required /><Field label="Etternavn" name="lastName" required /><Field label="E-post" name="email" type="email" required /><Field label="Wannabe ID" name="wannabeId" type="number" min="1" /></div><button disabled={saving} className={`${primaryButton} mt-5`}>{saving ? "Oppretter …" : "Opprett bruker"}</button></form>;
+  const [badge, setBadge] = useState("");
+  const [provisioned, setProvisioned] = useState<AdminCrewProvisionResult | null>(null);
+  const provision = async () => {
+    const value = badge.trim();
+    if (!value || saving) return;
+    setSaving(true); setProvisioned(null);
+    let result: AdminCrewProvisionResult | null = null;
+    try {
+      await run(async () => { result = await provisionAdminUserFromCrew(accessToken, value); }, "Crew-brukeren er provisjonert.");
+      setProvisioned(result);
+      setBadge("");
+    } catch { /* Global feilmelding settes av run. */ }
+    finally { setSaving(false); }
+  };
+  return <section className={`${cardClass} mt-5`}>
+    <p className="text-sm text-amber-300">Automatisk Crew-provisjonering</p><h2 className="mt-1 text-xl font-semibold">Skann badge og opprett bruker</h2>
+    <p className="mt-2 text-sm leading-6 text-slate-500">Badge slås opp direkte i Crew API. Brukeren opprettes bare når crew og crewrolle matcher en aktiv regel, og riktige Bifrost-roller legges til automatisk.</p>
+    <label className="mt-5 block max-w-xl"><Label>Badge-scan</Label><input autoFocus autoComplete="off" value={badge} onChange={(event) => { setBadge(event.target.value); setProvisioned(null); }} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void provision(); } }} disabled={saving} placeholder="Skann badge og trykk Enter" className={inputClass} /><span className="mt-2 block text-xs text-slate-600">Scanneren sender Enter automatisk. Ingen oppslagsknapp er nødvendig.</span></label>
+    {saving && <p className="mt-4 text-sm text-amber-200">Henter Crew-profil og kontrollerer tilgang …</p>}
+    {provisioned && <div className="mt-4 rounded-xl border border-emerald-300/20 bg-emerald-300/[.07] p-4 text-sm text-emerald-100"><p className="font-medium">{provisioned.user.name} · Wannabe {provisioned.profile.id}</p><p className="mt-1 text-emerald-200/70">{provisioned.profile.crewName}{provisioned.profile.role ? `, ${provisioned.profile.role}` : ""} · {provisioned.matchedRoles.join(", ")}</p><p className="mt-1 text-xs text-emerald-200/60">{provisioned.created ? "Ny bruker opprettet" : "Eksisterende bruker synkronisert"}{provisioned.emailQueued ? " · velkomst-e-post lagt i kø" : " · ingen e-post lagt i kø"}</p></div>}
+    <details className="mt-6 border-t border-white/[.07] pt-5"><summary className="cursor-pointer text-sm text-slate-400">Opprett bruker manuelt</summary><form className="mt-4" onSubmit={(event) => { event.preventDefault(); const target = event.currentTarget; const form = new FormData(target); setSaving(true); void run(() => createAdminUser(accessToken, { firstName: String(form.get("firstName")), lastName: String(form.get("lastName")), email: String(form.get("email")), wannabeId: Number(form.get("wannabeId")) || null, badgeScanNumber: optional(form, "badgeScanNumber") }), "Brukeren er opprettet for OIDC-innlogging.").then(() => target.reset()).catch(() => undefined).finally(() => setSaving(false)); }}><div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5"><Field label="Fornavn" name="firstName" required /><Field label="Etternavn" name="lastName" required /><Field label="E-post" name="email" type="email" required /><Field label="Wannabe ID" name="wannabeId" type="number" min="1" /><Field label="Badge" name="badgeScanNumber" /></div><button disabled={saving} className={`${primaryButton} mt-5`}>{saving ? "Oppretter …" : "Opprett manuelt"}</button></form></details>
+  </section>;
 }
 
 function Users({ data, accessToken, run }: { data: AdminWorkspaceResponse; accessToken: string; run: RunAction }) {
   return <div className={`${cardClass} mt-5`}><div className="flex items-end justify-between"><div><p className="text-sm text-slate-500">Aktiv-status, roller og sertifikater</p><h2 className="mt-1 text-xl font-semibold">Brukere</h2></div><Count>{data.users.length}</Count></div><div className="mt-5 grid gap-3">{data.users.map((user) => <UserEditor key={user.id} user={user} roles={data.roles} accessToken={accessToken} run={run} />)}</div></div>;
+}
+
+function CrewRules({ rules, roles, settings, accessToken, run }: { rules: CrewProvisioningRule[]; roles: AdminRole[]; settings: AdminSettings | null; accessToken: string; run: RunAction }) {
+  const [saving, setSaving] = useState(false);
+  const perform = (action: () => Promise<unknown>, message: string) => { setSaving(true); void run(action, message).catch(() => undefined).finally(() => setSaving(false)); };
+  return <section className={cardClass}>
+    <p className="text-sm text-amber-300">Tilgang fra Wannabe</p><div className="mt-1 flex flex-wrap items-end justify-between gap-3"><div><h2 className="text-xl font-semibold">Crew- og rollemapping</h2><p className="mt-2 max-w-4xl text-sm leading-6 text-slate-500">Alle aktive regler som matcher blir brukt. Lag én regel uten crewrolle for grunnrollen, og egne regler for Chief, Co-Chief, Skiftleder, Innkjøpsansvarlig, Sambandsansvarlig eller Shop. Crew-navnet kan endres her hvert år.</p></div><Count>{rules.length}</Count></div>
+    {settings && <div className="mt-5 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-white/[.08] bg-black/10 p-4"><div><p className="font-medium text-slate-200">Velkomst-e-post ved ny bruker</p><p className="mt-1 text-xs text-slate-500">Gjelder bare nye brukere opprettet med badge. Eksisterende brukere får ikke ny e-post ved synkronisering. SMTP må være komplett før funksjonen kan slås på.</p></div><button type="button" disabled={saving} className={settings.crewProvisioningEmailEnabled ? dangerButton : primaryButton} onClick={() => perform(() => setCrewProvisioningEmailEnabled(accessToken, !settings.crewProvisioningEmailEnabled), settings.crewProvisioningEmailEnabled ? "Velkomst-e-post er slått av." : "Velkomst-e-post er slått på.")}>{settings.crewProvisioningEmailEnabled ? "Slå av e-post" : "Slå på e-post"}</button></div>}
+    <form className="mt-5 grid gap-3 lg:grid-cols-[1.3fr_1fr_1fr_auto_auto]" onSubmit={(event) => { event.preventDefault(); const target = event.currentTarget; const input = crewRuleInput(new FormData(target)); perform(() => createCrewProvisioningRule(accessToken, input), "Crew-regelen er opprettet."); target.reset(); }}>
+      <Field label="Wannabe-crew" name="crewName" required /><Field label="Crewrolle (valgfri)" name="crewRole" /><Select label="Bifrost-rolle" name="roleId" options={roles.map((role) => ({ value: String(role.id), label: role.displayName || role.name }))} /><label className="flex items-end"><span className="flex h-[42px] items-center gap-2 rounded-xl border border-white/10 px-3 text-sm text-slate-400"><input name="enabled" type="checkbox" value="1" defaultChecked className="size-4 accent-amber-300" />Aktiv</span></label><button disabled={saving || !roles.length} className={`${primaryButton} self-end`}>Legg til</button>
+    </form>
+    {!rules.length && <p className="mt-5 rounded-xl border border-amber-300/20 bg-amber-300/[.06] p-4 text-sm text-amber-100">Ingen regler er satt. Badge-provisjonering er blokkert til minst én aktiv regel er opprettet.</p>}
+    <div className="mt-5 grid gap-3">{rules.map((rule) => <form key={rule.id} className="grid gap-3 rounded-xl border border-white/[.08] bg-black/10 p-4 lg:grid-cols-[1.3fr_1fr_1fr_auto_auto]" onSubmit={(event) => { event.preventDefault(); perform(() => updateCrewProvisioningRule(accessToken, rule.id, crewRuleInput(new FormData(event.currentTarget))), "Crew-regelen er oppdatert."); }}><Field label="Wannabe-crew" name="crewName" defaultValue={rule.crewName} required /><Field label="Crewrolle" name="crewRole" defaultValue={rule.crewRole ?? ""} /><Select label="Bifrost-rolle" name="roleId" defaultValue={String(rule.roleId)} options={roles.map((role) => ({ value: String(role.id), label: role.displayName || role.name }))} /><label className="flex items-end"><span className="flex h-[42px] items-center gap-2 rounded-xl border border-white/10 px-3 text-sm text-slate-400"><input name="enabled" type="checkbox" value="1" defaultChecked={rule.enabled} className="size-4 accent-amber-300" />Aktiv</span></label><div className="flex items-end gap-2"><button disabled={saving} className={secondaryButton}>Lagre</button><button type="button" disabled={saving} className={dangerButton} onClick={async () => { if (await confirmAction({ title: "Slett Crew-regel?", message: `${rule.crewName}${rule.crewRole ? `, ${rule.crewRole}` : ""} → ${rule.roleDisplayName} fjernes.`, confirmLabel: "Slett regel", danger: true })) perform(() => deleteCrewProvisioningRule(accessToken, rule.id), "Crew-regelen er slettet."); }}>Slett</button></div></form>)}</div>
+  </section>;
 }
 
 function UserEditor({ user, roles, accessToken, run }: { user: AdminUser; roles: AdminRole[]; accessToken: string; run: RunAction }) {
@@ -132,6 +174,7 @@ function resetRows(preview: AdminCrewResetPreview): Array<[string, number]> {
 
 function settingsInput(form: FormData, current: AdminSettings) { return { ...current, appName: String(form.get("appName")), localLoginEnabled: form.has("localLoginEnabled"), webOrigins: String(form.get("webOrigins") ?? "").split(/\r?\n/).map((value) => value.trim()).filter(Boolean), logoUrl: optional(form, "logoUrl"), faviconUrl: optional(form, "faviconUrl"), keycloakBaseUrl: optional(form, "keycloakBaseUrl"), keycloakRealm: optional(form, "keycloakRealm"), keycloakClientId: optional(form, "keycloakClientId"), keycloakClientSecret: optional(form, "keycloakClientSecret"), keycloakRedirectUri: optional(form, "keycloakRedirectUri"), smtpFromEmail: optional(form, "smtpFromEmail"), smtpFromName: optional(form, "smtpFromName"), smtpHost: optional(form, "smtpHost"), smtpPort: Number(form.get("smtpPort")) || null, smtpUser: optional(form, "smtpUser"), smtpPassword: optional(form, "smtpPassword"), smtpCrypto: (optional(form, "smtpCrypto") as "tls" | "ssl" | null), osrmBaseUrl: optional(form, "osrmBaseUrl"), vegvesenApiKey: optional(form, "vegvesenApiKey"), crewApiBaseUrl: optional(form, "crewApiBaseUrl"), crewApiProfileEndpoint: optional(form, "crewApiProfileEndpoint"), crewApiPictureEndpoint: optional(form, "crewApiPictureEndpoint"), crewApiBearerToken: optional(form, "crewApiBearerToken") }; }
 function roleInput(form: FormData) { return { name: String(form.get("name")), displayName: optional(form, "displayName"), wannabeRoleName: optional(form, "wannabeRoleName") }; }
+function crewRuleInput(form: FormData) { return { crewName: String(form.get("crewName")), crewRole: optional(form, "crewRole"), roleId: Number(form.get("roleId")), enabled: form.has("enabled") }; }
 function optional(form: FormData, name: string) { const value = String(form.get(name) ?? "").trim(); return value || null; }
 function SettingsGroup({ title, children }: { title: string; children: ReactNode }) { return <fieldset className="grid content-start gap-3 rounded-xl border border-white/[.08] bg-black/10 p-4"><legend className="px-2 text-sm font-medium text-slate-300">{title}</legend>{children}</fieldset>; }
 function SecretField({ label, name, configured }: { label: string; name: string; configured: boolean }) { return <label><Label>{label} · {configured ? "konfigurert" : "mangler"}</Label><input name={name} type="password" autoComplete="new-password" placeholder="Tomt felt beholder eksisterende verdi" className={inputClass} /></label>; }

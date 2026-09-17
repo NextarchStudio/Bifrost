@@ -13,7 +13,7 @@ Denne listen er en hard produksjonsport. En tom avkryssing betyr at cutover ikke
 ## Database og filer
 
 - [ ] Konsistent backup er tatt, checksum er lagret utenfor serveren og restore er verifisert.
-- [ ] Migrering `0001`, `0002` og `0003` er kjørt i nummerrekkefølge.
+- [ ] Migrering `0001`, `0002`, `0003` og `0004` er kjørt i nummerrekkefølge.
 - [ ] `pnpm --filter @bifrost/api migrate:secrets` er kjørt etter backup, og alle konfigurerte V1-hemmeligheter har kryptert V2-kopi.
 - [ ] `pnpm --filter @bifrost/api preflight` ender med null feil.
 - [ ] `V2/var/secrets/settings.key` og opplastinger inngår i separat, testet backup.
@@ -21,10 +21,15 @@ Denne listen er en hard produksjonsport. En tom avkryssing betyr at cutover ikke
 
 ## Identitet og tilgang
 
-- [ ] Keycloak har alle tre Web Origins og redirect URI-er med `/auth/callback`.
-- [ ] PKCE S256, client-id, issuer og token audience er verifisert.
+- [ ] Keycloak confidential-klienten har alle tre eksakte redirect URI-er med `/auth/callback` og korrekte Web Origins.
+- [ ] Ny/rotert client secret finnes kryptert som `oidc.client_secret`; den ligger ikke i Web, repo, logger eller skjermbilder.
+- [ ] Server-side kodeutveksling, PKCE S256, state, nonce, client-id, issuer og token audience er verifisert.
+- [ ] SSO-sesjonen bruker `HttpOnly`, `Secure`, `SameSite=Lax`, og mutasjoner uten `X-Bifrost-Request` avvises.
 - [ ] Minst én positiv og én negativ test er dokumentert per rolleområde.
 - [ ] Lokal reserveinnlogging er eksplisitt besluttet på/av og testet uten å logge passord/token.
+- [ ] Crew API-responsen er kontrollert med `inspect:crew -- 8468`, uten at bearer-token eller persondata er lagret i repo/loggutdrag.
+- [ ] Aktive Crew-/crewrolle-regler gir forventede V1-roller, og en bruker uten godkjent crew avvises.
+- [ ] Velkomst-e-post er eksplisitt besluttet på/av; ved «på» er SMTP, kryptert `smtp.password` når autentisering brukes, Worker-kø og én testmottaker verifisert.
 
 ## Funksjonsparitet
 

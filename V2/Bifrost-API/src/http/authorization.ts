@@ -1,13 +1,24 @@
 import { BIFROST_ACCESS, type CurrentUser } from "@bifrost/contracts";
 import type { FastifyRequest } from "fastify";
+import { readSessionCookie } from "../modules/auth/local-session.js";
 import { AuthenticationError, type AuthService } from "../modules/auth/service.js";
 
 export const LOGISTICS_ROLES = BIFROST_ACCESS.logistics;
 
 export async function requireAuthenticated(request: FastifyRequest, auth: AuthService): Promise<CurrentUser> {
+  return auth.authenticate(authenticationTokenFromRequest(request));
+}
+
+export function authenticationTokenFromRequest(request: FastifyRequest): string {
   const header = request.headers.authorization;
-  if (!header?.startsWith("Bearer ")) throw new AuthenticationError("Gyldig innlogging kreves.");
-  return auth.authenticate(header.slice("Bearer ".length));
+  if (header?.startsWith("Bearer ")) return header.slice("Bearer ".length);
+
+  const cookieToken = readSessionCookie(request.headers.cookie);
+  if (!cookieToken) throw new AuthenticationError("Gyldig innlogging kreves.");
+  if (!new Set(["GET", "HEAD", "OPTIONS"]).has(request.method) && request.headers["x-bifrost-request"] !== "web") {
+    throw new AuthenticationError("Forespørselen mangler CSRF-beskyttelse.", 403);
+  }
+  return cookieToken;
 }
 
 export async function requireRoleAccess(

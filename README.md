@@ -29,7 +29,7 @@ Bifrost/
 - OIDC/Keycloak er obligatorisk i V2.
 - V2 er konfigurert for `https://tg.legacyh.dev/`, `https://bifrost.tg.no/` og lokal utvikling på `http://127.0.0.1:3000/`.
 - Et separat V2-skjema kan brukes via kontrollerte ETL-/synkroniseringsjobber.
-- Dashboard, globalt søk, lager, utstyr, utlån, forespørsler, kjøretøy, profil, transport, samband, Shop, crewtøy, oppgaver, tilbakemeldinger, varsler, administrasjon, V1-kompatibel statistikk og kontrollert crew-reset er implementert i V2-kode; staging-paritet gjenstår.
+- Dashboard, globalt søk, lager, utstyr, utlån, forespørsler, kjøretøy, profil, transport, samband, Shop, crewtøy, oppgaver, tilbakemeldinger, varsler, administrasjon, regelstyrt Crew-provisjonering, valgfri velkomst-e-post, V1-kompatibel statistikk og kontrollert crew-reset er implementert i V2-kode; staging-paritet gjenstår.
 
 Se [ROADMAP.md](ROADMAP.md) for plan, arkitektur og leveranserekkefølge.
 

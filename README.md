@@ -46,7 +46,7 @@ Kopier `V1/.env.example` til `V1/.env` og fyll inn lokale databaseinnstillinger 
 
 ## Kom i gang med V2
 
-Krav: Node.js 22+, pnpm 11+ og MariaDB 10.6+.
+Krav: Node.js 26.9.0+, npm 12.0.2+, pnpm 12.4.2+, PM2 7.0.4+ og MariaDB 10.6+.
 
 ```bash
 cd V2

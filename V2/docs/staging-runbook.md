@@ -5,7 +5,7 @@ Denne runbooken brukes mot en anonymisert kopi av V1-databasen. Den gir ikke til
 ## 1. Forutsetninger
 
 - MariaDB 10.6 eller nyere.
-- Node.js 22, pnpm 11 og PM2 på stagingserveren.
+- Node.js 26.9.0+, npm 12.0.2+, pnpm 12.4.2+ og PM2 7.0.4+ på stagingserveren.
 - En anonymisert databasekopi med samme skjema som aktiv V1.
 - Keycloak-klienten må ha redirect URI og Web Origin for `https://tg.legacyh.dev`, `https://bifrost.tg.no` og `http://127.0.0.1:3000`.
 - Dokumentert ansvarlig person for backup, restore og godkjenning.

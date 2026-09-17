@@ -10,10 +10,11 @@ Delte kontrakter og database-definisjoner ligger under `packages/`.
 
 ## Krav
 
-- Node.js 22+
-- pnpm 11+
+- Node.js 26.9.0+
+- npm 12.0.2+
+- pnpm 12.4.2+
 - MariaDB 10.6+
-- PM2 for produksjonsdrift
+- PM2 7.0.4+ for produksjonsdrift
 - Docker Engine med Compose for valgfritt lokalmiljø
 
 ## Installasjon og kvalitetssjekk

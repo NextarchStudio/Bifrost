@@ -1,6 +1,7 @@
 import { buildApp } from "./app.js";
 import { createDatabase, readDatabaseConfig } from "@bifrost/database";
 import { createAuthService } from "./modules/auth/service.js";
+import { createAuthLoginService } from "./modules/auth/login-audit.js";
 import { createEquipmentService } from "./modules/equipment/service.js";
 import { createCategoryService } from "./modules/categories/service.js";
 import { createLocationService } from "./modules/locations/service.js";
@@ -27,8 +28,10 @@ import { resolve } from "node:path";
 const database = createDatabase(readDatabaseConfig());
 const secureSettings = await createSecureSettingsStore(database, resolve(process.cwd(), "../var/secrets/settings.key"));
 const crew = createCrewDirectoryService(database, secureSettings);
+const auth = createAuthService(database);
 const app = buildApp({
-  auth: createAuthService(database),
+  auth,
+  login: createAuthLoginService(database, auth),
   equipment: createEquipmentService(database),
   categories: createCategoryService(database),
   locations: createLocationService(database),

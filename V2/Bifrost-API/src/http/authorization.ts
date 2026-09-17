@@ -21,8 +21,9 @@ export async function requireRoleAccess(
   return user;
 }
 
-export function authenticationErrorCode(error: AuthenticationError): "UNAUTHORIZED" | "FORBIDDEN" | "OIDC_NOT_CONFIGURED" {
+export function authenticationErrorCode(error: AuthenticationError): "UNAUTHORIZED" | "FORBIDDEN" | "RATE_LIMITED" | "OIDC_NOT_CONFIGURED" {
   if (error.statusCode === 403) return "FORBIDDEN";
+  if (error.statusCode === 429) return "RATE_LIMITED";
   if (error.statusCode === 503) return "OIDC_NOT_CONFIGURED";
   return "UNAUTHORIZED";
 }

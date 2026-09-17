@@ -11,7 +11,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { createRemoteJWKSet, jwtVerify, type JWTPayload } from "jose";
 
 export class AuthenticationError extends Error {
-  constructor(message: string, readonly statusCode: 401 | 403 | 503 = 401) {
+  constructor(message: string, readonly statusCode: 401 | 403 | 429 | 503 = 401) {
     super(message);
   }
 }
@@ -52,28 +52,39 @@ export function createAuthService(database: DatabaseConnection, verifyToken: Ver
   return {
     getPublicConfig,
     async authenticate(token: string): Promise<CurrentUser> {
-      const config = await getPublicConfig();
-      const claims = await verifyToken(token, config);
-      if (!claims.sub) throw new AuthenticationError("Token mangler brukeridentitet.");
+      try {
+        const config = await getPublicConfig();
+        let claims: JWTPayload;
+        try {
+          claims = await verifyToken(token, config);
+        } catch (error) {
+          if (error instanceof AuthenticationError) throw error;
+          throw new AuthenticationError("Token kunne ikke valideres.");
+        }
+        if (!claims.sub) throw new AuthenticationError("Token mangler brukeridentitet.");
 
-      let rows = await loadUser(claims.sub);
-      if (rows.length === 0) {
-        await provisionUser(database, claims);
-        rows = await loadUser(claims.sub);
+        let rows = await loadUser(claims.sub);
+        if (rows.length === 0) {
+          await provisionUser(database, claims);
+          rows = await loadUser(claims.sub);
+        }
+
+        const first = rows[0];
+        if (!first) throw new AuthenticationError("Brukeren kunne ikke opprettes i Bifrost.", 403);
+
+        return {
+          id: first.id,
+          name: first.name,
+          firstName: first.firstName,
+          lastName: first.lastName,
+          email: first.email,
+          wannabeId: first.wannabeId,
+          roles: [...new Set(rows.flatMap((row) => row.role ? [row.role] : []))],
+        };
+      } catch (error) {
+        if (error instanceof AuthenticationError) throw error;
+        throw new AuthenticationError("Innloggingstjenesten er utilgjengelig.", 503);
       }
-
-      const first = rows[0];
-      if (!first) throw new AuthenticationError("Brukeren kunne ikke opprettes i Bifrost.", 403);
-
-      return {
-        id: first.id,
-        name: first.name,
-        firstName: first.firstName,
-        lastName: first.lastName,
-        email: first.email,
-        wannabeId: first.wannabeId,
-        roles: [...new Set(rows.flatMap((row) => row.role ? [row.role] : []))],
-      };
     },
   };
 

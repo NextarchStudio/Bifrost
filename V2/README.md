@@ -94,6 +94,8 @@ VITE_API_TOKEN
 
 `VITE_API_TOKEN` er synlig i browser-bundlen og må derfor aldri være en serverhemmelighet. Brukeridentitet og tilgang skal håndheves med OIDC/Keycloak-token i API-et.
 
+Etter OIDC-callback fullfører Web innloggingen mot `POST /api/v1/auth/session`. Vellykkede forsøk skrives til både V1-tabellen `login_attempts` og `audit_logs`; avviste bearer-token registreres anonymt i `login_attempts`. Token og claims lagres aldri i auditdata. V1-grensen på fem mislykkede forsøk per IP på 15 minutter beholdes, og videre forsøk får HTTP 429.
+
 ## Database
 
 V1-tabellene beholdes. Drizzle-definisjonene i `packages/database` mapper mot eksisterende tabellnavn. Nye tekniske tabeller bruker `bifrost_`-prefiks.

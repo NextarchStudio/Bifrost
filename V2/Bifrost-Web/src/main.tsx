@@ -1,7 +1,7 @@
 import type { CurrentUser } from "@bifrost/contracts";
 import { StrictMode, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { getCurrentUser } from "./api/client";
+import { completeLoginSession, getCurrentUser } from "./api/client";
 import { beginSignIn, completeSignIn, getSignedInUser, signOut } from "./auth/oidc";
 import { EquipmentWorkspace } from "./features/equipment/EquipmentWorkspace";
 import { LocationWorkspace } from "./features/locations/LocationWorkspace";
@@ -39,7 +39,10 @@ function App() {
         const oidcUser = isCallback ? await completeSignIn() : await getSignedInUser();
         if (isCallback) window.history.replaceState({}, "", "/dashboard");
         if (!oidcUser || oidcUser.expired) return setSession({ status: "anonymous" });
-        setSession({ status: "authenticated", user: await getCurrentUser(oidcUser.access_token), accessToken: oidcUser.access_token });
+        const user = isCallback
+          ? await completeLoginSession(oidcUser.access_token)
+          : await getCurrentUser(oidcUser.access_token);
+        setSession({ status: "authenticated", user, accessToken: oidcUser.access_token });
       } catch (error) {
         setSession({ status: "error", message: error instanceof Error ? error.message : "Innlogging feilet." });
       }

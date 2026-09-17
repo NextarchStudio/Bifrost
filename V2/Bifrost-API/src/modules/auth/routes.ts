@@ -1,9 +1,10 @@
 import type { ApiError } from "@bifrost/contracts";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { authenticationErrorCode, requireAuthenticated } from "../../http/authorization.js";
+import type { AuthLoginService } from "./login-audit.js";
 import { AuthenticationError, type AuthService } from "./service.js";
 
-export async function registerAuthRoutes(app: FastifyInstance, auth: AuthService): Promise<void> {
+export async function registerAuthRoutes(app: FastifyInstance, auth: AuthService, login?: AuthLoginService): Promise<void> {
   app.get("/api/v1/auth/config", async (request, reply) => {
     try {
       return await auth.getPublicConfig();
@@ -19,6 +20,18 @@ export async function registerAuthRoutes(app: FastifyInstance, auth: AuthService
       return sendAuthError(error, request, reply);
     }
   });
+
+  if (login) {
+    app.post("/api/v1/auth/session", async (request, reply) => {
+      try {
+        const header = request.headers.authorization;
+        if (!header?.startsWith("Bearer ")) throw new AuthenticationError("Gyldig innlogging kreves.");
+        return await login.complete(header.slice("Bearer ".length), request.ip);
+      } catch (error) {
+        return sendAuthError(error, request, reply);
+      }
+    });
+  }
 }
 
 function sendAuthError(error: unknown, request: FastifyRequest, reply: FastifyReply) {

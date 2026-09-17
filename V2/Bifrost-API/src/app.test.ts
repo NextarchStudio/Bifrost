@@ -169,6 +169,63 @@ test("protects current-user endpoint with a bearer token", async () => {
   await app.close();
 });
 
+test("completes an OIDC callback through the audited session endpoint", async () => {
+  let completed = false;
+  const app = buildApp({
+    checkDatabase: async () => undefined,
+    auth: {
+      getPublicConfig: async () => { throw new Error("not called"); },
+      authenticate: async () => { throw new Error("not called"); },
+    },
+    login: {
+      complete: async (token, ipAddress) => {
+        assert.equal(token, "valid-token");
+        assert.equal(ipAddress, "127.0.0.1");
+        completed = true;
+        return {
+          id: 7,
+          name: "OIDC User",
+          firstName: "OIDC",
+          lastName: "User",
+          email: "oidc@example.test",
+          wannabeId: null,
+          roles: ["bruker"],
+        };
+      },
+    },
+  });
+  const response = await app.inject({
+    method: "POST",
+    url: "/api/v1/auth/session",
+    headers: { authorization: "Bearer valid-token" },
+  });
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.json().id, 7);
+  assert.equal(completed, true);
+  await app.close();
+});
+
+test("returns a structured rate-limit error for repeated OIDC failures", async () => {
+  const app = buildApp({
+    checkDatabase: async () => undefined,
+    auth: {
+      getPublicConfig: async () => { throw new Error("not called"); },
+      authenticate: async () => { throw new Error("not called"); },
+    },
+    login: {
+      complete: async () => { throw new AuthenticationError("For mange innloggingsforsøk.", 429); },
+    },
+  });
+  const response = await app.inject({
+    method: "POST",
+    url: "/api/v1/auth/session",
+    headers: { authorization: "Bearer rejected-token" },
+  });
+  assert.equal(response.statusCode, 429);
+  assert.equal(response.json().error.code, "RATE_LIMITED");
+  await app.close();
+});
+
 test("lists equipment for an authorized logistics user", async () => {
   const app = buildApp({
     checkDatabase: async () => undefined,

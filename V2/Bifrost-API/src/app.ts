@@ -4,6 +4,7 @@ import helmet from "@fastify/helmet";
 import multipart from "@fastify/multipart";
 import Fastify, { type FastifyInstance } from "fastify";
 import { registerAuthRoutes } from "./modules/auth/routes.js";
+import type { AuthLoginService } from "./modules/auth/login-audit.js";
 import type { AuthService } from "./modules/auth/service.js";
 import { registerEquipmentRoutes } from "./modules/equipment/routes.js";
 import type { EquipmentService } from "./modules/equipment/service.js";
@@ -45,6 +46,7 @@ export interface AppDependencies {
   checkDatabase: () => Promise<void>;
   version?: string;
   auth?: AuthService;
+  login?: AuthLoginService;
   equipment?: EquipmentService;
   categories?: CategoryService;
   locations?: LocationService;
@@ -96,7 +98,7 @@ export function buildApp(dependencies: AppDependencies): FastifyInstance {
     }
   });
 
-  if (dependencies.auth) void registerAuthRoutes(app, dependencies.auth);
+  if (dependencies.auth) void registerAuthRoutes(app, dependencies.auth, dependencies.login);
   if (dependencies.auth && dependencies.equipment) void registerEquipmentRoutes(app, dependencies.auth, dependencies.equipment);
   if (dependencies.auth && dependencies.categories) void registerCategoryRoutes(app, dependencies.auth, dependencies.categories);
   if (dependencies.auth && dependencies.locations) void registerLocationRoutes(app, dependencies.auth, dependencies.locations);

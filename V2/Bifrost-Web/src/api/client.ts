@@ -20,6 +20,15 @@ export async function getCurrentUser(accessToken: string): Promise<CurrentUser> 
   return response.json() as Promise<CurrentUser>;
 }
 
+export async function completeLoginSession(accessToken: string): Promise<CurrentUser> {
+  const response = await fetch(`${apiUrl}/api/v1/auth/session`, {
+    method: "POST",
+    headers: createHeaders(accessToken),
+  });
+  if (!response.ok) throw await createApiError(response, "Innloggingen kunne ikke fullføres.");
+  return response.json() as Promise<CurrentUser>;
+}
+
 export async function getEquipment(
   accessToken: string,
   query: { page: number; pageSize?: number; search?: string },

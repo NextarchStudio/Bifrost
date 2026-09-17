@@ -32,7 +32,7 @@ V1 er i dag en CodeIgniter 4-applikasjon med PHP 8.2+, MariaDB, server-renderte 
 |---|---|---|
 | Fase 0 – baseline | Pågår | V1 er bevart under `V1/`, rute-/rollematrisen er dokumentert og staging-runbook med lesebasert skjema-/rolle-/OIDC-preflight er levert. Kjøring mot anonymisert staging-database og verifisert restore gjenstår. |
 | Fase 1 – fundament | Implementert | pnpm-monorepo, strict TypeScript, Fastify, React/Vite/Tailwind, Drizzle, health/readiness, PM2-oppsett, samlet kvalitetssjekk, GitHub CI med produksjonsaudit og digestlåst lokal MariaDB/Keycloak Compose-stack er på plass. |
-| Fase 2 – identitet | Implementert | Obligatorisk Keycloak/OIDC med PKCE, JWT/JWKS-validering, automatisk V1-brukerprovisjonering, tokenfri innloggingsaudit og en delt, uttømmende testet tilgangsmatrise for alle 11 V1-roller er på plass. Representative flerrollekombinasjoner skal fortsatt verifiseres i staging. |
+| Fase 2 – identitet | Implementert | Obligatorisk Keycloak/OIDC med PKCE, JWT/JWKS-validering og automatisk V1-brukerprovisjonering er på plass. Lokal V1-innlogging er bevart som databasekontrollert reserve med Argon2id-verifisering, hash-lagrede V2-sesjoner, ratebegrensning og tokenfri audit. Tilgangsmatrisen dekker alle 11 V1-roller; representative flerrollekombinasjoner skal fortsatt verifiseres i staging. |
 | Fase 3 – lager og utstyr | Nær ferdig | Utstyr, kategoriadministrasjon, lokasjoner, paller, palleplasser, strekkodeflyt, inspeksjon, flytting, slettingsvern, audit og nytt React-design er implementert. Playwright og paritetstest mot representativ V1-database gjenstår. |
 | Fase 4 – utlån og forespørsler | Implementert, ikke staging-verifisert | Transaksjonelt flerlinje-utlån, retur, person-/badge-oppslag, private-utstyrsregler, utstyrsforespørsler, kjøretøy, kompetanse/KDO, kjøretøylån og profiloversikt er implementert i API og Web. Paritetstest mot anonymiserte stagingdata gjenstår. |
 | Fase 5 – transport, samband og shop | Implementert, ikke staging-verifisert | Transport, samband, Shop og crewtøy er implementert i API og Web, inkludert ruteestimat, kjørebok, sambandssett, utlån, varelager, badgeoppslag, utlevering og XLSX/XLS/CSV-/PDF-flyt. Paritetstest mot anonymiserte stagingdata gjenstår. |
@@ -296,7 +296,7 @@ Kryptering skal bruke versjonerte nøkler og støtte key rotation. Hashing skal 
 **Avklart**
 
 - V2 bruker eksisterende MariaDB/V1-tabeller direkte. Nye skjema/tabeller kan innføres for tekniske behov og dokumentert ETL/synkronisering.
-- OIDC/Keycloak er obligatorisk. Lokal V1-innlogging videreføres ikke som innloggingsmetode i V2.
+- OIDC/Keycloak er obligatorisk og hovedmetoden. Lokal V1-innlogging videreføres som databasekontrollert reserve når `enable_local_login` er aktiv.
 - Alle V1-funksjoner er aktive og skal videreføres.
 - Filer kan lagres lokalt med metadata, tilgangskontroll og backup.
 - Eksisterende V1-roller og rollenavn er autoritative og beholdes.

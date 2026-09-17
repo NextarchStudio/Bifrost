@@ -47,6 +47,7 @@ export const BIFROST_ACCESS = {
   profileRequestView: roleSet("developer", "chief", "co-chief", "skiftleder", "sambandsansvarlig"),
   crewLookup: roleSet("developer", "chief", "co-chief", "skiftleder", "sambandsansvarlig", "logistikk"),
   globalSearch: roleSet("developer", "chief", "co-chief", "logistikk"),
+  barcodeExport: roleSet("developer", "chief", "co-chief", "logistikk"),
   equipmentRequestManager: roleSet("developer", "chief", "co-chief", "logistikk"),
 } as const;
 
@@ -98,6 +99,7 @@ export interface OidcPublicConfig {
   clientId: string;
   redirectUri: string;
   scope: "openid profile email";
+  localLoginEnabled?: boolean;
 }
 
 export interface CurrentUser {
@@ -108,6 +110,24 @@ export interface CurrentUser {
   email: string;
   wannabeId: number | null;
   roles: string[];
+}
+
+export interface LocalLoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface LocalLoginResponse {
+  accessToken: string;
+  expiresAt: string;
+  user: CurrentUser;
+}
+
+export interface BarcodeExportRequest {
+  filename?: string;
+  rangeStart?: string;
+  rangeEnd?: string;
+  codes?: string;
 }
 
 export interface EquipmentListItem {
@@ -747,6 +767,7 @@ export interface AdminUser {
 
 export interface AdminSettings {
   appName: string;
+  localLoginEnabled: boolean;
   logoUrl: string | null;
   faviconUrl: string | null;
   keycloakBaseUrl: string | null;

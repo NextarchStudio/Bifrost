@@ -36,6 +36,7 @@ export interface AdminCreateUserInput { firstName: string; lastName: string; ema
 export interface AdminRoleInput { name: string; displayName?: string | null; wannabeRoleName?: string | null }
 export interface AdminSettingsInput {
   appName: string;
+  localLoginEnabled: boolean;
   logoUrl?: string | null;
   faviconUrl?: string | null;
   keycloakBaseUrl?: string | null;
@@ -241,7 +242,7 @@ export function createAdminService(database: DatabaseConnection, secureSettings:
       }
       const values = {
         appName: plainText(input.appName, 120) || "Bifrost",
-        enableLocalLogin: false,
+        enableLocalLogin: input.localLoginEnabled,
         enableKeycloakLogin: true,
         logoUrl: nullableText(input.logoUrl, 255), faviconUrl: nullableText(input.faviconUrl, 255),
         keycloakBaseUrl: nullableText(input.keycloakBaseUrl, 255), keycloakRealm: nullableText(input.keycloakRealm, 120),
@@ -268,7 +269,7 @@ async function loadSettings(database: DatabaseConnection, secureStore: SecureSet
   ]);
   if (!row) throw new AdminDomainError("Systeminnstillinger finnes ikke.", "NOT_FOUND");
   return {
-    appName: row.appName?.trim() || "Bifrost", logoUrl: row.logoUrl, faviconUrl: row.faviconUrl,
+    appName: row.appName?.trim() || "Bifrost", localLoginEnabled: row.enableLocalLogin, logoUrl: row.logoUrl, faviconUrl: row.faviconUrl,
     keycloakBaseUrl: row.keycloakBaseUrl, keycloakRealm: row.keycloakRealm, keycloakClientId: row.keycloakClientId, keycloakRedirectUri: row.keycloakRedirectUri,
     smtpFromEmail: row.smtpFromEmail, smtpFromName: row.smtpFromName, smtpHost: row.smtpHost, smtpPort: row.smtpPort,
     smtpUser: row.smtpUser, smtpCrypto: row.smtpCrypto === "ssl" ? "ssl" : row.smtpCrypto === "tls" ? "tls" : null,

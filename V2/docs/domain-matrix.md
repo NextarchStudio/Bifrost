@@ -26,14 +26,14 @@ Brukere kan ha flere roller. `ingen_tilbakemeldinger` skal behandles som en eksp
 
 | Domene | V1-tilgang på rutenivå | Viktige V1-regler | V2-status |
 |---|---|---|---|
-| OIDC og profil | Alle innloggede; utvidet innsyn følger V1-rollene | Keycloak/OIDC, egen profil, autorisert innsyn i andres lån/forespørsler og blokkering av profilbilde for sperrede roller; lokal V1-passordflyt erstattes av obligatorisk Keycloak | OIDC, tokenvalidering, brukerprovisjonering, profilside, aktive utstyrs-/kjøretøy-/sambandlån, forespørsler og sikker bildeproxy levert |
+| Innlogging og profil | Alle innloggede; utvidet innsyn følger V1-rollene | Obligatorisk Keycloak/OIDC som hovedmetode, databasekontrollert lokal V1-innlogging som reserve, egen profil, autorisert innsyn i andres lån/forespørsler og blokkering av profilbilde for sperrede roller | OIDC, lokal Argon2id-innlogging, hash-lagrede V2-sesjoner, audit/ratebegrensning, brukerprovisjonering, profilside, aktive lån/forespørsler og sikker bildeproxy levert |
 | Dashboard | Alle innloggede | Operativ oversikt og varsler | API og Web levert med V1-felter og tilgangstester; staging-paritet gjenstår |
 | Globalt søk | `developer`, `chief`, `co-chief`, `logistikk` | Søk på tvers av utstyr, serienummer, lokasjon, palle, plass og Wannabe-ID | API og Web levert med søkeresultatgrense, escaping og tilgangstester; staging-paritet gjenstår |
 | Utstyr | `developer`, `chief`, `co-chief`, `logistikk` | Opprett/merge på serienummer, rediger, antall, status, flytt og slettingsvern | API og Web levert |
 | Utstyrskategorier | `developer`, `chief`, `co-chief`, `logistikk` | Kategori i bruk kan ikke slettes | API og Web levert |
 | Lokasjoner | `developer`, `chief`, `co-chief`, `logistikk` | Paller og aktive transportoppdrag blokkerer sletting; historikk arkiveres | API og Web levert |
 | Lager, paller og palleplasser | `developer`, `chief`, `co-chief`, `logistikk` | Ingen paller på Transport-lokasjon, unik QR i tjenestelaget, slot 1 for strekkodeflyt, utstyr blokkerer sletting | API og Web levert |
-| Strekkodeeksport | `developer`, `chief`, `co-chief`, `logistikk` | Generering/eksport av strekkoder | Ikke startet |
+| Strekkodeeksport | `developer`, `chief`, `co-chief`, `logistikk` | Generering av enkeltkoder og nullutfylte intervaller som V1-kompatibel UDL-fil | API og Web levert med format-, grense- og tilgangstester |
 | Privat utstyr | `developer`, `chief`, `co-chief`, `logistikk` | Opprett/slett, prefikstreff, utlånsbekreftelse og returpåminnelse | API og Web levert; bekreftelsen håndheves også i API-et |
 | Utstyrslån og retur | `developer`, `chief`, `co-chief`, `logistikk` | Profiloppslag, antall, lagerkonsistens, utstedelse og retur | Transaksjonelt API og Web for utstedelse/delretur/full retur, person-/badge-oppslag og privat-utstyrsvarsler levert |
 | Kjøretøy og kjøretøylån | `developer`, `chief`, `co-chief`, `skiftleder`, `logistikk` | Oppretting og lån for alle fem roller; redigering/sletting bare uten `logistikk`; kompetansebevis/førerkort per Wannabe-ID, KDO per kjøretøy, odometer og Vegvesen-nyttelast | API og Web levert; utlån/retur og kompetanseoppdatering er transaksjonell, Vegvesen-nøkkelen leses kryptert |
@@ -49,7 +49,8 @@ Brukere kan ha flere roller. `ingen_tilbakemeldinger` skal behandles som en eksp
 
 | API-område | Tillatte roller | Skriveoperasjoner med audit | Positive/negative rutetester |
 |---|---|---|---|
-| `/api/v1/me` | Alle med gyldig Keycloak-token | Ikke relevant | Ja |
+| `/api/v1/auth/local`, `/api/v1/auth/logout` | Lokal innlogging når DB-bryteren er aktiv; Keycloak forblir obligatorisk | Innloggingsforsøk, audit og hash-lagret/revokert sesjon | Ja |
+| `/api/v1/me` | Alle med gyldig Keycloak- eller lokalt sesjonstoken | Ikke relevant | Ja |
 | `/api/v1/equipment*` | `developer`, `chief`, `co-chief`, `logistikk` | Ja | Ja |
 | `/api/v1/equipment-categories*` | `developer`, `chief`, `co-chief`, `logistikk` | Ja | Delvis |
 | `/api/v1/locations*` | `developer`, `chief`, `co-chief`, `logistikk` | Ja | Delvis |
@@ -68,8 +69,9 @@ Brukere kan ha flere roller. `ingen_tilbakemeldinger` skal behandles som en eksp
 | `/api/v1/admin*` | Bruker-/rolleadmin og statistikk: `developer`, `chief`, `co-chief`; systeminnstillinger og crew-reset: `developer` | Ja; bruker, rolle, aktiv-status, kompetanser, innstillinger og reset har audit; statistikk/preview er lesebasert; hemmeligheter krypteres og eksponeres ikke | Ja |
 | `/api/v1/dashboard` | Alle innloggede | Lesebasert V1-oppsummering | Ja |
 | `/api/v1/search` | `developer`, `chief`, `co-chief`, `logistikk` | Lesebasert; input begrenses og LIKE-jokertegn escapes | Ja |
+| `/api/v1/barcodes/export` | `developer`, `chief`, `co-chief`, `logistikk` | Genererer fil i minnet; ingen databaseskriving | Ja |
 
-API-et bruker én felles Bearer-token- og rollekontroll. Manglende token gir `401`, manglende rolle gir `403`, og manglende OIDC-konfigurasjon beholdes som `503` med kode `OIDC_NOT_CONFIGURED`. Policytesten evaluerer hver av de 11 V1-rollene mot alle tilgangsområder og låser de negative reglene; rutetestene verifiserer i tillegg autentisering og kritiske positive/negative API-flyter.
+API-et bruker én felles Bearer-token- og rollekontroll for Keycloak-token og lokale, hash-lagrede sesjonstoken. Manglende token gir `401`, manglende rolle gir `403`, og manglende OIDC-konfigurasjon beholdes som `503` med kode `OIDC_NOT_CONFIGURED`. Policytesten evaluerer hver av de 11 V1-rollene mot alle tilgangsområder og låser de negative reglene; rutetestene verifiserer i tillegg autentisering og kritiske positive/negative API-flyter.
 
 ## Åpne verifikasjonspunkter
 

@@ -45,8 +45,8 @@ try {
   else {
     pass("Systeminnstillinger", "system_settings.id=1 finnes.");
     const oidcFields = [settings.keycloakBaseUrl, settings.keycloakRealm, settings.keycloakClientId, settings.keycloakRedirectUri];
-    if (!settings.enableKeycloakLogin || settings.enableLocalLogin || oidcFields.some((value) => !value?.trim())) fail("OIDC", "Keycloak må være aktiv, lokal innlogging av og alle offentlige OIDC-felt utfylt.");
-    else pass("OIDC", "Keycloak er aktiv og lokal innlogging er av.");
+    if (!settings.enableKeycloakLogin || oidcFields.some((value) => !value?.trim())) fail("OIDC", "Keycloak må være aktiv og alle offentlige OIDC-felt utfylt.");
+    else pass("OIDC", `Keycloak er aktiv; lokal reserveinnlogging er ${settings.enableLocalLogin ? "på" : "av"}.`);
   }
 
   const protectedUser = rows<{ id: number; name: string; email: string }>(userResult)[0];

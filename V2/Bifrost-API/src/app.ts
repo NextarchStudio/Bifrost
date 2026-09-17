@@ -6,6 +6,9 @@ import Fastify, { type FastifyInstance } from "fastify";
 import { registerAuthRoutes } from "./modules/auth/routes.js";
 import type { AuthLoginService } from "./modules/auth/login-audit.js";
 import type { AuthService } from "./modules/auth/service.js";
+import type { LocalAuthService } from "./modules/auth/local-login.js";
+import { registerBarcodeRoutes } from "./modules/barcodes/routes.js";
+import type { BarcodeService } from "./modules/barcodes/service.js";
 import { registerEquipmentRoutes } from "./modules/equipment/routes.js";
 import type { EquipmentService } from "./modules/equipment/service.js";
 import { registerCategoryRoutes } from "./modules/categories/routes.js";
@@ -47,6 +50,8 @@ export interface AppDependencies {
   version?: string;
   auth?: AuthService;
   login?: AuthLoginService;
+  localAuth?: LocalAuthService;
+  barcodes?: BarcodeService;
   equipment?: EquipmentService;
   categories?: CategoryService;
   locations?: LocationService;
@@ -78,7 +83,7 @@ export function buildApp(dependencies: AppDependencies): FastifyInstance {
   void app.register(cors, {
     origin: [/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/],
     allowedHeaders: ["Authorization", "Content-Type", "X-Bifrost-Client", "X-Request-Id"],
-    exposedHeaders: ["Content-Disposition"],
+    exposedHeaders: ["Content-Disposition", "X-Barcode-Count"],
   });
 
   app.get("/health", async (): Promise<HealthResponse> => ({
@@ -98,7 +103,8 @@ export function buildApp(dependencies: AppDependencies): FastifyInstance {
     }
   });
 
-  if (dependencies.auth) void registerAuthRoutes(app, dependencies.auth, dependencies.login);
+  if (dependencies.auth) void registerAuthRoutes(app, dependencies.auth, dependencies.login, dependencies.localAuth);
+  if (dependencies.auth && dependencies.barcodes) void registerBarcodeRoutes(app, dependencies.auth, dependencies.barcodes);
   if (dependencies.auth && dependencies.equipment) void registerEquipmentRoutes(app, dependencies.auth, dependencies.equipment);
   if (dependencies.auth && dependencies.categories) void registerCategoryRoutes(app, dependencies.auth, dependencies.categories);
   if (dependencies.auth && dependencies.locations) void registerLocationRoutes(app, dependencies.auth, dependencies.locations);

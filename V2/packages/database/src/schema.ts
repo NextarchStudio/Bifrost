@@ -1,4 +1,4 @@
-import { bigint, boolean, datetime, decimal, int, json, mysqlTable, primaryKey, smallint, text, tinyint, uniqueIndex, varchar } from "drizzle-orm/mysql-core";
+import { bigint, boolean, datetime, decimal, index, int, json, mysqlTable, primaryKey, smallint, text, tinyint, uniqueIndex, varchar } from "drizzle-orm/mysql-core";
 
 export const users = mysqlTable("users", {
   id: bigint({ mode: "number", unsigned: true }).primaryKey().autoincrement(),
@@ -50,6 +50,20 @@ export const loginAttempts = mysqlTable("login_attempts", {
   successful: boolean().notNull().default(false),
   createdAt: datetime("created_at", { mode: "date" }).notNull(),
 });
+
+export const localSessions = mysqlTable("bifrost_local_sessions", {
+  id: bigint({ mode: "number", unsigned: true }).primaryKey().autoincrement(),
+  userId: bigint("user_id", { mode: "number", unsigned: true }).notNull(),
+  tokenHash: varchar("token_hash", { length: 64 }).notNull(),
+  expiresAt: datetime("expires_at", { mode: "date" }).notNull(),
+  lastSeenAt: datetime("last_seen_at", { mode: "date" }).notNull(),
+  revokedAt: datetime("revoked_at", { mode: "date" }),
+  createdAt: datetime("created_at", { mode: "date" }).notNull(),
+}, (table) => [
+  uniqueIndex("bifrost_local_sessions_token_hash_unique").on(table.tokenHash),
+  index("bifrost_local_sessions_user_idx").on(table.userId, table.expiresAt),
+  index("bifrost_local_sessions_cleanup_idx").on(table.expiresAt, table.revokedAt),
+]);
 
 export const systemSettings = mysqlTable("system_settings", {
   id: tinyint({ unsigned: true }).primaryKey(),

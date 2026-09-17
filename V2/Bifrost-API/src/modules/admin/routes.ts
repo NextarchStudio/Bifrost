@@ -19,6 +19,7 @@ const rolesSchema = z.object({ roleIds: z.array(z.number().int().positive()).max
 const competencySchema = z.object({ competencies: z.array(z.enum(["t1", "t2", "t3", "t4", "b", "be", "c1", "c1e", "c", "ce"])).max(10) });
 const settingsSchema = z.object({
   appName: z.string().trim().min(1).max(120),
+  localLoginEnabled: z.boolean(),
   logoUrl: z.string().trim().url().max(255).nullable().optional(),
   faviconUrl: z.string().trim().url().max(255).nullable().optional(),
   keycloakBaseUrl: z.string().trim().url().max(255).nullable().optional(),

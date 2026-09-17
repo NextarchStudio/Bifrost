@@ -30,6 +30,7 @@ const expected: Record<BifrostAccessArea, readonly BifrostRole[]> = {
   profileRequestView: ["developer", "chief", "co-chief", "skiftleder", "sambandsansvarlig"],
   crewLookup: ["developer", "chief", "co-chief", "skiftleder", "sambandsansvarlig", "logistikk"],
   globalSearch: ["developer", "chief", "co-chief", "logistikk"],
+  barcodeExport: ["developer", "chief", "co-chief", "logistikk"],
   equipmentRequestManager: ["developer", "chief", "co-chief", "logistikk"],
 };
 

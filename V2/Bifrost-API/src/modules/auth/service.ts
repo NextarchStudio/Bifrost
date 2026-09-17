@@ -1,14 +1,16 @@
 import type { CurrentUser, OidcPublicConfig } from "@bifrost/contracts";
 import {
   authAccounts,
+  localSessions,
   roles,
   systemSettings,
   userRoles,
   users,
   type DatabaseConnection,
 } from "@bifrost/database";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, gt, inArray, isNull } from "drizzle-orm";
 import { createRemoteJWKSet, jwtVerify, type JWTPayload } from "jose";
+import { hashLocalSessionToken, isLocalSessionToken } from "./local-session.js";
 
 export class AuthenticationError extends Error {
   constructor(message: string, readonly statusCode: 401 | 403 | 429 | 503 = 401) {
@@ -32,6 +34,7 @@ export function createAuthService(database: DatabaseConnection, verifyToken: Ver
         realm: systemSettings.keycloakRealm,
         clientId: systemSettings.keycloakClientId,
         redirectUri: systemSettings.keycloakRedirectUri,
+        localLoginEnabled: systemSettings.enableLocalLogin,
       })
       .from(systemSettings)
       .where(eq(systemSettings.id, 1))
@@ -46,6 +49,7 @@ export function createAuthService(database: DatabaseConnection, verifyToken: Ver
       clientId: settings.clientId,
       redirectUri: settings.redirectUri,
       scope: "openid profile email",
+      localLoginEnabled: settings.localLoginEnabled,
     };
   };
 
@@ -53,6 +57,8 @@ export function createAuthService(database: DatabaseConnection, verifyToken: Ver
     getPublicConfig,
     async authenticate(token: string): Promise<CurrentUser> {
       try {
+        if (isLocalSessionToken(token)) return await loadLocalSessionUser(token);
+
         const config = await getPublicConfig();
         let claims: JWTPayload;
         try {
@@ -108,6 +114,47 @@ export function createAuthService(database: DatabaseConnection, verifyToken: Ver
           eq(authAccounts.providerId, providerId),
           eq(users.active, true),
         ));
+  }
+
+  async function loadLocalSessionUser(token: string): Promise<CurrentUser> {
+    const rows = await database.db
+      .select({
+        sessionId: localSessions.id,
+        id: users.id,
+        name: users.name,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        email: users.email,
+        wannabeId: users.wannabeId,
+        role: roles.name,
+      })
+      .from(localSessions)
+      .innerJoin(users, eq(users.id, localSessions.userId))
+      .leftJoin(userRoles, eq(userRoles.userId, users.id))
+      .leftJoin(roles, eq(roles.id, userRoles.roleId))
+      .where(and(
+        eq(localSessions.tokenHash, hashLocalSessionToken(token)),
+        isNull(localSessions.revokedAt),
+        gt(localSessions.expiresAt, new Date()),
+        eq(users.active, true),
+      ));
+
+    const first = rows[0];
+    if (!first) throw new AuthenticationError("Den lokale økten er utløpt eller ugyldig.");
+
+    await database.db.update(localSessions)
+      .set({ lastSeenAt: new Date() })
+      .where(eq(localSessions.id, first.sessionId));
+
+    return {
+      id: first.id,
+      name: first.name,
+      firstName: first.firstName,
+      lastName: first.lastName,
+      email: first.email,
+      wannabeId: first.wannabeId,
+      roles: [...new Set(rows.flatMap((row) => row.role ? [row.role] : []))],
+    };
   }
 }
 

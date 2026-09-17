@@ -59,7 +59,7 @@ php spark db:seed DatabaseSeeder
 Set-Location ../V2
 ```
 
-Kjør deretter `database/migrations/0001_bifrost_v2_foundation.sql` eksplisitt mot den lokale databasen. Sett OIDC-feltene i `system_settings` til base-URL `http://localhost:8081`, realm `bifrost-local`, client-id `bifrost-web`, redirect URI `http://localhost:3000/`, `enable_keycloak_login=1` og `enable_local_login=0`.
+Kjør deretter `database/migrations/0001_bifrost_v2_foundation.sql` og `database/migrations/0002_local_auth_sessions.sql` i nummerrekkefølge mot den lokale databasen. Sett OIDC-feltene i `system_settings` til base-URL `http://localhost:8081`, realm `bifrost-local`, client-id `bifrost-web`, redirect URI `http://localhost:3000/auth/callback` og `enable_keycloak_login=1`. `enable_local_login=1` viser i tillegg lokal V1-innlogging som reserve.
 
 Realm-importen oppretter PKCE-klienten og alle 11 V1-roller, men med vilje ingen brukere eller standardpassord. Opprett en lokal testbruker i Keycloak-konsollen, tildel ønskede realm-roller og sett tilsvarende `wannabe_role_name` på Bifrost-rollene som skal mappes. Uten rollemapping får nye OIDC-brukere rollen `bruker`.
 
@@ -92,9 +92,9 @@ VITE_API_URL
 VITE_API_TOKEN
 ```
 
-`VITE_API_TOKEN` er synlig i browser-bundlen og må derfor aldri være en serverhemmelighet. Brukeridentitet og tilgang skal håndheves med OIDC/Keycloak-token i API-et.
+`VITE_API_TOKEN` er synlig i browser-bundlen og må derfor aldri være en serverhemmelighet. Brukeridentitet og tilgang håndheves i API-et med enten OIDC/Keycloak-token eller et utløpende, ugjenfinnbart lokalt sesjonstoken.
 
-Etter OIDC-callback fullfører Web innloggingen mot `POST /api/v1/auth/session`. Vellykkede forsøk skrives til både V1-tabellen `login_attempts` og `audit_logs`; avviste bearer-token registreres anonymt i `login_attempts`. Token og claims lagres aldri i auditdata. V1-grensen på fem mislykkede forsøk per IP på 15 minutter beholdes, og videre forsøk får HTTP 429.
+Etter OIDC-callback fullfører Web innloggingen mot `POST /api/v1/auth/session`. Lokal innlogging bruker eksisterende Argon2id-hash i V1-tabellen `users` via `POST /api/v1/auth/local`; rått passord lagres aldri. Det tilfeldige lokale sesjonstokenet returneres én gang, mens bare SHA-256-hashen lagres i `bifrost_local_sessions` med 12 timers utløp og eksplisitt revokering ved utlogging. Vellykkede forsøk skrives til både V1-tabellen `login_attempts` og `audit_logs`; avviste bearer-token registreres anonymt i `login_attempts`. Token og claims lagres aldri i auditdata. V1-grensen på fem mislykkede forsøk per e-post/IP på 15 minutter beholdes, og videre forsøk får HTTP 429.
 
 Alle autoritative V1-roller og tilgangsgrupper er definert én gang i `packages/contracts`. API-et håndhever matrisen, Web bruker den samme katalogen til navigasjon, og CI tester alle 11 roller mot hvert tilgangsområde. Den dokumenterte matrisen og åpne stagingavklaringer ligger i [docs/domain-matrix.md](docs/domain-matrix.md).
 
@@ -102,7 +102,7 @@ Alle autoritative V1-roller og tilgangsgrupper er definert én gang i `packages/
 
 V1-tabellene beholdes. Drizzle-definisjonene i `packages/database` mapper mot eksisterende tabellnavn. Nye tekniske tabeller bruker `bifrost_`-prefiks.
 
-Kjør migreringen i `database/migrations/0001_bifrost_v2_foundation.sql` eksplisitt mot korrekt database før funksjoner som krever V2-jobbkø eller sikker konfigurasjon tas i bruk. Ta backup og verifiser restore først.
+Kjør migreringene under `database/migrations/` i nummerrekkefølge mot korrekt database før funksjoner som krever V2-jobbkø, sikker konfigurasjon eller lokal sesjonshåndtering tas i bruk. Ta backup og verifiser restore først.
 
 Etter tabellmigreringen kan eksisterende V1-hemmeligheter kopieres til kryptert V2-lagring:
 
@@ -134,11 +134,13 @@ Oppgavemodulen bruker V1-tabellen `tasks` og beholder V1s eierregler. Alle innlo
 
 Tilbakemeldinger og varsler bruker V1-tabellene `feedback_entries`, `feedback_notifications` og `feedback_notification_reads`. Alle innloggede uten `ingen_tilbakemeldinger` kan melde inn bugs/features, se egne åpne innmeldinger og slette egne ventende innmeldinger. `developer` og `logistikk` ser alle åpne innmeldinger, mens bare `developer` kan endre status. Nye vedlegg lagres under `V2/var/uploads/feedback` og speiles til `V1/writable/uploads/feedback`, slik at begge versjoner kan åpne dem under parallell drift; API-et leser fra begge områdene. Vedlegg er begrenset til validerte JPG/PNG/WEBP/GIF-filer på 5 MB, og alle filnedlastinger har eier-/rollekontroll. Det globale varselet beholder V1-flyten med de tre nyeste `fixed`/`added`-hendelsene og markering som lest.
 
-Kjerneadministrasjon bruker V1-tabellene `users`, `roles`, `user_roles`, `wannabe_competencies` og `system_settings`. `developer`, `chief` og `co-chief` kan opprette OIDC-klare brukere, styre aktiv-status, roller og kompetanser samt administrere lokale roller med de samme beskyttede rollenavnene som V1. De samme tre rollene har statistikk for alle V1-domenene direkte fra eksisterende tabeller. Bare `developer` ser og endrer systeminnstillinger. Hemmeligheter returneres aldri til Web og nye verdier skrives kun kryptert til `bifrost_secure_settings`; audit inneholder bare hvilke hemmelighetsnøkler som ble endret. Lokal passordinvitasjon videreføres ikke fordi Keycloak/OIDC er obligatorisk, og V2 tvinger lokal innlogging av.
+Kjerneadministrasjon bruker V1-tabellene `users`, `roles`, `user_roles`, `wannabe_competencies` og `system_settings`. `developer`, `chief` og `co-chief` kan opprette OIDC-klare brukere, styre aktiv-status, roller og kompetanser samt administrere lokale roller med de samme beskyttede rollenavnene som V1. De samme tre rollene har statistikk for alle V1-domenene direkte fra eksisterende tabeller. Bare `developer` ser og endrer systeminnstillinger, inkludert databasebryteren for lokal reserveinnlogging; Keycloak kan ikke slås av i V2. Hemmeligheter returneres aldri til Web og nye verdier skrives kun kryptert til `bifrost_secure_settings`; audit inneholder bare hvilke hemmelighetsnøkler som ble endret.
 
 V1-funksjonen «Tøm crew-cache og brukere» er bevart med samme sluttresultat, men er eksplisitt merket som destruktiv crew-reset. Bare `developer` får forhåndsvise eller kjøre den. Web viser antall rader som berøres, krever en eksakt bekreftelsesfrase og en siste dialog; API-et validerer frasen på nytt, blokkerer hvis beskyttet bruker-ID 2 mangler og utfører slettingene i én transaksjon uten `TRUNCATE`. Operasjonen skal aldri brukes som vanlig cachevedlikehold.
 
 Dashboardet er startsiden for alle innloggede og viderefører V1s aktive utstyrs-/sambandsutlån, kjøretøylån, transporter, kjørt distanse og utstyr per lokasjon. Globalt søk er tilgjengelig for `developer`, `chief`, `co-chief` og `logistikk`, med de samme V1-feltene og grensen på 25 utstyrstreff og 25 utlånstreff. Jokertegn i brukerinput escapes før databasesøket.
+
+Strekkodeverktøyet genererer V1-kompatible `.udl`-filer fra enkeltkoder, intervaller eller begge deler. API-et bevarer UTF-8 BOM, CRLF, nullutfylling og rekkefølgebasert duplikatfjerning fra V1. Tilgangen følger logistikkrollene, og hver eksport begrenses til 100 000 unike koder for å beskytte API-prosessen.
 
 ## PM2
 

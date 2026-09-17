@@ -1,14 +1,11 @@
-import type { OidcPublicConfig } from "@bifrost/contracts";
 import { UserManager, WebStorageStateStore, type User } from "oidc-client-ts";
-import { createHeaders, getApiUrl } from "../api/client";
+import { getAuthConfig } from "../api/client";
 
 let managerPromise: Promise<UserManager> | undefined;
 
 export function getUserManager(): Promise<UserManager> {
-  managerPromise ??= fetch(`${getApiUrl()}/api/v1/auth/config`, { headers: createHeaders() })
-    .then(async (response) => {
-      if (!response.ok) throw new Error("OIDC-konfigurasjonen er ikke tilgjengelig.");
-      const config = await response.json() as OidcPublicConfig;
+  managerPromise ??= getAuthConfig()
+    .then((config) => {
       return new UserManager({
         authority: config.authority,
         client_id: config.clientId,

@@ -2,6 +2,8 @@ import { buildApp } from "./app.js";
 import { createDatabase, readDatabaseConfig } from "@bifrost/database";
 import { createAuthService } from "./modules/auth/service.js";
 import { createAuthLoginService } from "./modules/auth/login-audit.js";
+import { createLocalAuthService } from "./modules/auth/local-login.js";
+import { createBarcodeService } from "./modules/barcodes/service.js";
 import { createEquipmentService } from "./modules/equipment/service.js";
 import { createCategoryService } from "./modules/categories/service.js";
 import { createLocationService } from "./modules/locations/service.js";
@@ -32,6 +34,8 @@ const auth = createAuthService(database);
 const app = buildApp({
   auth,
   login: createAuthLoginService(database, auth),
+  localAuth: createLocalAuthService(database),
+  barcodes: createBarcodeService(),
   equipment: createEquipmentService(database),
   categories: createCategoryService(database),
   locations: createLocationService(database),

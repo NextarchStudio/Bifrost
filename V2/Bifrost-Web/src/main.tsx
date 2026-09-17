@@ -1,7 +1,7 @@
 import { hasBifrostAccess, isBifrostDenied, type CurrentUser } from "@bifrost/contracts";
-import { StrictMode, useEffect, useState } from "react";
+import { StrictMode, useEffect, useState, type FormEvent } from "react";
 import { createRoot } from "react-dom/client";
-import { completeLoginSession, getCurrentUser } from "./api/client";
+import { completeLoginSession, getAuthConfig, getCurrentUser, loginLocal, logoutLocal } from "./api/client";
 import { beginSignIn, completeSignIn, getSignedInUser, signOut } from "./auth/oidc";
 import { EquipmentWorkspace } from "./features/equipment/EquipmentWorkspace";
 import { LocationWorkspace } from "./features/locations/LocationWorkspace";
@@ -20,11 +20,12 @@ import { NotificationCenter } from "./features/feedback/NotificationCenter";
 import { AdminWorkspace } from "./features/admin/AdminWorkspace";
 import { DashboardWorkspace } from "./features/dashboard/DashboardWorkspace";
 import { GlobalSearch } from "./features/dashboard/GlobalSearch";
+import { BarcodeWorkspace } from "./features/barcodes/BarcodeWorkspace";
 import "./styles.css";
 
 type SessionState =
   | { status: "loading" }
-  | { status: "anonymous" }
+  | { status: "anonymous"; localLoginEnabled: boolean }
   | { status: "authenticated"; user: CurrentUser; accessToken: string }
   | { status: "error"; message: string };
 
@@ -36,9 +37,25 @@ function App() {
     const load = async () => {
       try {
         const isCallback = window.location.pathname === "/auth/callback";
+        if (!isCallback) {
+          const localToken = window.sessionStorage.getItem(LOCAL_TOKEN_STORAGE_KEY);
+          if (localToken) {
+            try {
+              const user = await getCurrentUser(localToken);
+              setSession({ status: "authenticated", user, accessToken: localToken });
+              return;
+            } catch {
+              window.sessionStorage.removeItem(LOCAL_TOKEN_STORAGE_KEY);
+            }
+          }
+        }
+
         const oidcUser = isCallback ? await completeSignIn() : await getSignedInUser();
         if (isCallback) window.history.replaceState({}, "", "/dashboard");
-        if (!oidcUser || oidcUser.expired) return setSession({ status: "anonymous" });
+        if (!oidcUser || oidcUser.expired) {
+          const config = await getAuthConfig();
+          return setSession({ status: "anonymous", localLoginEnabled: Boolean(config.localLoginEnabled) });
+        }
         const user = isCallback
           ? await completeLoginSession(oidcUser.access_token)
           : await getCurrentUser(oidcUser.access_token);
@@ -61,6 +78,26 @@ function App() {
     window.history.pushState({}, "", `/${nextWorkspace}`);
   };
 
+  const handleLocalLogin = async (email: string, password: string) => {
+    const result = await loginLocal({ email, password });
+    window.sessionStorage.setItem(LOCAL_TOKEN_STORAGE_KEY, result.accessToken);
+    window.history.replaceState({}, "", "/dashboard");
+    setWorkspace("dashboard");
+    setSession({ status: "authenticated", user: result.user, accessToken: result.accessToken });
+  };
+
+  const handleSignOut = async () => {
+    if (session.status !== "authenticated") return;
+    if (session.accessToken.startsWith("bfl_")) {
+      try { await logoutLocal(session.accessToken); } finally {
+        window.sessionStorage.removeItem(LOCAL_TOKEN_STORAGE_KEY);
+        window.location.assign("/");
+      }
+      return;
+    }
+    await signOut();
+  };
+
   const hasLogisticsAccess = session.status === "authenticated" && hasBifrostAccess(session.user.roles, "logistics");
   const hasVehicleAccess = session.status === "authenticated" && hasBifrostAccess(session.user.roles, "vehicle");
   const hasTransportAccess = session.status === "authenticated" && hasBifrostAccess(session.user.roles, "transport");
@@ -77,11 +114,11 @@ function App() {
             <div className="grid size-10 place-items-center rounded-xl bg-emerald-300 font-black text-slate-950">B</div>
             <div><p className="font-semibold">Bifrost</p><p className="text-xs text-slate-500">TG Logistics</p></div>
           </div>
-          {session.status === "authenticated" && <div className="flex flex-wrap items-center gap-2"><nav className="mr-2 flex flex-wrap rounded-xl border border-white/10 bg-white/[.025] p-1" aria-label="Hovednavigasjon"><NavigationButton active={workspace === "dashboard"} onClick={() => navigate("dashboard")}>Dashboard</NavigationButton>{hasLogisticsAccess && <><NavigationButton active={workspace === "equipment"} onClick={() => navigate("equipment")}>Utstyr</NavigationButton><NavigationButton active={workspace === "warehouse"} onClick={() => navigate("warehouse")}>Lager</NavigationButton><NavigationButton active={workspace === "locations"} onClick={() => navigate("locations")}>Lokasjoner</NavigationButton><NavigationButton active={workspace === "loans"} onClick={() => navigate("loans")}>Utlån</NavigationButton><NavigationButton active={workspace === "private-equipment"} onClick={() => navigate("private-equipment")}>Privat utstyr</NavigationButton></>}{hasVehicleAccess && <NavigationButton active={workspace === "vehicles"} onClick={() => navigate("vehicles")}>Kjøretøy</NavigationButton>}{hasTransportAccess && <NavigationButton active={workspace === "transport"} onClick={() => navigate("transport")}>Transport</NavigationButton>}{hasCommsAccess && <NavigationButton active={workspace === "comms"} onClick={() => navigate("comms")}>Samband</NavigationButton>}{hasShopAccess && <NavigationButton active={workspace === "shop"} onClick={() => navigate("shop")}>Shop</NavigationButton>}<NavigationButton active={workspace === "tasks"} onClick={() => navigate("tasks")}>Oppgaver</NavigationButton><NavigationButton active={workspace === "requests"} onClick={() => navigate("requests")}>Forespørsler</NavigationButton>{hasFeedbackAccess && <NavigationButton active={workspace === "feedback"} onClick={() => navigate("feedback")}>Tilbakemeldinger</NavigationButton>}{hasAdminAccess && <NavigationButton active={workspace === "admin"} onClick={() => navigate("admin")}>Admin</NavigationButton>}<NavigationButton active={workspace === "profile"} onClick={() => navigate("profile")}>Profil</NavigationButton></nav>{hasLogisticsAccess && <GlobalSearch accessToken={session.accessToken} />}<NotificationCenter accessToken={session.accessToken} /><button className="rounded-lg border border-white/10 px-4 py-2 text-sm text-slate-300 hover:bg-white/5" onClick={() => void signOut()}>Logg ut</button></div>}
+          {session.status === "authenticated" && <div className="flex flex-wrap items-center gap-2"><nav className="mr-2 flex flex-wrap rounded-xl border border-white/10 bg-white/[.025] p-1" aria-label="Hovednavigasjon"><NavigationButton active={workspace === "dashboard"} onClick={() => navigate("dashboard")}>Dashboard</NavigationButton>{hasLogisticsAccess && <><NavigationButton active={workspace === "equipment"} onClick={() => navigate("equipment")}>Utstyr</NavigationButton><NavigationButton active={workspace === "warehouse"} onClick={() => navigate("warehouse")}>Lager</NavigationButton><NavigationButton active={workspace === "locations"} onClick={() => navigate("locations")}>Lokasjoner</NavigationButton><NavigationButton active={workspace === "loans"} onClick={() => navigate("loans")}>Utlån</NavigationButton><NavigationButton active={workspace === "private-equipment"} onClick={() => navigate("private-equipment")}>Privat utstyr</NavigationButton><NavigationButton active={workspace === "barcodes"} onClick={() => navigate("barcodes")}>Strekkoder</NavigationButton></>}{hasVehicleAccess && <NavigationButton active={workspace === "vehicles"} onClick={() => navigate("vehicles")}>Kjøretøy</NavigationButton>}{hasTransportAccess && <NavigationButton active={workspace === "transport"} onClick={() => navigate("transport")}>Transport</NavigationButton>}{hasCommsAccess && <NavigationButton active={workspace === "comms"} onClick={() => navigate("comms")}>Samband</NavigationButton>}{hasShopAccess && <NavigationButton active={workspace === "shop"} onClick={() => navigate("shop")}>Shop</NavigationButton>}<NavigationButton active={workspace === "tasks"} onClick={() => navigate("tasks")}>Oppgaver</NavigationButton><NavigationButton active={workspace === "requests"} onClick={() => navigate("requests")}>Forespørsler</NavigationButton>{hasFeedbackAccess && <NavigationButton active={workspace === "feedback"} onClick={() => navigate("feedback")}>Tilbakemeldinger</NavigationButton>}{hasAdminAccess && <NavigationButton active={workspace === "admin"} onClick={() => navigate("admin")}>Admin</NavigationButton>}<NavigationButton active={workspace === "profile"} onClick={() => navigate("profile")}>Profil</NavigationButton></nav>{hasLogisticsAccess && <GlobalSearch accessToken={session.accessToken} />}<NotificationCenter accessToken={session.accessToken} /><button className="rounded-lg border border-white/10 px-4 py-2 text-sm text-slate-300 hover:bg-white/5" onClick={() => void handleSignOut()}>Logg ut</button></div>}
         </header>
 
         {session.status === "authenticated" ? (
-          workspace === "dashboard" ? <DashboardWorkspace accessToken={session.accessToken} /> : workspace === "profile" ? <ProfileWorkspace accessToken={session.accessToken} currentUser={session.user} /> : workspace === "admin" ? (hasAdminAccess ? <AdminWorkspace accessToken={session.accessToken} /> : <NoAccessWorkspace user={session.user} />) : workspace === "feedback" ? (hasFeedbackAccess ? <FeedbackWorkspace accessToken={session.accessToken} /> : <NoAccessWorkspace user={session.user} />) : workspace === "tasks" ? <TaskWorkspace accessToken={session.accessToken} /> : workspace === "requests" ? <RequestWorkspace accessToken={session.accessToken} /> : workspace === "shop" ? (hasShopAccess ? <ShopWorkspace accessToken={session.accessToken} /> : <NoAccessWorkspace user={session.user} />) : workspace === "comms" ? (hasCommsAccess ? <CommsWorkspace accessToken={session.accessToken} /> : <NoAccessWorkspace user={session.user} />) : workspace === "transport" ? (hasTransportAccess ? <TransportWorkspace accessToken={session.accessToken} /> : <NoAccessWorkspace user={session.user} />) : workspace === "vehicles" ? (hasVehicleAccess ? <VehicleWorkspace accessToken={session.accessToken} /> : <NoAccessWorkspace user={session.user} />) : !hasLogisticsAccess ? <NoAccessWorkspace user={session.user} /> : workspace === "locations" ? <LocationWorkspace accessToken={session.accessToken} /> : workspace === "warehouse" ? <WarehouseWorkspace accessToken={session.accessToken} /> : workspace === "loans" ? <LoanWorkspace accessToken={session.accessToken} /> : workspace === "private-equipment" ? <PrivateEquipmentWorkspace accessToken={session.accessToken} /> : <EquipmentWorkspace user={session.user} accessToken={session.accessToken} />
+          workspace === "dashboard" ? <DashboardWorkspace accessToken={session.accessToken} /> : workspace === "profile" ? <ProfileWorkspace accessToken={session.accessToken} currentUser={session.user} /> : workspace === "admin" ? (hasAdminAccess ? <AdminWorkspace accessToken={session.accessToken} /> : <NoAccessWorkspace user={session.user} />) : workspace === "feedback" ? (hasFeedbackAccess ? <FeedbackWorkspace accessToken={session.accessToken} /> : <NoAccessWorkspace user={session.user} />) : workspace === "tasks" ? <TaskWorkspace accessToken={session.accessToken} /> : workspace === "requests" ? <RequestWorkspace accessToken={session.accessToken} /> : workspace === "shop" ? (hasShopAccess ? <ShopWorkspace accessToken={session.accessToken} /> : <NoAccessWorkspace user={session.user} />) : workspace === "comms" ? (hasCommsAccess ? <CommsWorkspace accessToken={session.accessToken} /> : <NoAccessWorkspace user={session.user} />) : workspace === "transport" ? (hasTransportAccess ? <TransportWorkspace accessToken={session.accessToken} /> : <NoAccessWorkspace user={session.user} />) : workspace === "vehicles" ? (hasVehicleAccess ? <VehicleWorkspace accessToken={session.accessToken} /> : <NoAccessWorkspace user={session.user} />) : !hasLogisticsAccess ? <NoAccessWorkspace user={session.user} /> : workspace === "locations" ? <LocationWorkspace accessToken={session.accessToken} /> : workspace === "warehouse" ? <WarehouseWorkspace accessToken={session.accessToken} /> : workspace === "loans" ? <LoanWorkspace accessToken={session.accessToken} /> : workspace === "private-equipment" ? <PrivateEquipmentWorkspace accessToken={session.accessToken} /> : workspace === "barcodes" ? <BarcodeWorkspace accessToken={session.accessToken} /> : <EquipmentWorkspace user={session.user} accessToken={session.accessToken} />
         ) : <section className="grid flex-1 items-center gap-12 py-16 lg:grid-cols-[1.15fr_.85fr]">
           <div>
             <p className="mb-5 text-xs font-bold tracking-[.22em] text-emerald-300">BIFROST V2 · SIKKER LOGISTIKK</p>
@@ -91,14 +128,7 @@ function App() {
 
           <div className="rounded-3xl border border-white/10 bg-white/[.035] p-7 shadow-2xl shadow-black/30 backdrop-blur">
             {session.status === "loading" && <Status title="Kobler til Bifrost" detail="Kontrollerer sikker økt …" />}
-            {session.status === "anonymous" && (
-              <>
-                <p className="text-sm font-medium text-emerald-300">Sikker innlogging</p>
-                <h2 className="mt-3 text-2xl font-semibold">Fortsett med Keycloak</h2>
-                <p className="mt-3 leading-7 text-slate-400">Bruk din autoriserte The Gathering-konto. Lokal innlogging er ikke tilgjengelig i V2.</p>
-                <button className="mt-8 w-full rounded-xl bg-emerald-300 px-5 py-3.5 font-semibold text-slate-950 hover:bg-emerald-200" onClick={() => void beginSignIn()}>Logg inn</button>
-              </>
-            )}
+            {session.status === "anonymous" && <LoginPanel localLoginEnabled={session.localLoginEnabled} onLocalLogin={handleLocalLogin} />}
             {session.status === "error" && <Status title="Kunne ikke koble til" detail={session.message} error />}
           </div>
         </section>}
@@ -107,7 +137,41 @@ function App() {
   );
 }
 
-type Workspace = "dashboard" | "equipment" | "warehouse" | "locations" | "loans" | "private-equipment" | "requests" | "vehicles" | "transport" | "comms" | "shop" | "tasks" | "feedback" | "admin" | "profile";
+const LOCAL_TOKEN_STORAGE_KEY = "bifrost.local.access_token";
+
+function LoginPanel({ localLoginEnabled, onLocalLogin }: { localLoginEnabled: boolean; onLocalLogin: (email: string, password: string) => Promise<void> }) {
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    setBusy(true);
+    setError(null);
+    try {
+      await onLocalLogin(String(form.get("email") ?? ""), String(form.get("password") ?? ""));
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Lokal innlogging feilet.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return <>
+    <p className="text-sm font-medium text-emerald-300">Sikker innlogging</p>
+    <h2 className="mt-3 text-2xl font-semibold">Logg inn i Bifrost</h2>
+    <p className="mt-3 leading-7 text-slate-400">Keycloak er hovedinnloggingen. Lokal V1-konto kan brukes når reserveinnlogging er aktivert.</p>
+    {localLoginEnabled && <form className="mt-6 grid gap-3" onSubmit={(event) => void submit(event)}>
+      <label><span className="mb-2 block text-sm text-slate-400">E-post</span><input name="email" type="email" required autoComplete="username" className="w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 outline-none focus:border-emerald-300/60" /></label>
+      <label><span className="mb-2 block text-sm text-slate-400">Passord</span><input name="password" type="password" required autoComplete="current-password" className="w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 outline-none focus:border-emerald-300/60" /></label>
+      {error && <p className="text-sm text-rose-300" role="alert">{error}</p>}
+      <button disabled={busy} className="rounded-xl border border-emerald-300/30 px-5 py-3.5 font-semibold text-emerald-200 hover:bg-emerald-300/10 disabled:opacity-50">{busy ? "Logger inn …" : "Logg inn lokalt"}</button>
+    </form>}
+    {localLoginEnabled && <div className="my-5 flex items-center gap-3 text-xs text-slate-600"><span className="h-px flex-1 bg-white/10" />eller<span className="h-px flex-1 bg-white/10" /></div>}
+    <button className={`${localLoginEnabled ? "" : "mt-8 "}w-full rounded-xl bg-emerald-300 px-5 py-3.5 font-semibold text-slate-950 hover:bg-emerald-200`} onClick={() => void beginSignIn()}>Fortsett med Keycloak</button>
+  </>;
+}
+
+type Workspace = "dashboard" | "equipment" | "warehouse" | "locations" | "loans" | "private-equipment" | "barcodes" | "requests" | "vehicles" | "transport" | "comms" | "shop" | "tasks" | "feedback" | "admin" | "profile";
 
 function workspaceFromPath(): Workspace {
   if (window.location.pathname === "/dashboard" || window.location.pathname === "/") return "dashboard";
@@ -116,6 +180,7 @@ function workspaceFromPath(): Workspace {
   if (window.location.pathname === "/warehouse") return "warehouse";
   if (window.location.pathname === "/loans") return "loans";
   if (window.location.pathname === "/private-equipment") return "private-equipment";
+  if (window.location.pathname === "/barcodes" || window.location.pathname === "/strekkoder") return "barcodes";
   if (window.location.pathname === "/requests") return "requests";
   if (window.location.pathname === "/vehicles") return "vehicles";
   if (window.location.pathname === "/transport") return "transport";

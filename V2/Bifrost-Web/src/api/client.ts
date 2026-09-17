@@ -1,6 +1,25 @@
-import type { AdminCrewResetPreview, AdminRole, AdminSettings, AdminStatistics, AdminWorkspaceResponse, ApiError, CommsItemType, CommsWorkspaceResponse, CrewClothingItemType, CrewClothingMember, CrewClothingWorkspaceResponse, CrewProfile, CurrentUser, DashboardSummary, EquipmentCategory, EquipmentListResponse, EquipmentLoanIssueResponse, EquipmentLoanListResponse, EquipmentLoanReturnResponse, EquipmentMutationResponse, EquipmentRequestWorkspaceResponse, FeedbackNotificationResponse, FeedbackStatus, FeedbackType, FeedbackWorkspaceResponse, GlobalSearchResponse, Location, Pallet, PalletInspection, PrivateEquipmentNotice, PrivateEquipmentRule, ShopImportSummary, ShopWorkspaceResponse, TaskPriority, TaskStatus, TaskType, TaskWorkspaceResponse, TransportJob, TransportJobKind, TransportWorkspaceResponse, UserProfileResponse, VehicleCompetencyCode, VehicleCompetencyProfile, VehicleCompetencyRequirement, VehicleLoanIssueResponse, VehicleWorkspaceResponse } from "@bifrost/contracts";
+import type { AdminCrewResetPreview, AdminRole, AdminSettings, AdminStatistics, AdminWorkspaceResponse, ApiError, BarcodeExportRequest, CommsItemType, CommsWorkspaceResponse, CrewClothingItemType, CrewClothingMember, CrewClothingWorkspaceResponse, CrewProfile, CurrentUser, DashboardSummary, EquipmentCategory, EquipmentListResponse, EquipmentLoanIssueResponse, EquipmentLoanListResponse, EquipmentLoanReturnResponse, EquipmentMutationResponse, EquipmentRequestWorkspaceResponse, FeedbackNotificationResponse, FeedbackStatus, FeedbackType, FeedbackWorkspaceResponse, GlobalSearchResponse, LocalLoginRequest, LocalLoginResponse, Location, OidcPublicConfig, Pallet, PalletInspection, PrivateEquipmentNotice, PrivateEquipmentRule, ShopImportSummary, ShopWorkspaceResponse, TaskPriority, TaskStatus, TaskType, TaskWorkspaceResponse, TransportJob, TransportJobKind, TransportWorkspaceResponse, UserProfileResponse, VehicleCompetencyCode, VehicleCompetencyProfile, VehicleCompetencyRequirement, VehicleLoanIssueResponse, VehicleWorkspaceResponse } from "@bifrost/contracts";
 
 const apiUrl = (import.meta.env.VITE_API_URL || "http://localhost:3001").replace(/\/$/, "");
+
+export async function getAuthConfig(): Promise<OidcPublicConfig> {
+  const response = await fetch(`${apiUrl}/api/v1/auth/config`, { headers: createHeaders() });
+  if (!response.ok) throw await createApiError(response, "Innloggingskonfigurasjonen er ikke tilgjengelig.");
+  return response.json() as Promise<OidcPublicConfig>;
+}
+
+export async function loginLocal(input: LocalLoginRequest): Promise<LocalLoginResponse> {
+  const headers = createHeaders();
+  headers.set("Content-Type", "application/json");
+  const response = await fetch(`${apiUrl}/api/v1/auth/local`, { method: "POST", headers, body: JSON.stringify(input) });
+  if (!response.ok) throw await createApiError(response, "Lokal innlogging feilet.");
+  return response.json() as Promise<LocalLoginResponse>;
+}
+
+export async function logoutLocal(accessToken: string): Promise<void> {
+  const response = await fetch(`${apiUrl}/api/v1/auth/logout`, { method: "POST", headers: createHeaders(accessToken) });
+  if (!response.ok) throw await createApiError(response, "Lokal utlogging feilet.");
+}
 
 export async function getDashboardSummary(accessToken: string): Promise<DashboardSummary> {
   const response = await fetch(`${apiUrl}/api/v1/dashboard`, { headers: createHeaders(accessToken) });
@@ -12,6 +31,24 @@ export async function globalSearch(accessToken: string, term: string): Promise<G
   const response = await fetch(`${apiUrl}/api/v1/search?q=${encodeURIComponent(term)}`, { headers: createHeaders(accessToken) });
   if (!response.ok) throw await createApiError(response, "Kunne ikke søke.");
   return response.json() as Promise<GlobalSearchResponse>;
+}
+
+export async function exportBarcodes(
+  accessToken: string,
+  input: BarcodeExportRequest,
+): Promise<{ content: Blob; filename: string; count: number }> {
+  const headers = createHeaders(accessToken);
+  headers.set("Content-Type", "application/json");
+  const response = await fetch(`${apiUrl}/api/v1/barcodes/export`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(input),
+  });
+  if (!response.ok) throw await createApiError(response, "Kunne ikke eksportere strekkodene.");
+  const disposition = response.headers.get("Content-Disposition") ?? "";
+  const filename = /filename="([^"]+)"/.exec(disposition)?.[1] ?? "strekkoder.udl";
+  const count = Number(response.headers.get("X-Barcode-Count") ?? 0);
+  return { content: await response.blob(), filename, count };
 }
 
 export async function getCurrentUser(accessToken: string): Promise<CurrentUser> {

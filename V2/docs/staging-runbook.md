@@ -35,7 +35,7 @@ pnpm check
 
 ## 5. V2-tabeller og krypterte innstillinger
 
-1. Kjør `database/migrations/0001_bifrost_v2_foundation.sql` eksplisitt mot stagingdatabasen.
+1. Kjør `database/migrations/0001_bifrost_v2_foundation.sql` og `database/migrations/0002_local_auth_sessions.sql` i nummerrekkefølge mot stagingdatabasen.
 2. Bygg API-et og migrer eksisterende hemmeligheter:
 
 ```bash
@@ -56,7 +56,7 @@ Preflighten endrer ingen data. Den skal ende med null feil og kontrollerer:
 
 - MariaDB-versjon og aktiv database;
 - alle tabeller og kolonner som V2s datalag forventer;
-- `system_settings.id=1`, obligatorisk Keycloak og avslått lokal innlogging;
+- `system_settings.id=1`, obligatorisk Keycloak og status for databasekontrollert lokal reserveinnlogging;
 - alle autoritative V1-roller;
 - beskyttet bruker-ID 2;
 - V2-tabellen for krypterte innstillinger og lokal 32-byte master key.

@@ -16,18 +16,59 @@ ss -H -ltnp 'sport = :3102 or sport = :3103'
 
 Kommandoen skal ikke gi noen linjer før Bifrost startes.
 
-## Rewrite-regler
+## Vhost-proxy
 
-Ta kopi av eksisterende vhost-/rewrite-konfigurasjon før cutover. Legg deretter inn følgende regler under **Websites → List Websites → Manage → Rewrite Rules** for både `tg.legacyh.dev` og `bifrost.tg.no`:
+Ta kopi av eksisterende vhost-konfigurasjon før cutover. Legg følgende blokker på toppnivå i vhost-konfigurasjonen for både `tg.legacyh.dev` og `bifrost.tg.no`. De skal ikke plasseres inne i den eksisterende `rewrite`-blokken:
 
-```apache
-RewriteEngine On
-RewriteRule ^api/(.*)$ http://127.0.0.1:3103/api/$1 [P,L]
-RewriteRule ^(health|ready)$ http://127.0.0.1:3103/$1 [P,L]
-RewriteRule ^(.*)$ http://127.0.0.1:3102/$1 [P,L]
+```text
+extprocessor bifrost_web {
+  type                    proxy
+  address                 127.0.0.1:3102
+  maxConns                100
+  pcKeepAliveTimeout      60
+  initTimeout             60
+  retryTimeout            0
+  respBuffer              0
+}
+
+extprocessor bifrost_api {
+  type                    proxy
+  address                 127.0.0.1:3103
+  maxConns                100
+  pcKeepAliveTimeout      60
+  initTimeout             60
+  retryTimeout            0
+  respBuffer              0
+}
+
+context /api/ {
+  type                    proxy
+  handler                 bifrost_api
+  addDefaultCharset       off
+}
+
+context /health {
+  type                    proxy
+  handler                 bifrost_api
+  addDefaultCharset       off
+}
+
+context /ready {
+  type                    proxy
+  handler                 bifrost_api
+  addDefaultCharset       off
+}
+
+context / {
+  type                    proxy
+  handler                 bifrost_web
+  addDefaultCharset       off
+}
 ```
 
-Reglene må stå i denne rekkefølgen. API- og helserutene må treffes før fallback-regelen for Web. Utfør en **Graceful Restart** av OpenLiteSpeed etter lagring.
+Den eksisterende ACME-konteksten beholdes urørt. OpenLiteSpeed velger den mest spesifikke konteksten, slik at `/api/`, `/health`, `/ready` og `/.well-known/acme-challenge` ikke havner i Web-fallbacken. Utfør en **Graceful Restart** etter lagring og kontroller konfigurasjonsloggen før cutover.
+
+`Bifrost-Worker` har ingen HTTP-port og skal derfor ikke ha `extprocessor` eller `context`. `http://127.0.0.1:3000` er utviklingsmiljøet og skal ikke registreres som en offentlig CyberPanel-vhost.
 
 ## Kontroll
 
@@ -48,4 +89,3 @@ curl -fsS https://tg.legacyh.dev/ready
 ```
 
 Gjenta kontrollen for `https://bifrost.tg.no` etter at DNS og TLS er aktivt.
-

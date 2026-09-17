@@ -163,6 +163,9 @@ test("publishes OIDC configuration without authentication", async () => {
         clientId: "bifrost-web",
         redirectUri: "http://localhost:3000/auth/callback",
         scope: "openid profile email",
+        appName: "Bifrost Test",
+        logoUrl: "https://assets.example.test/logo.svg",
+        faviconUrl: "https://assets.example.test/favicon.svg",
       }),
       authenticate: async () => { throw new Error("not called"); },
     },
@@ -170,6 +173,9 @@ test("publishes OIDC configuration without authentication", async () => {
   const response = await app.inject({ method: "GET", url: "/api/v1/auth/config" });
   assert.equal(response.statusCode, 200);
   assert.equal(response.json().clientId, "bifrost-web");
+  assert.equal(response.json().appName, "Bifrost Test");
+  assert.equal(response.json().logoUrl, "https://assets.example.test/logo.svg");
+  assert.equal(response.json().faviconUrl, "https://assets.example.test/favicon.svg");
   await app.close();
 });
 

@@ -100,6 +100,9 @@ export interface OidcPublicConfig {
   redirectUri: string;
   scope: "openid profile email";
   localLoginEnabled?: boolean;
+  appName?: string;
+  logoUrl?: string | null;
+  faviconUrl?: string | null;
 }
 
 export interface CurrentUser {

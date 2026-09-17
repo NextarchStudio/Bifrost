@@ -35,6 +35,9 @@ export function createAuthService(database: DatabaseConnection, verifyToken: Ver
         clientId: systemSettings.keycloakClientId,
         redirectUri: systemSettings.keycloakRedirectUri,
         localLoginEnabled: systemSettings.enableLocalLogin,
+        appName: systemSettings.appName,
+        logoUrl: systemSettings.logoUrl,
+        faviconUrl: systemSettings.faviconUrl,
       })
       .from(systemSettings)
       .where(eq(systemSettings.id, 1))
@@ -50,6 +53,9 @@ export function createAuthService(database: DatabaseConnection, verifyToken: Ver
       redirectUri: settings.redirectUri,
       scope: "openid profile email",
       localLoginEnabled: settings.localLoginEnabled,
+      appName: settings.appName?.trim() || "Bifrost",
+      logoUrl: settings.logoUrl?.trim() || null,
+      faviconUrl: settings.faviconUrl?.trim() || null,
     };
   };
 

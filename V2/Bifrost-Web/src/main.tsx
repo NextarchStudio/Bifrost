@@ -1,4 +1,4 @@
-import { hasBifrostAccess, isBifrostDenied, type CurrentUser } from "@bifrost/contracts";
+import { hasBifrostAccess, isBifrostDenied, type CurrentUser, type OidcPublicConfig } from "@bifrost/contracts";
 import { StrictMode, useEffect, useState, type FormEvent } from "react";
 import { createRoot } from "react-dom/client";
 import { completeLoginSession, getAuthConfig, getCurrentUser, loginLocal, logoutLocal } from "./api/client";
@@ -33,6 +33,7 @@ type SessionState =
 function App() {
   const [session, setSession] = useState<SessionState>({ status: "loading" });
   const [workspace, setWorkspace] = useState<Workspace>(workspaceFromPath());
+  const [branding, setBranding] = useState<AppBranding>(DEFAULT_BRANDING);
 
   useEffect(() => {
     const load = async () => {
@@ -44,6 +45,7 @@ function App() {
             try {
               const user = await getCurrentUser(localToken);
               setSession({ status: "authenticated", user, accessToken: localToken });
+              void getAuthConfig().then((config) => updateBranding(config, setBranding)).catch(() => undefined);
               return;
             } catch {
               window.sessionStorage.removeItem(LOCAL_TOKEN_STORAGE_KEY);
@@ -51,10 +53,11 @@ function App() {
           }
         }
 
+        const config = await getAuthConfig();
+        updateBranding(config, setBranding);
         const oidcUser = isCallback ? await completeSignIn() : await getSignedInUser();
         if (isCallback) window.history.replaceState({}, "", "/dashboard");
         if (!oidcUser || oidcUser.expired) {
-          const config = await getAuthConfig();
           return setSession({ status: "anonymous", localLoginEnabled: Boolean(config.localLoginEnabled) });
         }
         const user = isCallback
@@ -122,10 +125,11 @@ function App() {
         feedback: hasFeedbackAccess,
         admin: hasAdminAccess,
       }}
+      branding={branding}
     />;
   }
 
-  return <PublicShell session={session} onLocalLogin={handleLocalLogin} />;
+  return <PublicShell session={session} onLocalLogin={handleLocalLogin} branding={branding} />;
 }
 
 type AuthenticatedSession = Extract<SessionState, { status: "authenticated" }>;
@@ -139,12 +143,13 @@ type WorkspaceAccess = {
   admin: boolean;
 };
 
-function AuthenticatedShell({ session, workspace, navigate, onSignOut, access }: {
+function AuthenticatedShell({ session, workspace, navigate, onSignOut, access, branding }: {
   session: AuthenticatedSession;
   workspace: Workspace;
   navigate: (workspace: Workspace) => void;
   onSignOut: () => Promise<void>;
   access: WorkspaceAccess;
+  branding: AppBranding;
 }) {
   const [navigationOpen, setNavigationOpen] = useState(false);
   const goTo = (next: Workspace) => {
@@ -187,7 +192,7 @@ function AuthenticatedShell({ session, workspace, navigate, onSignOut, access }:
     {navigationOpen && <button type="button" aria-label="Lukk navigasjon" className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm lg:hidden" onClick={() => setNavigationOpen(false)} />}
     <aside id="primary-navigation" className={`fixed inset-y-0 left-0 z-50 flex w-[17.5rem] flex-col border-r border-white/[.08] bg-[#091522] shadow-2xl shadow-black/40 transition-transform duration-200 lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 lg:shadow-none ${navigationOpen ? "translate-x-0" : "-translate-x-full"}`}>
       <div className="flex h-20 shrink-0 items-center justify-between border-b border-white/[.08] px-5">
-        <Brand />
+        <Brand branding={branding} />
         <button type="button" aria-label="Lukk meny" className="grid size-9 place-items-center rounded-lg text-slate-500 hover:bg-white/5 hover:text-slate-200 lg:hidden" onClick={() => setNavigationOpen(false)}>
           <span aria-hidden="true" className="text-xl">×</span>
         </button>
@@ -243,13 +248,14 @@ function AuthenticatedShell({ session, workspace, navigate, onSignOut, access }:
   </div>;
 }
 
-function PublicShell({ session, onLocalLogin }: {
+function PublicShell({ session, onLocalLogin, branding }: {
   session: Exclude<SessionState, { status: "authenticated" }>;
   onLocalLogin: (email: string, password: string) => Promise<void>;
+  branding: AppBranding;
 }) {
   return <main className="bifrost-scrollbar h-[100dvh] overflow-y-auto bg-[#07111d] text-slate-100">
     <div className="mx-auto flex min-h-screen max-w-6xl flex-col px-6 pt-8 md:px-10">
-      <header className="flex items-center border-b border-white/10 pb-5"><Brand /></header>
+      <header className="flex items-center border-b border-white/10 pb-5"><Brand branding={branding} /></header>
       <section className="grid flex-1 items-center gap-12 py-16 lg:grid-cols-[1.15fr_.85fr]">
         <div>
           <p className="mb-5 text-xs font-bold tracking-[.22em] text-emerald-300">BIFROST V2 · SIKKER LOGISTIKK</p>
@@ -288,10 +294,14 @@ function WorkspaceContent({ session, workspace, access }: { session: Authenticat
   return <EquipmentWorkspace user={session.user} accessToken={token} />;
 }
 
-function Brand() {
+function Brand({ branding }: { branding: AppBranding }) {
+  const [logoFailed, setLogoFailed] = useState(false);
+  useEffect(() => setLogoFailed(false), [branding.logoUrl]);
   return <div className="flex items-center gap-3">
-    <div className="grid size-10 place-items-center rounded-xl bg-emerald-300 font-black text-slate-950 shadow-lg shadow-emerald-300/10">B</div>
-    <div><p className="font-semibold leading-tight">Bifrost</p><p className="mt-1 text-[11px] text-slate-500">TG Logistics</p></div>
+    {branding.logoUrl && !logoFailed
+      ? <img src={branding.logoUrl} alt="TG logo" className="h-10 w-auto max-w-[6.5rem] object-contain" onError={() => setLogoFailed(true)} />
+      : <div className="grid size-10 place-items-center rounded-xl bg-emerald-300 font-black text-slate-950 shadow-lg shadow-emerald-300/10">B</div>}
+    <div><p className="font-semibold leading-tight">{branding.appName}</p><p className="mt-1 text-[11px] text-slate-500">TG Logistics</p></div>
   </div>;
 }
 
@@ -345,6 +355,28 @@ function initials(name: string) {
 }
 
 const LOCAL_TOKEN_STORAGE_KEY = "bifrost.local.access_token";
+
+type AppBranding = { appName: string; logoUrl: string | null; faviconUrl: string | null };
+const DEFAULT_BRANDING: AppBranding = { appName: "Bifrost", logoUrl: null, faviconUrl: null };
+
+function updateBranding(config: OidcPublicConfig, setBranding: (branding: AppBranding) => void): void {
+  const branding = {
+    appName: config.appName?.trim() || "Bifrost",
+    logoUrl: config.logoUrl?.trim() || null,
+    faviconUrl: config.faviconUrl?.trim() || null,
+  };
+  setBranding(branding);
+  document.title = branding.appName;
+  if (branding.faviconUrl) {
+    let favicon = document.querySelector<HTMLLinkElement>('link[rel~="icon"]');
+    if (!favicon) {
+      favicon = document.createElement("link");
+      favicon.rel = "icon";
+      document.head.append(favicon);
+    }
+    favicon.href = branding.faviconUrl;
+  }
+}
 
 function LoginPanel({ localLoginEnabled, onLocalLogin }: { localLoginEnabled: boolean; onLocalLogin: (email: string, password: string) => Promise<void> }) {
   const [error, setError] = useState<string | null>(null);

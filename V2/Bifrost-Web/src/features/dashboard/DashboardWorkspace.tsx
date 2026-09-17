@@ -1,0 +1,18 @@
+import type { DashboardSummary } from "@bifrost/contracts";
+import { useEffect, useState } from "react";
+import { getDashboardSummary } from "../../api/client";
+
+export function DashboardWorkspace({ accessToken }: { accessToken: string }) {
+  const [data, setData] = useState<DashboardSummary | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => { void getDashboardSummary(accessToken).then(setData).catch((reason) => setError(reason instanceof Error ? reason.message : "Kunne ikke hente dashboardet.")); }, [accessToken]);
+  if (!data) return <section className="grid flex-1 place-items-center py-16"><div className="text-center"><p className={error ? "text-rose-300" : "text-emerald-300"}>{error ? "Feil" : "Vent litt"}</p><h1 className="mt-2 text-2xl font-semibold">{error ? "Dashboardet kunne ikke lastes" : "Laster dashboard"}</h1><p className="mt-2 text-slate-500">{error ?? "Henter aktive operasjoner …"}</p></div></section>;
+  const maxLocationCount = Math.max(1, ...data.equipmentPerLocation.map((location) => location.equipmentCount));
+  return <section className="flex-1 py-8"><div className="mb-7"><p className="text-sm text-emerald-300">Operativ status</p><h1 className="mt-1 text-3xl font-semibold">Dashboard</h1><p className="mt-2 text-sm text-slate-500">Samme datagrunnlag som V1, lest direkte fra den eksisterende databasen.</p></div><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"><Metric label="Ting utlånt" value={data.activeLoans} detail="Utstyr og samband i aktive utlån" /><Metric label="Aktive kjøretøylån" value={data.activeVehicleLoans} detail="Kjøretøy som ikke er returnert" /><Metric label="Aktive transporter" value={data.activeTransportJobs} detail="Åpne, tildelte eller pågående" /><Metric label="Kjørt på oppdrag" value={data.totalTransportDistance} suffix="km" detail="Registrert transportdistanse" /></div><div className="mt-5 rounded-2xl border border-white/10 bg-white/[.025] p-5"><div className="flex items-end justify-between gap-4"><div><p className="text-sm text-slate-500">Lagerfordeling</p><h2 className="mt-1 text-xl font-semibold">Utstyr per lokasjon</h2></div><span className="rounded-full bg-white/5 px-3 py-1 text-xs text-slate-400">{data.equipmentPerLocation.length} lokasjoner</span></div>{data.equipmentPerLocation.length ? <div className="mt-5 grid gap-3">{data.equipmentPerLocation.map((location) => <div key={location.locationName} className="grid gap-2 sm:grid-cols-[minmax(10rem,1fr)_3fr_auto] sm:items-center"><span className="truncate text-sm text-slate-400">{location.locationName}</span><div className="h-2 overflow-hidden rounded-full bg-white/[.06]"><div className="h-full rounded-full bg-emerald-300/70" style={{ width: location.equipmentCount === 0 ? "0%" : `${Math.max(2, (location.equipmentCount / maxLocationCount) * 100)}%` }} /></div><span className="font-mono text-sm text-slate-300">{formatNumber(location.equipmentCount)}</span></div>)}</div> : <p className="mt-5 text-sm text-slate-500">Ingen lokasjoner er registrert.</p>}</div></section>;
+}
+
+function Metric({ label, value, suffix, detail }: { label: string; value: number; suffix?: string; detail: string }) {
+  return <article className="rounded-2xl border border-white/10 bg-white/[.025] p-5"><p className="text-sm text-slate-500">{label}</p><p className="mt-3 text-3xl font-semibold text-slate-100">{formatNumber(value)}{suffix && <span className="ml-1 text-base text-slate-500">{suffix}</span>}</p><p className="mt-2 text-xs leading-5 text-slate-600">{detail}</p></article>;
+}
+
+function formatNumber(value: number) { return new Intl.NumberFormat("nb-NO").format(value); }

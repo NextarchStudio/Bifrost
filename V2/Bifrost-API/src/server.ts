@@ -21,6 +21,7 @@ import { createCrewClothingService } from "./modules/crew-clothing/service.js";
 import { createTaskService } from "./modules/tasks/service.js";
 import { createFeedbackService } from "./modules/feedback/service.js";
 import { createAdminService } from "./modules/admin/service.js";
+import { createDashboardService } from "./modules/dashboard/service.js";
 import { resolve } from "node:path";
 
 const database = createDatabase(readDatabaseConfig());
@@ -49,6 +50,7 @@ const app = buildApp({
     readRoots: [resolve(process.cwd(), "../../V1/writable")],
   }),
   admin: createAdminService(database, secureSettings),
+  dashboard: createDashboardService(database),
   checkDatabase: async () => {
     const connection = await database.pool.getConnection();
     try {

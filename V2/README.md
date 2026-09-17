@@ -88,6 +88,8 @@ Kjerneadministrasjon bruker V1-tabellene `users`, `roles`, `user_roles`, `wannab
 
 V1-funksjonen «Tøm crew-cache og brukere» er bevart med samme sluttresultat, men er eksplisitt merket som destruktiv crew-reset. Bare `developer` får forhåndsvise eller kjøre den. Web viser antall rader som berøres, krever en eksakt bekreftelsesfrase og en siste dialog; API-et validerer frasen på nytt, blokkerer hvis beskyttet bruker-ID 2 mangler og utfører slettingene i én transaksjon uten `TRUNCATE`. Operasjonen skal aldri brukes som vanlig cachevedlikehold.
 
+Dashboardet er startsiden for alle innloggede og viderefører V1s aktive utstyrs-/sambandsutlån, kjøretøylån, transporter, kjørt distanse og utstyr per lokasjon. Globalt søk er tilgjengelig for `developer`, `chief`, `co-chief` og `logistikk`, med de samme V1-feltene og grensen på 25 utstyrstreff og 25 utlånstreff. Jokertegn i brukerinput escapes før databasesøket.
+
 ## PM2
 
 ```bash

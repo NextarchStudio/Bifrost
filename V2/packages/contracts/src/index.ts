@@ -774,3 +774,29 @@ export interface AdminCrewResetPreview {
   clearsProtectedUserBadge: boolean;
   cacheYear: number;
 }
+
+export interface DashboardSummary {
+  activeLoans: number;
+  activeVehicleLoans: number;
+  activeTransportJobs: number;
+  totalTransportDistance: number;
+  equipmentPerLocation: Array<{ locationName: string; equipmentCount: number }>;
+}
+
+export interface GlobalSearchResponse {
+  equipment: Array<{
+    id: number;
+    name: string;
+    serialNumber: string;
+    locationName: string | null;
+    palletName: string | null;
+    slotNumber: number | null;
+  }>;
+  loans: Array<{
+    id: number;
+    equipmentId: number;
+    wannabeId: number;
+    status: string;
+    issuedAt: string;
+  }>;
+}

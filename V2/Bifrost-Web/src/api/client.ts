@@ -1,6 +1,18 @@
-import type { AdminCrewResetPreview, AdminRole, AdminSettings, AdminStatistics, AdminWorkspaceResponse, ApiError, CommsItemType, CommsWorkspaceResponse, CrewClothingItemType, CrewClothingMember, CrewClothingWorkspaceResponse, CrewProfile, CurrentUser, EquipmentCategory, EquipmentListResponse, EquipmentLoanIssueResponse, EquipmentLoanListResponse, EquipmentLoanReturnResponse, EquipmentMutationResponse, EquipmentRequestWorkspaceResponse, FeedbackNotificationResponse, FeedbackStatus, FeedbackType, FeedbackWorkspaceResponse, Location, Pallet, PalletInspection, PrivateEquipmentNotice, PrivateEquipmentRule, ShopImportSummary, ShopWorkspaceResponse, TaskPriority, TaskStatus, TaskType, TaskWorkspaceResponse, TransportJob, TransportJobKind, TransportWorkspaceResponse, UserProfileResponse, VehicleCompetencyCode, VehicleCompetencyProfile, VehicleCompetencyRequirement, VehicleLoanIssueResponse, VehicleWorkspaceResponse } from "@bifrost/contracts";
+import type { AdminCrewResetPreview, AdminRole, AdminSettings, AdminStatistics, AdminWorkspaceResponse, ApiError, CommsItemType, CommsWorkspaceResponse, CrewClothingItemType, CrewClothingMember, CrewClothingWorkspaceResponse, CrewProfile, CurrentUser, DashboardSummary, EquipmentCategory, EquipmentListResponse, EquipmentLoanIssueResponse, EquipmentLoanListResponse, EquipmentLoanReturnResponse, EquipmentMutationResponse, EquipmentRequestWorkspaceResponse, FeedbackNotificationResponse, FeedbackStatus, FeedbackType, FeedbackWorkspaceResponse, GlobalSearchResponse, Location, Pallet, PalletInspection, PrivateEquipmentNotice, PrivateEquipmentRule, ShopImportSummary, ShopWorkspaceResponse, TaskPriority, TaskStatus, TaskType, TaskWorkspaceResponse, TransportJob, TransportJobKind, TransportWorkspaceResponse, UserProfileResponse, VehicleCompetencyCode, VehicleCompetencyProfile, VehicleCompetencyRequirement, VehicleLoanIssueResponse, VehicleWorkspaceResponse } from "@bifrost/contracts";
 
 const apiUrl = (import.meta.env.VITE_API_URL || "http://localhost:3001").replace(/\/$/, "");
+
+export async function getDashboardSummary(accessToken: string): Promise<DashboardSummary> {
+  const response = await fetch(`${apiUrl}/api/v1/dashboard`, { headers: createHeaders(accessToken) });
+  if (!response.ok) throw await createApiError(response, "Kunne ikke hente dashboardet.");
+  return response.json() as Promise<DashboardSummary>;
+}
+
+export async function globalSearch(accessToken: string, term: string): Promise<GlobalSearchResponse> {
+  const response = await fetch(`${apiUrl}/api/v1/search?q=${encodeURIComponent(term)}`, { headers: createHeaders(accessToken) });
+  if (!response.ok) throw await createApiError(response, "Kunne ikke søke.");
+  return response.json() as Promise<GlobalSearchResponse>;
+}
 
 export async function getCurrentUser(accessToken: string): Promise<CurrentUser> {
   const response = await fetch(`${apiUrl}/api/v1/me`, { headers: createHeaders(accessToken) });

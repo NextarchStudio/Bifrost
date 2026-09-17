@@ -38,6 +38,8 @@ import { registerFeedbackRoutes } from "./modules/feedback/routes.js";
 import type { FeedbackService } from "./modules/feedback/service.js";
 import { registerAdminRoutes } from "./modules/admin/routes.js";
 import type { AdminService } from "./modules/admin/service.js";
+import { registerDashboardRoutes } from "./modules/dashboard/routes.js";
+import type { DashboardService } from "./modules/dashboard/service.js";
 
 export interface AppDependencies {
   checkDatabase: () => Promise<void>;
@@ -60,6 +62,7 @@ export interface AppDependencies {
   tasks?: TaskService;
   feedback?: FeedbackService;
   admin?: AdminService;
+  dashboard?: DashboardService;
 }
 
 export function buildApp(dependencies: AppDependencies): FastifyInstance {
@@ -112,6 +115,7 @@ export function buildApp(dependencies: AppDependencies): FastifyInstance {
   if (dependencies.auth && dependencies.tasks) void registerTaskRoutes(app, dependencies.auth, dependencies.tasks);
   if (dependencies.auth && dependencies.feedback) void registerFeedbackRoutes(app, dependencies.auth, dependencies.feedback);
   if (dependencies.auth && dependencies.admin) void registerAdminRoutes(app, dependencies.auth, dependencies.admin);
+  if (dependencies.auth && dependencies.dashboard) void registerDashboardRoutes(app, dependencies.auth, dependencies.dashboard);
 
   app.setNotFoundHandler((request, reply) => {
     const body: ApiError = { error: { code: "NOT_FOUND", message: "Ressursen finnes ikke.", requestId: request.id } };

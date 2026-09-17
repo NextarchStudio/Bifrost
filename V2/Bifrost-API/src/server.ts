@@ -19,6 +19,7 @@ import { createCommsService } from "./modules/comms/service.js";
 import { createShopService } from "./modules/shop/service.js";
 import { createCrewClothingService } from "./modules/crew-clothing/service.js";
 import { createTaskService } from "./modules/tasks/service.js";
+import { createFeedbackService } from "./modules/feedback/service.js";
 import { resolve } from "node:path";
 
 const database = createDatabase(readDatabaseConfig());
@@ -41,6 +42,11 @@ const app = buildApp({
   shop: createShopService(database),
   crewClothing: createCrewClothingService(database, crew),
   tasks: createTaskService(database),
+  feedback: createFeedbackService(database, {
+    writeRoot: resolve(process.cwd(), "../var"),
+    mirrorWriteRoots: [resolve(process.cwd(), "../../V1/writable")],
+    readRoots: [resolve(process.cwd(), "../../V1/writable")],
+  }),
   checkDatabase: async () => {
     const connection = await database.pool.getConnection();
     try {

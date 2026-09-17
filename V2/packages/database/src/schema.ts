@@ -355,6 +355,42 @@ export const tasks = mysqlTable("tasks", {
   updatedAt: datetime("updated_at", { mode: "date" }).notNull(),
 });
 
+export const feedbackEntries = mysqlTable("feedback_entries", {
+  id: bigint({ mode: "number", unsigned: true }).primaryKey().autoincrement(),
+  requesterUserId: bigint("requester_user_id", { mode: "number", unsigned: true }).notNull(),
+  wannabeId: bigint("wannabe_id", { mode: "number", unsigned: true }),
+  requesterName: varchar("requester_name", { length: 180 }).notNull(),
+  type: varchar({ length: 20 }).notNull(),
+  title: varchar({ length: 180 }).notNull(),
+  description: text().notNull(),
+  needsDatabaseFix: boolean("needs_database_fix").notNull().default(false),
+  attachmentPath: varchar("attachment_path", { length: 255 }),
+  attachmentOriginalName: varchar("attachment_original_name", { length: 255 }),
+  attachmentMime: varchar("attachment_mime", { length: 120 }),
+  status: varchar({ length: 20 }).notNull().default("pending"),
+  developerNote: text("developer_note"),
+  resolvedAt: datetime("resolved_at", { mode: "date" }),
+  addedAt: datetime("added_at", { mode: "date" }),
+  createdAt: datetime("created_at", { mode: "date" }).notNull(),
+  updatedAt: datetime("updated_at", { mode: "date" }).notNull(),
+});
+
+export const feedbackNotifications = mysqlTable("feedback_notifications", {
+  id: bigint({ mode: "number", unsigned: true }).primaryKey().autoincrement(),
+  feedbackEntryId: bigint("feedback_entry_id", { mode: "number", unsigned: true }).notNull(),
+  status: varchar({ length: 20 }).notNull(),
+  title: varchar({ length: 180 }).notNull(),
+  message: text(),
+  createdAt: datetime("created_at", { mode: "date" }).notNull(),
+});
+
+export const feedbackNotificationReads = mysqlTable("feedback_notification_reads", {
+  id: bigint({ mode: "number", unsigned: true }).primaryKey().autoincrement(),
+  notificationId: bigint("notification_id", { mode: "number", unsigned: true }).notNull(),
+  userId: bigint("user_id", { mode: "number", unsigned: true }).notNull(),
+  seenAt: datetime("seen_at", { mode: "date" }).notNull(),
+}, (table) => [uniqueIndex("feedback_notification_reads_notification_user_unique").on(table.notificationId, table.userId)]);
+
 export const auditLogs = mysqlTable("audit_logs", {
   id: bigint({ mode: "number", unsigned: true }).primaryKey().autoincrement(),
   actorUserId: bigint("actor_user_id", { mode: "number", unsigned: true }).notNull(),

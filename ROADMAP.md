@@ -36,7 +36,7 @@ V1 er i dag en CodeIgniter 4-applikasjon med PHP 8.2+, MariaDB, server-renderte 
 | Fase 3 – lager og utstyr | Nær ferdig | Utstyr, kategoriadministrasjon, lokasjoner, paller, palleplasser, strekkodeflyt, inspeksjon, flytting, slettingsvern, audit og nytt React-design er implementert. Playwright og paritetstest mot representativ V1-database gjenstår. |
 | Fase 4 – utlån og forespørsler | Implementert, ikke staging-verifisert | Transaksjonelt flerlinje-utlån, retur, person-/badge-oppslag, private-utstyrsregler, utstyrsforespørsler, kjøretøy, kompetanse/KDO, kjøretøylån og profiloversikt er implementert i API og Web. Paritetstest mot anonymiserte stagingdata gjenstår. |
 | Fase 5 – transport, samband og shop | Implementert, ikke staging-verifisert | Transport, samband, Shop og crewtøy er implementert i API og Web, inkludert ruteestimat, kjørebok, sambandssett, utlån, varelager, badgeoppslag, utlevering og XLSX/XLS/CSV-/PDF-flyt. Paritetstest mot anonymiserte stagingdata gjenstår. |
-| Fase 6 – oppgaver, feedback og admin | Pågår | Oppgaver er implementert i API og Web med V1-eier-/lederregler og transportkobling. Feedback/varsler, admin, statistikk, dashboard og globalt søk gjenstår. |
+| Fase 6 – oppgaver, feedback og admin | Pågår | Oppgaver samt feedback/varsler er implementert i API og Web med V1-eier-/roller, transportkobling, lokale vedlegg og global lest-status. Admin, statistikk, dashboard og globalt søk gjenstår. |
 | Fase 7 – produksjonssetting | Ikke startet | Produksjonssetting, observasjonsperiode og kontrollert V1-avvikling følger etter funksjons- og dataparitet. |
 
 Teknisk fundament kjører som `Bifrost-API`, `Bifrost-Web` og `Bifrost-Worker`. V1-tabellene brukes direkte. Nye tekniske tabeller for kryptert konfigurasjon og jobbkø har `bifrost_`-prefiks. Hele V2 kan verifiseres med `pnpm check`.
@@ -48,7 +48,7 @@ Teknisk fundament kjører som `Bifrost-API`, `Bifrost-Web` og `Bifrost-Worker`. 
 3. Legg til Playwright-flyt for opprett utstyr → opprett palle → flytt → inspiser.
 4. Verifiser Keycloak-klient, redirect URI, roller og token-claims i staging.
 5. Paritetstest fase 4 og 5 mot anonymiserte data, inkludert Shop-import/eksport og crewtøyutlevering.
-6. Fortsett fase 6 med feedback/varsler og deretter admin/statistikk.
+6. Fortsett fase 6 med admin/statistikk, dashboard og globalt søk.
 
 ## 2. Omfanget i V1
 
@@ -204,7 +204,7 @@ Det viktigste valget er ikke rammeverket, men at domenelogikk ikke legges direkt
 
 ### Fase 6 – oppgaver, feedback, admin og rapportering
 
-**Status:** Pågår. Oppgaver er implementert i API og Web med egen-/lederinnsyn, tildeling, prioritet, frist, status og valgfri transportkobling. Feedback/varsler, admin, statistikk, dashboard og globalt søk gjenstår.
+**Status:** Pågår. Oppgaver er implementert i API og Web med egen-/lederinnsyn, tildeling, prioritet, frist, status og valgfri transportkobling. Feedback, lokalt lagrede bildevedlegg og globale statusvarsler er implementert med V1-rollene og eksisterende tabeller. Admin, statistikk, dashboard og globalt søk gjenstår.
 
 **Leveranser**
 

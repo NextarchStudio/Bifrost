@@ -34,6 +34,8 @@ import type { ShopService } from "./modules/shop/service.js";
 import type { CrewClothingService } from "./modules/crew-clothing/service.js";
 import { registerTaskRoutes } from "./modules/tasks/routes.js";
 import type { TaskService } from "./modules/tasks/service.js";
+import { registerFeedbackRoutes } from "./modules/feedback/routes.js";
+import type { FeedbackService } from "./modules/feedback/service.js";
 
 export interface AppDependencies {
   checkDatabase: () => Promise<void>;
@@ -54,6 +56,7 @@ export interface AppDependencies {
   shop?: ShopService;
   crewClothing?: CrewClothingService;
   tasks?: TaskService;
+  feedback?: FeedbackService;
 }
 
 export function buildApp(dependencies: AppDependencies): FastifyInstance {
@@ -67,6 +70,7 @@ export function buildApp(dependencies: AppDependencies): FastifyInstance {
   void app.register(cors, {
     origin: [/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/],
     allowedHeaders: ["Authorization", "Content-Type", "X-Bifrost-Client", "X-Request-Id"],
+    exposedHeaders: ["Content-Disposition"],
   });
 
   app.get("/health", async (): Promise<HealthResponse> => ({
@@ -103,6 +107,7 @@ export function buildApp(dependencies: AppDependencies): FastifyInstance {
     void registerShopRoutes(app, dependencies.auth, dependencies.shop, dependencies.crewClothing);
   }
   if (dependencies.auth && dependencies.tasks) void registerTaskRoutes(app, dependencies.auth, dependencies.tasks);
+  if (dependencies.auth && dependencies.feedback) void registerFeedbackRoutes(app, dependencies.auth, dependencies.feedback);
 
   app.setNotFoundHandler((request, reply) => {
     const body: ApiError = { error: { code: "NOT_FOUND", message: "Ressursen finnes ikke.", requestId: request.id } };

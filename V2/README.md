@@ -82,6 +82,8 @@ Crewtøy bruker V1-tabellene `crew_clothing_crews`, `crew_clothing_members` og `
 
 Oppgavemodulen bruker V1-tabellen `tasks` og beholder V1s eierregler. Alle innloggede kan se og endre status på egne oppgaver. `developer`, `chief`, `co-chief` og `logistikk` kan i tillegg opprette og tildele oppgaver, se alle oppgaver og koble dem til aktive transportoppdrag. Oppretting og statusendring har audit og kjøres transaksjonelt.
 
+Tilbakemeldinger og varsler bruker V1-tabellene `feedback_entries`, `feedback_notifications` og `feedback_notification_reads`. Alle innloggede uten `ingen_tilbakemeldinger` kan melde inn bugs/features, se egne åpne innmeldinger og slette egne ventende innmeldinger. `developer` og `logistikk` ser alle åpne innmeldinger, mens bare `developer` kan endre status. Nye vedlegg lagres under `V2/var/uploads/feedback` og speiles til `V1/writable/uploads/feedback`, slik at begge versjoner kan åpne dem under parallell drift; API-et leser fra begge områdene. Vedlegg er begrenset til validerte JPG/PNG/WEBP/GIF-filer på 5 MB, og alle filnedlastinger har eier-/rollekontroll. Det globale varselet beholder V1-flyten med de tre nyeste `fixed`/`added`-hendelsene og markering som lest.
+
 ## PM2
 
 ```bash

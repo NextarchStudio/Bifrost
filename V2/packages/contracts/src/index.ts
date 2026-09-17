@@ -618,3 +618,46 @@ export interface TaskWorkspaceResponse {
   users: TaskUserOption[];
   transportJobs: TaskTransportOption[];
 }
+
+export type FeedbackType = "bug" | "feature";
+export type FeedbackStatus = "pending" | "on_hold" | "approved" | "in_progress" | "fixed" | "added" | "rejected";
+
+export interface FeedbackEntry {
+  id: number;
+  requesterUserId: number;
+  wannabeId: number | null;
+  requesterName: string;
+  type: FeedbackType;
+  title: string;
+  description: string;
+  needsDatabaseFix: boolean;
+  hasAttachment: boolean;
+  attachmentOriginalName: string | null;
+  status: FeedbackStatus;
+  resolvedAt: string | null;
+  addedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FeedbackWorkspaceResponse {
+  canViewAll: boolean;
+  canManageAll: boolean;
+  myEntries: FeedbackEntry[];
+  allEntries: FeedbackEntry[];
+}
+
+export interface FeedbackNotification {
+  id: number;
+  status: "fixed" | "added";
+  statusLabel: string;
+  title: string;
+  message: string;
+  createdAt: string;
+  isRead: boolean;
+}
+
+export interface FeedbackNotificationResponse {
+  items: FeedbackNotification[];
+  unreadCount: number;
+}

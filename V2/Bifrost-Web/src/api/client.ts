@@ -1,4 +1,4 @@
-import type { ApiError, CommsItemType, CommsWorkspaceResponse, CrewClothingItemType, CrewClothingMember, CrewClothingWorkspaceResponse, CrewProfile, CurrentUser, EquipmentCategory, EquipmentListResponse, EquipmentLoanIssueResponse, EquipmentLoanListResponse, EquipmentLoanReturnResponse, EquipmentMutationResponse, EquipmentRequestWorkspaceResponse, Location, Pallet, PalletInspection, PrivateEquipmentNotice, PrivateEquipmentRule, ShopImportSummary, ShopWorkspaceResponse, TaskPriority, TaskStatus, TaskType, TaskWorkspaceResponse, TransportJob, TransportJobKind, TransportWorkspaceResponse, UserProfileResponse, VehicleCompetencyCode, VehicleCompetencyProfile, VehicleCompetencyRequirement, VehicleLoanIssueResponse, VehicleWorkspaceResponse } from "@bifrost/contracts";
+import type { ApiError, CommsItemType, CommsWorkspaceResponse, CrewClothingItemType, CrewClothingMember, CrewClothingWorkspaceResponse, CrewProfile, CurrentUser, EquipmentCategory, EquipmentListResponse, EquipmentLoanIssueResponse, EquipmentLoanListResponse, EquipmentLoanReturnResponse, EquipmentMutationResponse, EquipmentRequestWorkspaceResponse, FeedbackNotificationResponse, FeedbackStatus, FeedbackType, FeedbackWorkspaceResponse, Location, Pallet, PalletInspection, PrivateEquipmentNotice, PrivateEquipmentRule, ShopImportSummary, ShopWorkspaceResponse, TaskPriority, TaskStatus, TaskType, TaskWorkspaceResponse, TransportJob, TransportJobKind, TransportWorkspaceResponse, UserProfileResponse, VehicleCompetencyCode, VehicleCompetencyProfile, VehicleCompetencyRequirement, VehicleLoanIssueResponse, VehicleWorkspaceResponse } from "@bifrost/contracts";
 
 const apiUrl = (import.meta.env.VITE_API_URL || "http://localhost:3001").replace(/\/$/, "");
 
@@ -548,6 +548,47 @@ export async function createTask(accessToken: string, input: { title: string; ty
 
 export async function updateTaskStatus(accessToken: string, id: number, status: TaskStatus): Promise<void> {
   await sendApiMutation(accessToken, `/api/v1/tasks/${id}/status`, "PATCH", { status }, "Kunne ikke oppdatere oppgavestatusen.");
+}
+
+export async function getFeedbackWorkspace(accessToken: string): Promise<FeedbackWorkspaceResponse> {
+  const response = await fetch(`${apiUrl}/api/v1/feedback`, { headers: createHeaders(accessToken) });
+  if (!response.ok) throw await createApiError(response, "Kunne ikke hente tilbakemeldingene.");
+  return response.json() as Promise<FeedbackWorkspaceResponse>;
+}
+
+export async function createFeedback(accessToken: string, input: { type: FeedbackType; title: string; description: string; needsDatabaseFix: boolean; attachment?: File | null }): Promise<{ id: number }> {
+  const form = new FormData();
+  form.set("type", input.type); form.set("title", input.title); form.set("description", input.description);
+  if (input.needsDatabaseFix) form.set("needsDatabaseFix", "1");
+  if (input.attachment) form.set("attachment", input.attachment);
+  const response = await fetch(`${apiUrl}/api/v1/feedback`, { method: "POST", headers: createHeaders(accessToken), body: form });
+  if (!response.ok) throw await createApiError(response, "Kunne ikke sende tilbakemeldingen.");
+  return response.json() as Promise<{ id: number }>;
+}
+
+export async function updateFeedbackStatus(accessToken: string, id: number, status: FeedbackStatus): Promise<void> {
+  await sendApiMutation(accessToken, `/api/v1/feedback/${id}/status`, "PATCH", { status }, "Kunne ikke oppdatere tilbakemeldingsstatusen.");
+}
+
+export async function deleteFeedback(accessToken: string, id: number): Promise<void> {
+  const response = await fetch(`${apiUrl}/api/v1/feedback/${id}`, { method: "DELETE", headers: createHeaders(accessToken) });
+  if (!response.ok) throw await createApiError(response, "Kunne ikke slette tilbakemeldingen.");
+}
+
+export async function getFeedbackAttachment(accessToken: string, id: number): Promise<Blob> {
+  const response = await fetch(`${apiUrl}/api/v1/feedback/${id}/attachment`, { headers: createHeaders(accessToken) });
+  if (!response.ok) throw await createApiError(response, "Kunne ikke hente vedlegget.");
+  return response.blob();
+}
+
+export async function getFeedbackNotifications(accessToken: string): Promise<FeedbackNotificationResponse> {
+  const response = await fetch(`${apiUrl}/api/v1/feedback/notifications`, { headers: createHeaders(accessToken) });
+  if (!response.ok) throw await createApiError(response, "Kunne ikke hente varsler.");
+  return response.json() as Promise<FeedbackNotificationResponse>;
+}
+
+export async function markFeedbackNotificationsRead(accessToken: string): Promise<void> {
+  await sendApiMutation(accessToken, "/api/v1/feedback/notifications/read", "POST", {}, "Kunne ikke markere varsler som lest.");
 }
 
 export async function getUserProfile(accessToken: string, wannabeId: number): Promise<UserProfileResponse> {

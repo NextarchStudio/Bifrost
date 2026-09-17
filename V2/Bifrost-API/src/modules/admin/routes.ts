@@ -14,7 +14,10 @@ const createUserSchema = z.object({
   wannabeId: z.number().int().positive().nullable().optional(),
   badgeScanNumber: z.string().trim().max(64).nullable().optional(),
 });
-const crewProvisionSchema = z.object({ badgeScanNumber: z.string().trim().min(1).max(64) });
+const crewProvisionSchema = z.object({
+  badgeScanNumber: z.string().trim().min(1).max(64),
+  email: z.email().max(180).nullable().optional(),
+});
 const roleSchema = z.object({ name: z.string().trim().min(1).max(100), displayName: z.string().trim().max(100).nullable().optional(), wannabeRoleName: z.string().trim().max(100).nullable().optional() });
 const crewProvisioningRuleSchema = z.object({
   crewName: z.string().trim().min(1).max(180),
@@ -70,8 +73,8 @@ export async function registerAdminRoutes(app: FastifyInstance, auth: AuthServic
   app.post("/api/v1/admin/users/provision-from-crew", async (request, reply) => {
     try {
       const user = await authorizeAdmin(request, auth);
-      const { badgeScanNumber } = crewProvisionSchema.parse(request.body);
-      return reply.code(201).send(await admin.provisionCrewUser(badgeScanNumber, user.id));
+      const { badgeScanNumber, email } = crewProvisionSchema.parse(request.body);
+      return reply.code(201).send(await admin.provisionCrewUser(badgeScanNumber, user.id, email));
     } catch (error) { return sendError(error, request, reply); }
   });
   app.patch("/api/v1/admin/users/:id/active", async (request, reply) => {

@@ -82,12 +82,14 @@ test("creates an OIDC-provisioned user with actor context", async () => {
   assert.equal(response.statusCode, 201); assert.equal((captured[0] as { email: string }).email, "ola@example.test"); assert.equal(captured[1], 5); await app.close();
 });
 
-test("provisions a user from a badge scan with actor context", async () => {
-  let badge = ""; let actorId = 0;
+test("provisions a user from a badge scan with actor context and optional email", async () => {
+  let badge = ""; let actorId = 0; let email: string | null | undefined;
   const base = await serviceStub().provisionCrewUser("badge", 5);
-  const app = buildApp({ checkDatabase: async () => undefined, auth: auth(["chief"]), admin: serviceStub({ provisionCrewUser: async (value, actor) => { badge = value; actorId = actor; return base; } }) });
-  const response = await app.inject({ method: "POST", url: "/api/v1/admin/users/provision-from-crew", headers: { authorization: "Bearer valid" }, payload: { badgeScanNumber: "SCAN-8468" } });
-  assert.equal(response.statusCode, 201); assert.equal(badge, "SCAN-8468"); assert.equal(actorId, 5); await app.close();
+  const app = buildApp({ checkDatabase: async () => undefined, auth: auth(["chief"]), admin: serviceStub({ provisionCrewUser: async (value, actor, override) => { badge = value; actorId = actor; email = override; return base; } }) });
+  const response = await app.inject({ method: "POST", url: "/api/v1/admin/users/provision-from-crew", headers: { authorization: "Bearer valid" }, payload: { badgeScanNumber: "SCAN-8468", email: "crew@example.test" } });
+  assert.equal(response.statusCode, 201); assert.equal(badge, "SCAN-8468"); assert.equal(actorId, 5); assert.equal(email, "crew@example.test");
+  const invalid = await app.inject({ method: "POST", url: "/api/v1/admin/users/provision-from-crew", headers: { authorization: "Bearer valid" }, payload: { badgeScanNumber: "SCAN-8468", email: "ikke-en-epost" } });
+  assert.equal(invalid.statusCode, 400); await app.close();
 });
 
 test("creates and validates Crew provisioning rules", async () => {

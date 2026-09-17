@@ -1,6 +1,7 @@
 const webBase = normalizedBase(process.env.BIFROST_WEB_URL ?? "http://127.0.0.1:3000");
 const apiBase = normalizedBase(process.env.BIFROST_API_URL ?? "http://127.0.0.1:3001");
 const webOrigin = new URL(webBase).origin;
+const apiOrigin = new URL(apiBase).origin;
 let failures = 0;
 
 await check("Web", webBase, async (response) => {
@@ -44,7 +45,7 @@ await check("Confidential OIDC-start", `${apiBase}/api/v1/auth/oidc/start`, asyn
 
 await check("CORS mutasjoner", `${apiBase}/api/v1/locations/1`, async (response) => {
   assert(response.status === 204, `HTTP ${response.status}`);
-  assert(response.headers.get("access-control-allow-origin") === webOrigin, "origin er ikke tillatt");
+  if (apiOrigin !== webOrigin) assert(response.headers.get("access-control-allow-origin") === webOrigin, "origin er ikke tillatt");
   const methods = response.headers.get("access-control-allow-methods") ?? "";
   for (const method of ["PUT", "PATCH", "DELETE"]) assert(methods.includes(method), `${method} mangler`);
 }, {

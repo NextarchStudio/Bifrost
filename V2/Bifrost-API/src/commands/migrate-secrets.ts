@@ -33,13 +33,19 @@ try {
   };
 
   let migrated = 0;
+  let preserved = 0;
   for (const [key, value] of Object.entries(values)) {
     if (!value) continue;
+    if (await store.get(key)) {
+      console.info("encrypted setting preserved", { key });
+      preserved += 1;
+      continue;
+    }
     await store.set(key, value);
     console.info("encrypted setting migrated", { key });
     migrated += 1;
   }
-  console.info("secret migration completed", { migrated });
+  console.info("secret migration completed", { migrated, preserved });
 } finally {
   await database.pool.end();
 }

@@ -103,7 +103,7 @@ Kontroller deretter integrasjonen uten databaseskriving:
 pnpm --filter @bifrost/api inspect:crew -- 8468
 ```
 
-Verifiser at responsfeltene for navn, e-post, Wannabe-ID, crew og crewrolle mappes riktig. Test så badge-scan i Admin med én godkjent og én ikke-godkjent bruker. Hvis velkomst-e-post er aktivert av en `developer`, skal bare den helt nye brukeren få e-post; ny synkronisering av samme bruker skal ikke sende på nytt.
+Verifiser at responsfeltene for navn, Wannabe-ID, crew, crewrolle og eventuell e-post mappes riktig. Test så badge-scan i Admin med én godkjent og én ikke-godkjent bruker. Når Crew API mangler e-post, skal eksisterende V1-e-post gjenbrukes; for en helt ny bruker skal adminflaten be om e-post før opprettelsen fullføres. Hvis velkomst-e-post er aktivert av en `developer`, skal bare den helt nye brukeren få e-post; ny synkronisering av samme bruker skal ikke sende på nytt.
 
 ## 9. Rollback
 

@@ -79,7 +79,7 @@ export interface AdminService {
   statistics(): Promise<AdminStatistics>;
   crewResetPreview(): Promise<AdminCrewResetPreview>;
   clearCrewCache(confirmation: string, actorUserId: number): Promise<AdminCrewResetPreview>;
-  provisionCrewUser(badgeScanNumber: string, actorUserId: number): Promise<AdminCrewProvisionResult>;
+  provisionCrewUser(badgeScanNumber: string, actorUserId: number, emailOverride?: string | null): Promise<AdminCrewProvisionResult>;
   createUser(input: AdminCreateUserInput, actorUserId: number): Promise<{ id: number }>;
   setUserActive(userId: number, active: boolean, actorUserId: number): Promise<void>;
   syncUserRoles(userId: number, roleIds: number[], actorUserId: number): Promise<void>;
@@ -159,16 +159,28 @@ export function createAdminService(
     async crewResetPreview() { return loadCrewResetPreview(database); },
     async clearCrewCache(confirmation, actorUserId) { return resetCrewData(database, confirmation, actorUserId); },
 
-    async provisionCrewUser(badgeScanNumber, actorUserId) {
+    async provisionCrewUser(badgeScanNumber, actorUserId, emailOverride) {
       const badge = plainText(badgeScanNumber, 64);
       if (!badge) throw new AdminDomainError("Badge-scan mangler.", "CONFLICT");
       const profile = await crew.lookup(badge, "badge", true);
-      const email = profile.email?.trim().toLowerCase().slice(0, 180) ?? "";
       const splitName = splitPersonName(profile.name);
       const firstName = plainText(profile.firstName || splitName.firstName, 80);
       const lastName = plainText(profile.lastName || splitName.lastName, 80);
-      if (!email || !firstName || !lastName) {
-        throw new AdminDomainError("Crew API må returnere navn, e-post og Wannabe-ID før brukeren kan opprettes.", "CONFLICT");
+      if (!firstName || !lastName) {
+        throw new AdminDomainError("Crew API må returnere fullt navn og Wannabe-ID før brukeren kan opprettes.", "CONFLICT");
+      }
+
+      const [[wannabeUser], [badgeUser]] = await Promise.all([
+        database.db.select({ id: users.id, email: users.email }).from(users).where(eq(users.wannabeId, profile.id)).limit(1),
+        database.db.select({ id: users.id, email: users.email }).from(users).where(eq(users.badgeScanNumber, badge)).limit(1),
+      ]);
+      if (wannabeUser && badgeUser && wannabeUser.id !== badgeUser.id) {
+        throw new AdminDomainError("Wannabe-ID og badge tilhører forskjellige brukere.", "CONFLICT");
+      }
+      const existingEmail = wannabeUser?.email || badgeUser?.email || "";
+      const email = normalizeEmail(profile.email || existingEmail || emailOverride || "");
+      if (!email) {
+        throw new AdminDomainError("Crew API returnerer ikke e-post for denne brukeren. Oppgi e-post for å fullføre opprettelsen.", "CONFLICT");
       }
 
       const ruleRows = await database.db.select({
@@ -618,6 +630,7 @@ async function userDeleteBlockers(tx: DatabaseTransaction, userId: number): Prom
 function normalizeRoleName(value: string): string { return plainText(value, 100).toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_-]/g, "").slice(0, 50); }
 function plainText(value: string, limit: number): string { return value.replace(/<[^>]*>/g, "").trim().slice(0, limit); }
 function nullableText(value: string | null | undefined, limit: number): string | null { const clean = plainText(value ?? "", limit); return clean || null; }
+function normalizeEmail(value: string): string { const email = value.trim().toLowerCase(); return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email.slice(0, 180) : ""; }
 export function validateWelcomeEmailConfiguration(
   input: { enabled: boolean; fromEmail?: string | null; host?: string | null; port?: number | null; username?: string | null },
   hasPassword: boolean,

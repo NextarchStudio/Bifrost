@@ -1,4 +1,4 @@
-import type { AdminCrewProvisionResult, AdminCrewResetPreview, AdminRole, AdminSettings, AdminStatistics, AdminUser, AdminWorkspaceResponse, CrewProvisioningRule, VehicleCompetencyCode } from "@bifrost/contracts";
+import type { AdminCrewProvisionResult, AdminCrewResetPreview, AdminRole, AdminSettings, AdminStatistics, AdminUser, AdminWorkspaceResponse, CrewProfile, CrewProvisioningRule, VehicleCompetencyCode } from "@bifrost/contracts";
 import { VEHICLE_COMPETENCY_CODES } from "@bifrost/contracts";
 import { useEffect, useState, type ReactNode } from "react";
 import {
@@ -12,6 +12,7 @@ import {
   getAdminStatistics,
   getAdminCrewResetPreview,
   getAdminWorkspace,
+  lookupCrewProfile,
   provisionAdminUserFromCrew,
   setCrewProvisioningEmailEnabled,
   setAdminUserActive,
@@ -31,7 +32,7 @@ export function AdminWorkspace({ accessToken }: { accessToken: string }) {
   const [activeTab, setActiveTab] = useState<"overview" | "users" | "crew" | "roles" | "settings">("overview");
   const reload = async () => { const [workspace, stats] = await Promise.all([getAdminWorkspace(accessToken), getAdminStatistics(accessToken)]); setData(workspace); setStatistics(stats); };
   useEffect(() => { void reload().catch((reason) => setError(messageFrom(reason))); }, [accessToken]);
-  const run = async (action: () => Promise<unknown>, message: string) => { setError(null); setSuccess(null); try { await action(); await reload(); setSuccess(message); } catch (reason) { setError(messageFrom(reason)); throw reason; } };
+  const run = async (action: () => Promise<unknown>, message: string, reportError = true) => { setError(null); setSuccess(null); try { await action(); await reload(); setSuccess(message); } catch (reason) { if (reportError) setError(messageFrom(reason)); throw reason; } };
   if (!data) return <WorkspaceState title="Laster administrasjon" detail={error ?? "Henter brukere, roller og sikker konfigurasjon …"} error={Boolean(error)} />;
   return <section className="flex-1 py-8">
     <div className="mb-7"><p className="text-sm text-amber-300">Tilgang og konfigurasjon</p><h1 className="mt-1 text-3xl font-semibold">Administrasjon</h1><p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">Administrer V1-brukere, roller og kompetanser. Nye brukere kobles til Keycloak ved første innlogging; eksisterende V1-passord fungerer når lokal reserveinnlogging er aktiv.</p></div>
@@ -82,24 +83,46 @@ function Breakdown({ rows }: { rows: Array<{ label: string; value: number; suffi
 function NewUser({ accessToken, run }: { accessToken: string; run: RunAction }) {
   const [saving, setSaving] = useState(false);
   const [badge, setBadge] = useState("");
+  const [email, setEmail] = useState("");
+  const [pendingProfile, setPendingProfile] = useState<CrewProfile | null>(null);
+  const [localError, setLocalError] = useState<string | null>(null);
   const [provisioned, setProvisioned] = useState<AdminCrewProvisionResult | null>(null);
+  const finish = async (value: string, emailOverride?: string, reportError = true) => {
+    let result: AdminCrewProvisionResult | null = null;
+    await run(async () => { result = await provisionAdminUserFromCrew(accessToken, value, emailOverride); }, "Crew-brukeren er provisjonert.", reportError);
+    setProvisioned(result);
+    setPendingProfile(null);
+    setLocalError(null);
+    setBadge("");
+    setEmail("");
+  };
   const provision = async () => {
     const value = badge.trim();
     if (!value || saving) return;
-    setSaving(true); setProvisioned(null);
-    let result: AdminCrewProvisionResult | null = null;
+    setSaving(true); setProvisioned(null); setPendingProfile(null); setLocalError(null);
     try {
-      await run(async () => { result = await provisionAdminUserFromCrew(accessToken, value); }, "Crew-brukeren er provisjonert.");
-      setProvisioned(result);
-      setBadge("");
-    } catch { /* Global feilmelding settes av run. */ }
+      await finish(value, undefined, false);
+    } catch (reason) {
+      const message = messageFrom(reason);
+      if (message.includes("Oppgi e-post")) {
+        try {
+          setPendingProfile(await lookupCrewProfile(accessToken, value));
+        } catch (lookupError) {
+          setLocalError(messageFrom(lookupError));
+        }
+      } else setLocalError(message);
+    }
     finally { setSaving(false); }
   };
   return <section className={`${cardClass} mt-5`}>
     <p className="text-sm text-amber-300">Automatisk Crew-provisjonering</p><h2 className="mt-1 text-xl font-semibold">Skann badge og opprett bruker</h2>
-    <p className="mt-2 text-sm leading-6 text-slate-500">Badge slås opp direkte i Crew API. Brukeren opprettes bare når crew og crewrolle matcher en aktiv regel, og riktige Bifrost-roller legges til automatisk.</p>
-    <label className="mt-5 block max-w-xl"><Label>Badge-scan</Label><input autoFocus autoComplete="off" value={badge} onChange={(event) => { setBadge(event.target.value); setProvisioned(null); }} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void provision(); } }} disabled={saving} placeholder="Skann badge og trykk Enter" className={inputClass} /><span className="mt-2 block text-xs text-slate-600">Scanneren sender Enter automatisk. Ingen oppslagsknapp er nødvendig.</span></label>
+    <p className="mt-2 text-sm leading-6 text-slate-500">Badge slås opp direkte i Crew API. Brukeren opprettes bare når crew og crewrolle matcher en aktiv regel, og riktige Bifrost-roller legges til automatisk. Hvis Crew API ikke deler e-post, ber Bifrost om den før opprettelsen fullføres.</p>
+    <label className="mt-5 block max-w-xl"><Label>Badge-scan</Label><input autoFocus autoComplete="off" value={badge} onChange={(event) => { setBadge(event.target.value); setEmail(""); setPendingProfile(null); setProvisioned(null); setLocalError(null); }} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void provision(); } }} disabled={saving} placeholder="Skann badge og trykk Enter" className={inputClass} /><span className="mt-2 block text-xs text-slate-600">Scanneren sender Enter automatisk. Ingen oppslagsknapp er nødvendig.</span></label>
     {saving && <p className="mt-4 text-sm text-amber-200">Henter Crew-profil og kontrollerer tilgang …</p>}
+    {localError && <div className="mt-4"><Banner tone="error">{localError}</Banner></div>}
+    {pendingProfile && <form className="mt-4 max-w-xl rounded-xl border border-amber-300/20 bg-amber-300/[.06] p-4" onSubmit={(event) => { event.preventDefault(); const value = badge.trim(); const override = email.trim(); if (!value || !override || saving) return; setSaving(true); setLocalError(null); void finish(value, override).catch(() => undefined).finally(() => setSaving(false)); }}>
+      <p className="font-medium text-amber-100">{pendingProfile.name} · Wannabe {pendingProfile.id}</p><p className="mt-1 text-sm text-amber-100/70">{pendingProfile.crewName}{pendingProfile.role ? `, ${pendingProfile.role}` : ""}</p><p className="mt-3 text-sm leading-6 text-slate-400">Crew API returnerte ikke e-post. Oppgi riktig adresse for denne brukeren; den lagres i Bifrost og brukes ved OIDC-kobling og eventuell velkomst-e-post.</p><label className="mt-4 block"><Label>E-post</Label><input type="email" required autoFocus autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} className={inputClass} /></label><button disabled={saving} className={`${primaryButton} mt-4`}>{saving ? "Oppretter …" : "Fullfør opprettelsen"}</button>
+    </form>}
     {provisioned && <div className="mt-4 rounded-xl border border-emerald-300/20 bg-emerald-300/[.07] p-4 text-sm text-emerald-100"><p className="font-medium">{provisioned.user.name} · Wannabe {provisioned.profile.id}</p><p className="mt-1 text-emerald-200/70">{provisioned.profile.crewName}{provisioned.profile.role ? `, ${provisioned.profile.role}` : ""} · {provisioned.matchedRoles.join(", ")}</p><p className="mt-1 text-xs text-emerald-200/60">{provisioned.created ? "Ny bruker opprettet" : "Eksisterende bruker synkronisert"}{provisioned.emailQueued ? " · velkomst-e-post lagt i kø" : " · ingen e-post lagt i kø"}</p></div>}
     <details className="mt-6 border-t border-white/[.07] pt-5"><summary className="cursor-pointer text-sm text-slate-400">Opprett bruker manuelt</summary><form className="mt-4" onSubmit={(event) => { event.preventDefault(); const target = event.currentTarget; const form = new FormData(target); setSaving(true); void run(() => createAdminUser(accessToken, { firstName: String(form.get("firstName")), lastName: String(form.get("lastName")), email: String(form.get("email")), wannabeId: Number(form.get("wannabeId")) || null, badgeScanNumber: optional(form, "badgeScanNumber") }), "Brukeren er opprettet for OIDC-innlogging.").then(() => target.reset()).catch(() => undefined).finally(() => setSaving(false)); }}><div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5"><Field label="Fornavn" name="firstName" required /><Field label="Etternavn" name="lastName" required /><Field label="E-post" name="email" type="email" required /><Field label="Wannabe ID" name="wannabeId" type="number" min="1" /><Field label="Badge" name="badgeScanNumber" /></div><button disabled={saving} className={`${primaryButton} mt-5`}>{saving ? "Oppretter …" : "Opprett manuelt"}</button></form></details>
   </section>;
@@ -189,7 +212,7 @@ function WorkspaceState({ title, detail, error = false }: { title: string; detai
 function messageFrom(reason: unknown) { return reason instanceof Error ? reason.message : "Handlingen kunne ikke fullføres."; }
 function formatNumber(value: number) { return new Intl.NumberFormat("nb-NO").format(value); }
 
-type RunAction = (action: () => Promise<unknown>, message: string) => Promise<void>;
+type RunAction = (action: () => Promise<unknown>, message: string, reportError?: boolean) => Promise<void>;
 const cardClass = "rounded-2xl border border-white/10 bg-white/[.025] p-5";
 const inputClass = "w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 outline-none focus:border-amber-300/60";
 const selectClass = "w-full rounded-xl border border-white/10 bg-[#0b1724] px-3 py-2.5 outline-none focus:border-amber-300/60";

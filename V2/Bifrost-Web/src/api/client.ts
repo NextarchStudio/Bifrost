@@ -718,9 +718,9 @@ export async function createAdminUser(accessToken: string, input: { firstName: s
   return response.json() as Promise<{ id: number }>;
 }
 
-export async function provisionAdminUserFromCrew(accessToken: string, badgeScanNumber: string): Promise<AdminCrewProvisionResult> {
+export async function provisionAdminUserFromCrew(accessToken: string, badgeScanNumber: string, email?: string): Promise<AdminCrewProvisionResult> {
   const headers = createHeaders(accessToken); headers.set("Content-Type", "application/json");
-  const response = await fetch(`${apiUrl}/api/v1/admin/users/provision-from-crew`, { method: "POST", headers, body: JSON.stringify({ badgeScanNumber }) });
+  const response = await fetch(`${apiUrl}/api/v1/admin/users/provision-from-crew`, { method: "POST", headers, body: JSON.stringify({ badgeScanNumber, email }) });
   if (!response.ok) throw await createApiError(response, "Kunne ikke provisjonere Crew-brukeren.");
   return response.json() as Promise<AdminCrewProvisionResult>;
 }

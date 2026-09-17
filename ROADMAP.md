@@ -24,6 +24,7 @@ V1 er i dag en CodeIgniter 4-applikasjon med PHP 8.2+, MariaDB, server-renderte 
 - Eksisterende V1-tabeller og relasjoner beholdes. Et nytt V2-skjema er tillatt via dokumentert ETL/synkronisering.
 - Filer kan lagres lokalt på serveren med metadata, tilgangskontroll og backup.
 - PM2 kjører API, Web og Worker.
+- Web skal være tilgjengelig på `https://tg.legacyh.dev/` og `https://bifrost.tg.no/`; lokal utvikling bruker `http://127.0.0.1:3000/`.
 - Sensitive verdier krypteres; passord og verifiseringsverdier hashes og skal aldri dekrypteres.
 
 ## 1.2 Implementeringsstatus per 17. september 2026
@@ -31,25 +32,24 @@ V1 er i dag en CodeIgniter 4-applikasjon med PHP 8.2+, MariaDB, server-renderte 
 | Område | Status | Levert |
 |---|---|---|
 | Fase 0 – baseline | Pågår | V1 er bevart under `V1/`, rute-/rollematrisen er dokumentert og staging-runbook med lesebasert skjema-/rolle-/OIDC-preflight er levert. Kjøring mot anonymisert staging-database og verifisert restore gjenstår. |
-| Fase 1 – fundament | Implementert | pnpm-monorepo, strict TypeScript, Fastify, React/Vite/Tailwind, Drizzle, health/readiness, PM2-oppsett, samlet kvalitetssjekk, GitHub CI med produksjonsaudit og digestlåst lokal MariaDB/Keycloak Compose-stack er på plass. |
+| Fase 1 – fundament | Implementert | pnpm-monorepo, strict TypeScript, Fastify, React/Vite/Tailwind, Drizzle, health/readiness, PM2-oppsett, samlet kvalitetssjekk, GitHub CI med produksjonsaudit, API-/domenetester og Playwright/Chromium samt digestlåst lokal MariaDB/Keycloak Compose-stack er på plass. |
 | Fase 2 – identitet | Implementert | Obligatorisk Keycloak/OIDC med PKCE, JWT/JWKS-validering og automatisk V1-brukerprovisjonering er på plass. Lokal V1-innlogging er bevart som databasekontrollert reserve med Argon2id-verifisering, hash-lagrede V2-sesjoner, ratebegrensning og tokenfri audit. Tilgangsmatrisen dekker alle 11 V1-roller; representative flerrollekombinasjoner skal fortsatt verifiseres i staging. |
-| Fase 3 – lager og utstyr | Nær ferdig | Utstyr, kategoriadministrasjon, lokasjoner, paller, palleplasser, strekkodeflyt, inspeksjon, flytting, slettingsvern, audit og nytt React-design er implementert. Playwright og paritetstest mot representativ V1-database gjenstår. |
+| Fase 3 – lager og utstyr | Implementert, ikke staging-verifisert | Utstyr, kategoriadministrasjon, lokasjoner, paller, palleplasser, strekkodeflyt, inspeksjon, flytting, slettingsvern, audit og nytt React-design er implementert. Playwright dekker opprett utstyr → opprett palle → flytt → inspiser samt lokasjonsendring/sletting. Paritetstest mot representativ V1-database gjenstår. |
 | Fase 4 – utlån og forespørsler | Implementert, ikke staging-verifisert | Transaksjonelt flerlinje-utlån, retur, person-/badge-oppslag, private-utstyrsregler, utstyrsforespørsler, kjøretøy, kompetanse/KDO, kjøretøylån og profiloversikt er implementert i API og Web. Paritetstest mot anonymiserte stagingdata gjenstår. |
 | Fase 5 – transport, samband og shop | Implementert, ikke staging-verifisert | Transport, samband, Shop og crewtøy er implementert i API og Web, inkludert ruteestimat, kjørebok, sambandssett, utlån, varelager, badgeoppslag, utlevering og XLSX/XLS/CSV-/PDF-flyt. Paritetstest mot anonymiserte stagingdata gjenstår. |
 | Fase 6 – oppgaver, feedback og admin | Implementert, ikke staging-verifisert | Oppgaver, feedback/varsler, admin, statistikk, kontrollert crew-/brukerreset, dashboard og globalt søk er implementert i API og Web. Paritetstest mot anonymiserte stagingdata gjenstår. |
-| Fase 7 – produksjonssetting | Ikke startet | Produksjonssetting, observasjonsperiode og kontrollert V1-avvikling følger etter funksjons- og dataparitet. |
+| Fase 7 – produksjonssetting | Teknisk forberedt, ikke satt i produksjon | Begge produksjonsdomener, databasekontrollert CORS/OIDC callback, same-origin-build, Nginx-eksempel, smoke-test og cutover-sjekkliste er levert. DNS for `bifrost.tg.no`, serveroppsett, TLS, stagingparitet, observasjonsperiode og kontrollert V1-avvikling må utføres i driftsmiljøet. |
 
-Teknisk fundament kjører som `Bifrost-API`, `Bifrost-Web` og `Bifrost-Worker`. V1-tabellene brukes direkte. Nye tekniske tabeller for kryptert konfigurasjon og jobbkø har `bifrost_`-prefiks. Hele V2 kan verifiseres med `pnpm check`.
+Teknisk fundament kjører som `Bifrost-API`, `Bifrost-Web` og `Bifrost-Worker`. V1-tabellene brukes direkte. Nye tekniske tabeller for kryptert konfigurasjon, jobbkø, lokale sesjoner og godkjente Web-origins har `bifrost_`-prefiks. Kode og domene kan verifiseres med `pnpm check`, nettleserflytene med `pnpm e2e` og en startet installasjon med `pnpm smoke`.
 
 ### Neste leveranseporter
 
-1. Utvid positive og negative tilgangstester for hver implementerte modul.
-2. Kjør V2 mot en anonymisert kopi av eksisterende database og dokumenter V1/V2-avvik.
+1. Kjør V2 mot en anonymisert kopi av eksisterende database og dokumenter V1/V2-avvik.
    Start med `pnpm --filter @bifrost/api preflight` etter V2-migrering og hemmelighetsflytting.
-3. Legg til Playwright-flyt for opprett utstyr → opprett palle → flytt → inspiser.
-4. Verifiser Keycloak-klient, redirect URI, roller og token-claims i staging.
-5. Paritetstest fase 4 og 5 mot anonymiserte data, inkludert Shop-import/eksport og crewtøyutlevering.
-6. Paritetstest fase 6 mot anonymiserte data, inkludert dashboardtall, søketreff og konsekvensrapport for crew-reset uten å utføre resetten.
+2. Verifiser Keycloak-klient, de tre redirect URI-ene, roller og token-claims i staging.
+3. Paritetstest fase 4 og 5 mot anonymiserte data, inkludert Shop-import/eksport og crewtøyutlevering.
+4. Paritetstest fase 6 mot anonymiserte data, inkludert dashboardtall, søketreff og konsekvensrapport for crew-reset uten å utføre resetten.
+5. Fullfør alle eksterne porter i `V2/docs/cutover-checklist.md`, inkludert DNS/TLS for `bifrost.tg.no`, smoke-test på begge domener og verifisert rollback.
 
 ## 2. Omfanget i V1
 

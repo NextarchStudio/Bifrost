@@ -1,0 +1,62 @@
+# Eksempel for én Bifrost-installasjon som svarer på begge produksjonsdomener.
+# Tilpass sertifikatstier, include-filer og logging til serverens standard.
+
+upstream bifrost_web {
+    server 127.0.0.1:3000;
+    keepalive 16;
+}
+
+upstream bifrost_api {
+    server 127.0.0.1:3001;
+    keepalive 16;
+}
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name tg.legacyh.dev bifrost.tg.no;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name tg.legacyh.dev bifrost.tg.no;
+
+    ssl_certificate /etc/letsencrypt/live/bifrost/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/bifrost/privkey.pem;
+
+    client_max_body_size 10m;
+
+    location /api/ {
+        proxy_pass http://bifrost_api;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Request-Id $request_id;
+    }
+
+    location = /health {
+        proxy_pass http://bifrost_api;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto https;
+    }
+
+    location = /ready {
+        proxy_pass http://bifrost_api;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto https;
+    }
+
+    location / {
+        proxy_pass http://bifrost_web;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Request-Id $request_id;
+    }
+}

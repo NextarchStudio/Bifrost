@@ -65,6 +65,14 @@ export const localSessions = mysqlTable("bifrost_local_sessions", {
   index("bifrost_local_sessions_cleanup_idx").on(table.expiresAt, table.revokedAt),
 ]);
 
+export const webOrigins = mysqlTable("bifrost_web_origins", {
+  id: int({ unsigned: true }).primaryKey().autoincrement(),
+  origin: varchar({ length: 255 }).notNull(),
+  enabled: boolean().notNull().default(true),
+  createdAt: datetime("created_at", { mode: "date" }).notNull(),
+  updatedAt: datetime("updated_at", { mode: "date" }).notNull(),
+}, (table) => [uniqueIndex("bifrost_web_origins_origin_unique").on(table.origin)]);
+
 export const systemSettings = mysqlTable("system_settings", {
   id: tinyint({ unsigned: true }).primaryKey(),
   appName: varchar("app_name", { length: 120 }),

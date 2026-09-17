@@ -16,7 +16,7 @@ try {
   const [versionResult, columnsResult, settingsResult, userResult, rolesResult, secureKeysResult] = await Promise.all([
     connection.pool.query("SELECT VERSION() AS version, DATABASE() AS databaseName"),
     connection.pool.query("SELECT TABLE_NAME AS tableName, COLUMN_NAME AS columnName FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE()"),
-    connection.pool.query("SELECT id, enable_local_login AS enableLocalLogin, enable_keycloak_login AS enableKeycloakLogin, keycloak_base_url AS keycloakBaseUrl, keycloak_realm AS keycloakRealm, keycloak_client_id AS keycloakClientId, keycloak_redirect_uri AS keycloakRedirectUri FROM system_settings WHERE id = 1 LIMIT 1"),
+    connection.pool.query("SELECT id, enable_local_login AS enableLocalLogin, enable_keycloak_login AS enableKeycloakLogin, keycloak_base_url AS keycloakBaseUrl, keycloak_realm AS keycloakRealm, keycloak_client_id AS keycloakClientId, keycloak_redirect_uri AS keycloakRedirectUri, NULLIF(TRIM(keycloak_client_secret), '') IS NOT NULL AS hasLegacyOidcSecret, NULLIF(TRIM(smtp_pass), '') IS NOT NULL AS hasLegacySmtpPassword, NULLIF(TRIM(vegvesen_api_key), '') IS NOT NULL AS hasLegacyVegvesenKey, NULLIF(TRIM(crew_api_bearer_token), '') IS NOT NULL AS hasLegacyCrewToken FROM system_settings WHERE id = 1 LIMIT 1"),
     connection.pool.query("SELECT id, name, email FROM users WHERE id = 2 LIMIT 1"),
     connection.pool.query("SELECT name FROM roles ORDER BY name"),
     connection.pool.query("SELECT `key` FROM bifrost_secure_settings ORDER BY `key`"),
@@ -40,7 +40,7 @@ try {
   if (schema.missingTables.length) fail("Tabeller", `Mangler: ${schema.missingTables.join(", ")}`); else pass("Tabeller", `${Object.keys(expectedSchema).length} forventede tabeller finnes.`);
   if (schema.missingColumns.length) fail("Kolonner", `Mangler: ${schema.missingColumns.join(", ")}`); else pass("Kolonner", "Alle forventede kolonner finnes.");
 
-  const settings = rows<{ id: number; enableLocalLogin: number; enableKeycloakLogin: number; keycloakBaseUrl: string | null; keycloakRealm: string | null; keycloakClientId: string | null; keycloakRedirectUri: string | null }>(settingsResult)[0];
+  const settings = rows<{ id: number; enableLocalLogin: number; enableKeycloakLogin: number; keycloakBaseUrl: string | null; keycloakRealm: string | null; keycloakClientId: string | null; keycloakRedirectUri: string | null; hasLegacyOidcSecret: number; hasLegacySmtpPassword: number; hasLegacyVegvesenKey: number; hasLegacyCrewToken: number }>(settingsResult)[0];
   if (!settings) fail("Systeminnstillinger", "system_settings.id=1 mangler.");
   else {
     pass("Systeminnstillinger", "system_settings.id=1 finnes.");
@@ -58,8 +58,27 @@ try {
   if (absentRoles.length) fail("V1-roller", `Mangler: ${absentRoles.join(", ")}`); else pass("V1-roller", `${BIFROST_ROLES.length} autoritative roller finnes.`);
 
   const secureKeys = rows<{ key: string }>(secureKeysResult).map((row) => row.key);
-  if (!secureKeys.length) warn("Krypterte innstillinger", "Ingen krypterte verdier er migrert til bifrost_secure_settings.");
+  const requiredSecureKeys = settings ? [
+    settings.hasLegacyOidcSecret ? "oidc.client_secret" : null,
+    settings.hasLegacySmtpPassword ? "smtp.password" : null,
+    settings.hasLegacyVegvesenKey ? "vegvesen.api_key" : null,
+    settings.hasLegacyCrewToken ? "crew.api_bearer_token" : null,
+  ].filter((key): key is string => Boolean(key)) : [];
+  const missingSecureKeys = requiredSecureKeys.filter((key) => !secureKeys.includes(key));
+  if (missingSecureKeys.length) fail("Krypterte innstillinger", `Konfigurerte V1-hemmeligheter mangler kryptert kopi: ${missingSecureKeys.join(", ")}`);
+  else if (!secureKeys.length) warn("Krypterte innstillinger", "Ingen krypterte verdier finnes; bekreft at ingen integrasjonshemmeligheter er nødvendige.");
   else pass("Krypterte innstillinger", `${secureKeys.length} krypterte innstillingsnøkler finnes.`);
+
+  if (schema.missingTables.includes("bifrost_web_origins")) {
+    fail("Web-domener", "Migrering 0003_web_origins.sql er ikke kjørt.");
+  } else {
+    const webOriginsResult = await connection.pool.query("SELECT origin FROM bifrost_web_origins WHERE enabled = 1 ORDER BY id");
+    const configuredOrigins = new Set(rows<{ origin: string }>(webOriginsResult).map((row) => row.origin));
+    const requiredOrigins = ["https://tg.legacyh.dev", "https://bifrost.tg.no", "http://127.0.0.1:3000"];
+    const missingOrigins = requiredOrigins.filter((origin) => !configuredOrigins.has(origin));
+    if (missingOrigins.length) fail("Web-domener", `Mangler aktive origins: ${missingOrigins.join(", ")}`);
+    else pass("Web-domener", "Begge HTTPS-domener og lokal utviklingsadresse er aktive.");
+  }
 
   try {
     const encodedKey = (await readFile(resolve(process.cwd(), "../var/secrets/settings.key"), "utf8")).trim();

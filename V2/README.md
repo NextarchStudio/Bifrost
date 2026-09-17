@@ -21,11 +21,13 @@ Delte kontrakter og database-definisjoner ligger under `packages/`.
 ```bash
 pnpm install
 pnpm check
+pnpm e2e:install
+pnpm e2e
 ```
 
-`pnpm check` kjører lint, TypeScript-kontroll, tester og produksjonsbuild for hele workspace-et.
+`pnpm check` kjører lint, TypeScript-kontroll, API-/domene-tester og produksjonsbuild for hele workspace-et. `pnpm e2e` kjører de faktiske React-flytene i Chromium med et deterministisk API, inkludert lagerflyt, skanner, sidemeny, lokasjonssletting, branding og modalplassering.
 
-Den samme kontrollen kjører i `.github/workflows/v2-ci.yml` ved endringer under `V2/`. Jobben bruker frosset låsefil, kjører produksjonsaudit og deretter lint, typekontroll, bygg og tester.
+Den samme kontrollen kjører i `.github/workflows/v2-ci.yml` ved endringer under `V2/`. Jobben bruker frosset låsefil, kjører produksjonsaudit, lint, typekontroll, bygg, API-/domene-tester og Playwright i Chromium.
 
 Før stagingstart følges [staging-runbooken](docs/staging-runbook.md). Etter migrering og hemmelighetsflytting kjøres den lesebaserte kontrollen:
 
@@ -59,7 +61,7 @@ php spark db:seed DatabaseSeeder
 Set-Location ../V2
 ```
 
-Kjør deretter `database/migrations/0001_bifrost_v2_foundation.sql` og `database/migrations/0002_local_auth_sessions.sql` i nummerrekkefølge mot den lokale databasen. Sett OIDC-feltene i `system_settings` til base-URL `http://localhost:8081`, realm `bifrost-local`, client-id `bifrost-web`, redirect URI `http://localhost:3000/auth/callback` og `enable_keycloak_login=1`. `enable_local_login=1` viser i tillegg lokal V1-innlogging som reserve.
+Kjør deretter alle filene i `database/migrations/` i nummerrekkefølge mot den lokale databasen. Migrering `0003_web_origins.sql` registrerer de to produksjonsdomenene og utviklingsadressen i `bifrost_web_origins`. Sett OIDC-feltene i `system_settings` til base-URL `http://localhost:8081`, realm `bifrost-local`, client-id `bifrost-web`, fallback redirect URI `http://127.0.0.1:3000/auth/callback` og `enable_keycloak_login=1`. `enable_local_login=1` viser i tillegg lokal V1-innlogging som reserve.
 
 Realm-importen oppretter PKCE-klienten og alle 11 V1-roller, men med vilje ingen brukere eller standardpassord. Opprett en lokal testbruker i Keycloak-konsollen, tildel ønskede realm-roller og sett tilsvarende `wannabe_role_name` på Bifrost-rollene som skal mappes. Uten rollemapping får nye OIDC-brukere rollen `bruker`.
 
@@ -94,6 +96,8 @@ VITE_API_TOKEN
 
 `VITE_API_TOKEN` er synlig i browser-bundlen og må derfor aldri være en serverhemmelighet. Brukeridentitet og tilgang håndheves i API-et med enten OIDC/Keycloak-token eller et utløpende, ugjenfinnbart lokalt sesjonstoken.
 
+I utvikling brukes `VITE_API_URL=http://127.0.0.1:3001`. Produksjonsbygget skal bruke `VITE_API_URL=same-origin`; da kan samme statiske build kjøre på både `https://tg.legacyh.dev` og `https://bifrost.tg.no`, mens reverse proxy sender `/api/`, `/health` og `/ready` til API-port 3001. Et Nginx-eksempel ligger i [docs/nginx-bifrost.conf.example](docs/nginx-bifrost.conf.example).
+
 Etter OIDC-callback fullfører Web innloggingen mot `POST /api/v1/auth/session`. Lokal innlogging bruker eksisterende Argon2id-hash i V1-tabellen `users` via `POST /api/v1/auth/local`; rått passord lagres aldri. Det tilfeldige lokale sesjonstokenet returneres én gang, mens bare SHA-256-hashen lagres i `bifrost_local_sessions` med 12 timers utløp og eksplisitt revokering ved utlogging. Vellykkede forsøk skrives til både V1-tabellen `login_attempts` og `audit_logs`; avviste bearer-token registreres anonymt i `login_attempts`. Token og claims lagres aldri i auditdata. V1-grensen på fem mislykkede forsøk per e-post/IP på 15 minutter beholdes, og videre forsøk får HTTP 429.
 
 Alle autoritative V1-roller og tilgangsgrupper er definert én gang i `packages/contracts`. API-et håndhever matrisen, Web bruker den samme katalogen til navigasjon, og CI tester alle 11 roller mot hvert tilgangsområde. Den dokumenterte matrisen og åpne stagingavklaringer ligger i [docs/domain-matrix.md](docs/domain-matrix.md).
@@ -103,6 +107,14 @@ Alle autoritative V1-roller og tilgangsgrupper er definert én gang i `packages/
 V1-tabellene beholdes. Drizzle-definisjonene i `packages/database` mapper mot eksisterende tabellnavn. Nye tekniske tabeller bruker `bifrost_`-prefiks.
 
 Kjør migreringene under `database/migrations/` i nummerrekkefølge mot korrekt database før funksjoner som krever V2-jobbkø, sikker konfigurasjon eller lokal sesjonshåndtering tas i bruk. Ta backup og verifiser restore først.
+
+`bifrost_web_origins` er den autoritative listen for CORS og OIDC callback. Standardlisten er:
+
+- `https://tg.legacyh.dev`
+- `https://bifrost.tg.no`
+- `http://127.0.0.1:3000`
+
+Listen kan endres av `developer` under Administrasjon → Systeminnstillinger. API-et godtar bare en callback på en aktiv origin i denne tabellen; fallback-feltet i `system_settings` brukes når Web-origin ikke er oppgitt.
 
 Etter tabellmigreringen kan eksisterende V1-hemmeligheter kopieres til kryptert V2-lagring:
 
@@ -151,6 +163,18 @@ pm2 status
 ```
 
 Prosessene heter `Bifrost-API`, `Bifrost-Web` og `Bifrost-Worker`. API lytter på `3001`, Web på `3000`. Alle tre håndterer `SIGINT` og `SIGTERM` kontrollert ved stopp eller restart fra PM2.
+
+Etter oppstart kan hele kjeden kontrolleres uten å skrive data:
+
+```bash
+# Lokal utvikling
+pnpm smoke
+
+# Ett av produksjonsdomenene bak reverse proxy
+BIFROST_WEB_URL=https://bifrost.tg.no BIFROST_API_URL=https://bifrost.tg.no pnpm smoke
+```
+
+Smoke-testen kontrollerer Web, health, readiness/database, origin-spesifikk OIDC callback og CORS for `PUT`, `PATCH` og `DELETE`.
 
 ## Viktige regler
 

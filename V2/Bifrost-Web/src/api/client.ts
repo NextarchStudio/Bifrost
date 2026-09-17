@@ -1,10 +1,11 @@
 import type { AdminCrewResetPreview, AdminRole, AdminSettings, AdminStatistics, AdminWorkspaceResponse, ApiError, BarcodeExportRequest, CommsItemType, CommsWorkspaceResponse, CrewClothingItemType, CrewClothingMember, CrewClothingWorkspaceResponse, CrewProfile, CurrentUser, DashboardSummary, EquipmentCategory, EquipmentListResponse, EquipmentLoanIssueResponse, EquipmentLoanListResponse, EquipmentLoanReturnResponse, EquipmentMutationResponse, EquipmentRequestWorkspaceResponse, FeedbackNotificationResponse, FeedbackStatus, FeedbackType, FeedbackWorkspaceResponse, GlobalSearchResponse, LocalLoginRequest, LocalLoginResponse, Location, OidcPublicConfig, Pallet, PalletInspection, PrivateEquipmentNotice, PrivateEquipmentRule, ShopImportSummary, ShopWorkspaceResponse, TaskPriority, TaskStatus, TaskType, TaskWorkspaceResponse, TransportJob, TransportJobKind, TransportWorkspaceResponse, UserProfileResponse, VehicleCompetencyCode, VehicleCompetencyProfile, VehicleCompetencyRequirement, VehicleLoanIssueResponse, VehicleWorkspaceResponse } from "@bifrost/contracts";
 
-const configuredApiUrl = (import.meta.env.VITE_API_URL || "http://localhost:3001").replace(/\/$/, "");
-const apiUrl = normalizeLocalApiUrl(configuredApiUrl);
+const configuredApiUrl = (import.meta.env.VITE_API_URL || "http://127.0.0.1:3001").replace(/\/$/, "");
+const apiUrl = normalizeApiUrl(configuredApiUrl);
 
-function normalizeLocalApiUrl(value: string): string {
+function normalizeApiUrl(value: string): string {
   if (typeof window === "undefined") return value;
+  if (value === "same-origin") return window.location.origin;
   try {
     const target = new URL(value);
     const localHosts = new Set(["localhost", "127.0.0.1"]);
@@ -19,7 +20,9 @@ function normalizeLocalApiUrl(value: string): string {
 }
 
 export async function getAuthConfig(): Promise<OidcPublicConfig> {
-  const response = await fetch(`${apiUrl}/api/v1/auth/config`, { headers: createHeaders() });
+  const origin = typeof window === "undefined" ? undefined : window.location.origin;
+  const query = origin ? `?origin=${encodeURIComponent(origin)}` : "";
+  const response = await fetch(`${apiUrl}/api/v1/auth/config${query}`, { headers: createHeaders() });
   if (!response.ok) throw await createApiError(response, "Innloggingskonfigurasjonen er ikke tilgjengelig.");
   return response.json() as Promise<OidcPublicConfig>;
 }

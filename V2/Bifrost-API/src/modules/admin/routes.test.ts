@@ -40,7 +40,7 @@ test("keeps V1 statistics available to the same three administration roles", asy
 });
 
 test("only developer can update secure system settings", async () => {
-  const payload = { appName: "Bifrost", localLoginEnabled: true, keycloakBaseUrl: "https://id.example.test", keycloakRealm: "crew", keycloakClientId: "bifrost", keycloakRedirectUri: "https://bifrost.example.test/auth/callback" };
+  const payload = { appName: "Bifrost", localLoginEnabled: true, webOrigins: ["https://bifrost.tg.no"], keycloakBaseUrl: "https://id.example.test", keycloakRealm: "crew", keycloakClientId: "bifrost", keycloakRedirectUri: "https://bifrost.tg.no/auth/callback" };
   const deniedApp = buildApp({ checkDatabase: async () => undefined, auth: auth(["chief"]), admin: serviceStub() });
   const denied = await deniedApp.inject({ method: "PUT", url: "/api/v1/admin/settings", headers: { authorization: "Bearer valid" }, payload });
   assert.equal(denied.statusCode, 403); await deniedApp.close();

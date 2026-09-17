@@ -7,7 +7,7 @@ Denne runbooken brukes mot en anonymisert kopi av V1-databasen. Den gir ikke til
 - MariaDB 10.6 eller nyere.
 - Node.js 22, pnpm 11 og PM2 på stagingserveren.
 - En anonymisert databasekopi med samme skjema som aktiv V1.
-- Separate Keycloak-klient- og redirect-URI-verdier for staging.
+- Keycloak-klienten må ha redirect URI og Web Origin for `https://tg.legacyh.dev`, `https://bifrost.tg.no` og `http://127.0.0.1:3000`.
 - Dokumentert ansvarlig person for backup, restore og godkjenning.
 
 ## 2. Backup og restore-bevis
@@ -35,7 +35,7 @@ pnpm check
 
 ## 5. V2-tabeller og krypterte innstillinger
 
-1. Kjør `database/migrations/0001_bifrost_v2_foundation.sql` og `database/migrations/0002_local_auth_sessions.sql` i nummerrekkefølge mot stagingdatabasen.
+1. Kjør alle SQL-filene under `database/migrations/` i nummerrekkefølge mot stagingdatabasen. `0003_web_origins.sql` må være kjørt før ny API-versjon startes.
 2. Bygg API-et og migrer eksisterende hemmeligheter:
 
 ```bash
@@ -74,6 +74,15 @@ pm2 logs Bifrost-Worker --lines 100
 ```
 
 Kontroller `GET /health`, `GET /ready`, Keycloak-innlogging og at Web bare kommuniserer med API-et.
+
+Kjør deretter smoke-testen mot hvert domene:
+
+```bash
+BIFROST_WEB_URL=https://tg.legacyh.dev BIFROST_API_URL=https://tg.legacyh.dev pnpm smoke
+BIFROST_WEB_URL=https://bifrost.tg.no BIFROST_API_URL=https://bifrost.tg.no pnpm smoke
+```
+
+Begge kommandoene skal ende med fem `PASS`. Nettleserbygget skal være bygget med `VITE_API_URL=same-origin`.
 
 ## 8. Funksjons- og rolleparitet
 

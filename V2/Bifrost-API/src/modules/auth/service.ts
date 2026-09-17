@@ -11,6 +11,7 @@ import {
 import { and, eq, gt, inArray, isNull } from "drizzle-orm";
 import { createRemoteJWKSet, jwtVerify, type JWTPayload } from "jose";
 import { hashLocalSessionToken, isLocalSessionToken } from "./local-session.js";
+import { isActiveWebOrigin } from "../settings/web-origins.js";
 
 export class AuthenticationError extends Error {
   constructor(message: string, readonly statusCode: 401 | 403 | 429 | 503 = 401) {
@@ -19,29 +20,34 @@ export class AuthenticationError extends Error {
 }
 
 export interface AuthService {
-  getPublicConfig(): Promise<OidcPublicConfig>;
+  getPublicConfig(webOrigin?: string): Promise<OidcPublicConfig>;
   authenticate(token: string): Promise<CurrentUser>;
 }
 
 type VerifyToken = (token: string, config: OidcPublicConfig) => Promise<JWTPayload>;
 
 export function createAuthService(database: DatabaseConnection, verifyToken: VerifyToken = verifyKeycloakToken): AuthService {
-  const getPublicConfig = async (): Promise<OidcPublicConfig> => {
-    const [settings] = await database.db
-      .select({
-        enabled: systemSettings.enableKeycloakLogin,
-        baseUrl: systemSettings.keycloakBaseUrl,
-        realm: systemSettings.keycloakRealm,
-        clientId: systemSettings.keycloakClientId,
-        redirectUri: systemSettings.keycloakRedirectUri,
-        localLoginEnabled: systemSettings.enableLocalLogin,
-        appName: systemSettings.appName,
-        logoUrl: systemSettings.logoUrl,
-        faviconUrl: systemSettings.faviconUrl,
-      })
-      .from(systemSettings)
-      .where(eq(systemSettings.id, 1))
-      .limit(1);
+  const getPublicConfig = async (webOrigin?: string): Promise<OidcPublicConfig> => {
+    const normalizedOrigin = normalizeWebOrigin(webOrigin);
+    const [settingsRows, allowedOrigin] = await Promise.all([
+      database.db
+        .select({
+          enabled: systemSettings.enableKeycloakLogin,
+          baseUrl: systemSettings.keycloakBaseUrl,
+          realm: systemSettings.keycloakRealm,
+          clientId: systemSettings.keycloakClientId,
+          redirectUri: systemSettings.keycloakRedirectUri,
+          localLoginEnabled: systemSettings.enableLocalLogin,
+          appName: systemSettings.appName,
+          logoUrl: systemSettings.logoUrl,
+          faviconUrl: systemSettings.faviconUrl,
+        })
+        .from(systemSettings)
+        .where(eq(systemSettings.id, 1))
+        .limit(1),
+      normalizedOrigin ? isActiveWebOrigin(database, normalizedOrigin) : Promise.resolve(false),
+    ]);
+    const [settings] = settingsRows;
 
     if (!settings?.enabled || !settings.baseUrl || !settings.realm || !settings.clientId || !settings.redirectUri) {
       throw new AuthenticationError("Keycloak/OIDC er ikke konfigurert.", 503);
@@ -50,7 +56,7 @@ export function createAuthService(database: DatabaseConnection, verifyToken: Ver
     return {
       authority: `${settings.baseUrl.replace(/\/$/, "")}/realms/${encodeURIComponent(settings.realm)}`,
       clientId: settings.clientId,
-      redirectUri: settings.redirectUri,
+      redirectUri: allowedOrigin ? `${normalizedOrigin}/auth/callback` : settings.redirectUri,
       scope: "openid profile email",
       localLoginEnabled: settings.localLoginEnabled,
       appName: settings.appName?.trim() || "Bifrost",
@@ -161,6 +167,18 @@ export function createAuthService(database: DatabaseConnection, verifyToken: Ver
       wannabeId: first.wannabeId,
       roles: [...new Set(rows.flatMap((row) => row.role ? [row.role] : []))],
     };
+  }
+}
+
+export function normalizeWebOrigin(value?: string): string | undefined {
+  if (!value) return undefined;
+  try {
+    const url = new URL(value);
+    if (!(["http:", "https:"] as const).includes(url.protocol as "http:" | "https:")) return undefined;
+    if (url.username || url.password || url.pathname !== "/" || url.search || url.hash) return undefined;
+    return url.origin;
+  } catch {
+    return undefined;
   }
 }
 

@@ -20,6 +20,7 @@ const competencySchema = z.object({ competencies: z.array(z.enum(["t1", "t2", "t
 const settingsSchema = z.object({
   appName: z.string().trim().min(1).max(120),
   localLoginEnabled: z.boolean(),
+  webOrigins: z.array(z.string().trim().url().max(255)).min(1).max(10),
   logoUrl: z.string().trim().url().max(255).nullable().optional(),
   faviconUrl: z.string().trim().url().max(255).nullable().optional(),
   keycloakBaseUrl: z.string().trim().url().max(255).nullable().optional(),

@@ -771,6 +771,7 @@ export interface AdminUser {
 export interface AdminSettings {
   appName: string;
   localLoginEnabled: boolean;
+  webOrigins: string[];
   logoUrl: string | null;
   faviconUrl: string | null;
   keycloakBaseUrl: string | null;

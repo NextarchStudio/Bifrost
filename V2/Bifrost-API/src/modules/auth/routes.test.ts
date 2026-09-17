@@ -8,7 +8,7 @@ const auth: AuthService = {
   getPublicConfig: async () => ({
     authority: "https://id.example.test/realms/bifrost",
     clientId: "bifrost-web",
-    redirectUri: "http://localhost:3000/auth/callback",
+    redirectUri: "http://127.0.0.1:3000/auth/callback",
     scope: "openid profile email",
     localLoginEnabled: true,
   }),

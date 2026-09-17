@@ -20,12 +20,14 @@ import {
   userRoles,
   users,
   wannabeCompetencies,
+  webOrigins,
   type DatabaseConnection,
 } from "@bifrost/database";
 import { asc, count, eq, inArray } from "drizzle-orm";
 import type { SecureSettingsStore } from "../settings/secure-settings.js";
 import { loadAdminStatistics } from "./statistics.js";
 import { loadCrewResetPreview, resetCrewData } from "./crew-reset.js";
+import { loadActiveWebOrigins } from "../settings/web-origins.js";
 
 export const ADMIN_ROLES = BIFROST_ACCESS.admin;
 export const SYSTEM_SETTINGS_ROLES = BIFROST_ACCESS.systemSettings;
@@ -37,6 +39,7 @@ export interface AdminRoleInput { name: string; displayName?: string | null; wan
 export interface AdminSettingsInput {
   appName: string;
   localLoginEnabled: boolean;
+  webOrigins: string[];
   logoUrl?: string | null;
   faviconUrl?: string | null;
   keycloakBaseUrl?: string | null;
@@ -228,6 +231,13 @@ export function createAdminService(database: DatabaseConnection, secureSettings:
     },
 
     async updateSettings(input, actorUserId) {
+      const normalizedWebOrigins = normalizeWebOrigins(input.webOrigins);
+      const currentWebOriginConfig = await loadActiveWebOrigins(database);
+      const bootstrapOriginsUnchanged = normalizedWebOrigins.length === currentWebOriginConfig.origins.length
+        && normalizedWebOrigins.every((origin) => currentWebOriginConfig.origins.includes(origin));
+      if (currentWebOriginConfig.usingBootstrapFallback && !bootstrapOriginsUnchanged) {
+        throw new AdminDomainError("Migrering 0003 må kjøres før Web-domener kan endres.", "CONFLICT");
+      }
       const secretChanges: string[] = [];
       for (const [key, value] of [
         ["oidc.client_secret", input.keycloakClientSecret],
@@ -256,20 +266,26 @@ export function createAdminService(database: DatabaseConnection, secureSettings:
       };
       await database.db.transaction(async (tx) => {
         await tx.update(systemSettings).set(values).where(eq(systemSettings.id, 1));
-        await writeAudit(tx, actorUserId, "update", "system_settings", 1, { ...values, encrypted_settings_changed: secretChanges });
+        if (!currentWebOriginConfig.usingBootstrapFallback) {
+          await tx.delete(webOrigins);
+          const now = new Date();
+          await tx.insert(webOrigins).values(normalizedWebOrigins.map((origin) => ({ origin, enabled: true, createdAt: now, updatedAt: now })));
+        }
+        await writeAudit(tx, actorUserId, "update", "system_settings", 1, { ...values, web_origins: normalizedWebOrigins, encrypted_settings_changed: secretChanges });
       });
     },
   };
 }
 
 async function loadSettings(database: DatabaseConnection, secureStore: SecureSettingsStore): Promise<AdminSettings> {
-  const [row, oidcSecret, smtpPassword, vegvesenKey, crewToken] = await Promise.all([
+  const [row, originConfig, oidcSecret, smtpPassword, vegvesenKey, crewToken] = await Promise.all([
     database.db.select().from(systemSettings).where(eq(systemSettings.id, 1)).limit(1).then((rows) => rows[0]),
+    loadActiveWebOrigins(database),
     secureStore.get("oidc.client_secret"), secureStore.get("smtp.password"), secureStore.get("vegvesen.api_key"), secureStore.get("crew.api_bearer_token"),
   ]);
   if (!row) throw new AdminDomainError("Systeminnstillinger finnes ikke.", "NOT_FOUND");
   return {
-    appName: row.appName?.trim() || "Bifrost", localLoginEnabled: row.enableLocalLogin, logoUrl: row.logoUrl, faviconUrl: row.faviconUrl,
+    appName: row.appName?.trim() || "Bifrost", localLoginEnabled: row.enableLocalLogin, webOrigins: originConfig.origins, logoUrl: row.logoUrl, faviconUrl: row.faviconUrl,
     keycloakBaseUrl: row.keycloakBaseUrl, keycloakRealm: row.keycloakRealm, keycloakClientId: row.keycloakClientId, keycloakRedirectUri: row.keycloakRedirectUri,
     smtpFromEmail: row.smtpFromEmail, smtpFromName: row.smtpFromName, smtpHost: row.smtpHost, smtpPort: row.smtpPort,
     smtpUser: row.smtpUser, smtpCrypto: row.smtpCrypto === "ssl" ? "ssl" : row.smtpCrypto === "tls" ? "tls" : null,
@@ -310,6 +326,20 @@ async function userDeleteBlockers(tx: DatabaseTransaction, userId: number): Prom
 function normalizeRoleName(value: string): string { return plainText(value, 100).toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_-]/g, "").slice(0, 50); }
 function plainText(value: string, limit: number): string { return value.replace(/<[^>]*>/g, "").trim().slice(0, limit); }
 function nullableText(value: string | null | undefined, limit: number): string | null { const clean = plainText(value ?? "", limit); return clean || null; }
+function normalizeWebOrigins(values: string[]): string[] {
+  const normalized = new Set<string>();
+  for (const value of values) {
+    try {
+      const url = new URL(value.trim());
+      if (!["http:", "https:"].includes(url.protocol) || url.username || url.password || url.pathname !== "/" || url.search || url.hash) throw new Error();
+      normalized.add(url.origin);
+    } catch {
+      throw new AdminDomainError(`Ugyldig Web-origin: ${value}`, "CONFLICT");
+    }
+  }
+  if (normalized.size === 0) throw new AdminDomainError("Minst ett Web-domene må være konfigurert.", "CONFLICT");
+  return [...normalized];
+}
 function normalizeEndpoint(value: string | null | undefined): string { const clean = (value ?? "").trim().replace(/^\/+|\/+$/g, ""); return clean ? `/${clean}/` : "/"; }
 async function writeAudit(tx: DatabaseTransaction, actorUserId: number, action: string, entityType: string, entityId: number, diffJson: unknown): Promise<void> {
   await tx.insert(auditLogs).values({ actorUserId, action, entityType, entityId, diffJson, createdAt: new Date() });

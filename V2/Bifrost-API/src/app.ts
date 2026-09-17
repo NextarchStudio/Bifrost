@@ -44,9 +44,11 @@ import { registerAdminRoutes } from "./modules/admin/routes.js";
 import type { AdminService } from "./modules/admin/service.js";
 import { registerDashboardRoutes } from "./modules/dashboard/routes.js";
 import type { DashboardService } from "./modules/dashboard/service.js";
+import { BOOTSTRAP_WEB_ORIGINS } from "./modules/settings/web-origins.js";
 
 export interface AppDependencies {
   checkDatabase: () => Promise<void>;
+  allowedWebOrigins?: readonly string[];
   version?: string;
   auth?: AuthService;
   login?: AuthLoginService;
@@ -80,8 +82,9 @@ export function buildApp(dependencies: AppDependencies): FastifyInstance {
 
   void app.register(helmet);
   void app.register(multipart, { limits: { files: 1, fileSize: 10 * 1024 * 1024 } });
+  const allowedWebOrigins = dependencies.allowedWebOrigins ?? BOOTSTRAP_WEB_ORIGINS;
   void app.register(cors, {
-    origin: [/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/],
+    origin: [...allowedWebOrigins],
     methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Authorization", "Content-Type", "X-Bifrost-Client", "X-Request-Id"],
     exposedHeaders: ["Content-Disposition", "X-Barcode-Count"],

@@ -26,12 +26,18 @@ import { createFeedbackService } from "./modules/feedback/service.js";
 import { createAdminService } from "./modules/admin/service.js";
 import { createDashboardService } from "./modules/dashboard/service.js";
 import { resolve } from "node:path";
+import { loadActiveWebOrigins } from "./modules/settings/web-origins.js";
 
 const database = createDatabase(readDatabaseConfig());
 const secureSettings = await createSecureSettingsStore(database, resolve(process.cwd(), "../var/secrets/settings.key"));
 const crew = createCrewDirectoryService(database, secureSettings);
 const auth = createAuthService(database);
+const webOriginConfig = await loadActiveWebOrigins(database);
+const allowedWebOrigins = webOriginConfig.origins;
+if (allowedWebOrigins.length === 0) throw new Error("Ingen aktive Web-domener er konfigurert i bifrost_web_origins.");
+if (webOriginConfig.usingBootstrapFallback) console.warn("bifrost_web_origins mangler; bruker bootstrap-domener frem til migrering 0003 er kjørt.");
 const app = buildApp({
+  allowedWebOrigins,
   auth,
   login: createAuthLoginService(database, auth),
   localAuth: createLocalAuthService(database),

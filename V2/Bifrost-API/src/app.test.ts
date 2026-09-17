@@ -129,20 +129,30 @@ test("health returns API status", async () => {
 });
 
 test("allows browser mutation methods through CORS", async () => {
-  const app = buildApp({ checkDatabase: async () => undefined });
-  const response = await app.inject({
-    method: "OPTIONS",
-    url: "/api/v1/locations/1",
-    headers: {
-      origin: "http://127.0.0.1:3000",
-      "access-control-request-method": "PATCH",
-      "access-control-request-headers": "authorization,content-type",
-    },
-  });
-  assert.equal(response.statusCode, 204);
-  assert.equal(response.headers["access-control-allow-origin"], "http://127.0.0.1:3000");
-  const methods = String(response.headers["access-control-allow-methods"]);
-  for (const method of ["PUT", "PATCH", "DELETE"]) assert.match(methods, new RegExp(`\\b${method}\\b`));
+  const origins = ["https://tg.legacyh.dev", "https://bifrost.tg.no", "http://127.0.0.1:3000"];
+  const app = buildApp({ checkDatabase: async () => undefined, allowedWebOrigins: origins });
+  for (const origin of origins) {
+    const response = await app.inject({
+      method: "OPTIONS",
+      url: "/api/v1/locations/1",
+      headers: {
+        origin,
+        "access-control-request-method": "PATCH",
+        "access-control-request-headers": "authorization,content-type",
+      },
+    });
+    assert.equal(response.statusCode, 204, origin);
+    assert.equal(response.headers["access-control-allow-origin"], origin);
+    const methods = String(response.headers["access-control-allow-methods"]);
+    for (const method of ["PUT", "PATCH", "DELETE"]) assert.match(methods, new RegExp(`\\b${method}\\b`));
+  }
+  await app.close();
+});
+
+test("does not grant CORS to an unconfigured origin", async () => {
+  const app = buildApp({ checkDatabase: async () => undefined, allowedWebOrigins: ["https://bifrost.tg.no"] });
+  const response = await app.inject({ method: "OPTIONS", url: "/api/v1/locations/1", headers: { origin: "https://evil.example", "access-control-request-method": "DELETE" } });
+  assert.equal(response.headers["access-control-allow-origin"], undefined);
   await app.close();
 });
 
@@ -155,27 +165,32 @@ test("ready reports unavailable database", async () => {
 });
 
 test("publishes OIDC configuration without authentication", async () => {
+  let requestedOrigin: string | undefined;
   const app = buildApp({
     checkDatabase: async () => undefined,
     auth: {
-      getPublicConfig: async () => ({
+      getPublicConfig: async (origin) => {
+        requestedOrigin = origin;
+        return ({
         authority: "https://id.example.test/realms/bifrost",
         clientId: "bifrost-web",
-        redirectUri: "http://localhost:3000/auth/callback",
+        redirectUri: "http://127.0.0.1:3000/auth/callback",
         scope: "openid profile email",
         appName: "Bifrost Test",
         logoUrl: "https://assets.example.test/logo.svg",
         faviconUrl: "https://assets.example.test/favicon.svg",
-      }),
+        });
+      },
       authenticate: async () => { throw new Error("not called"); },
     },
   });
-  const response = await app.inject({ method: "GET", url: "/api/v1/auth/config" });
+  const response = await app.inject({ method: "GET", url: "/api/v1/auth/config?origin=https%3A%2F%2Fbifrost.tg.no" });
   assert.equal(response.statusCode, 200);
   assert.equal(response.json().clientId, "bifrost-web");
   assert.equal(response.json().appName, "Bifrost Test");
   assert.equal(response.json().logoUrl, "https://assets.example.test/logo.svg");
   assert.equal(response.json().faviconUrl, "https://assets.example.test/favicon.svg");
+  assert.equal(requestedOrigin, "https://bifrost.tg.no");
   await app.close();
 });
 

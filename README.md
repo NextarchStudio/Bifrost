@@ -27,6 +27,7 @@ Bifrost/
 - V2-fundamentet er opprettet som et pnpm-monorepo.
 - Bifrost-API, Bifrost-Web og Bifrost-Worker kjøres som separate PM2-prosesser.
 - OIDC/Keycloak er obligatorisk i V2.
+- V2 er konfigurert for `https://tg.legacyh.dev/`, `https://bifrost.tg.no/` og lokal utvikling på `http://127.0.0.1:3000/`.
 - Et separat V2-skjema kan brukes via kontrollerte ETL-/synkroniseringsjobber.
 - Dashboard, globalt søk, lager, utstyr, utlån, forespørsler, kjøretøy, profil, transport, samband, Shop, crewtøy, oppgaver, tilbakemeldinger, varsler, administrasjon, V1-kompatibel statistikk og kontrollert crew-reset er implementert i V2-kode; staging-paritet gjenstår.
 
@@ -51,6 +52,8 @@ Krav: Node.js 22+, pnpm 11+ og MariaDB 10.6+.
 cd V2
 pnpm install
 pnpm check
+pnpm e2e:install
+pnpm e2e
 pnpm dev
 ```
 
@@ -62,9 +65,9 @@ Opprett lokale miljøfiler fra `.env.example` i hver applikasjon:
 
 API-et lytter på port `3001`, Web på port `3000`. Endepunktene `GET /health` og `GET /ready` brukes til driftssjekk.
 
-GitHub Actions kjører låst installasjon, produksjonsaudit og `pnpm check` ved V2-endringer og pull requests.
+GitHub Actions kjører låst installasjon, produksjonsaudit, `pnpm check` og Playwright/Chromium ved V2-endringer og pull requests. En startet installasjon kontrolleres med `pnpm smoke`.
 
-Se [V2/README.md](V2/README.md) for utvikling, bygg og PM2, og [staging-runbooken](V2/docs/staging-runbook.md) for backup, preflight, paritet og rollback.
+Se [V2/README.md](V2/README.md) for utvikling, bygg og PM2, [staging-runbooken](V2/docs/staging-runbook.md) for backup, preflight, paritet og rollback, og [cutover-sjekklisten](V2/docs/cutover-checklist.md) før produksjonssetting.
 
 ## Produksjon med PM2
 

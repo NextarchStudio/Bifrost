@@ -22,6 +22,9 @@ build/
 coverage/
 .nyc_output/
 .vite/
+playwright-report/
+test-results/
+blob-report/
 *.tsbuildinfo
 .phpunit.result.cache
 .phpunit.cache/

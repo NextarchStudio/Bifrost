@@ -14,7 +14,9 @@ const localLoginSchema = z.object({
 export async function registerAuthRoutes(app: FastifyInstance, auth: AuthService, login?: AuthLoginService, localAuth?: LocalAuthService): Promise<void> {
   app.get("/api/v1/auth/config", async (request, reply) => {
     try {
-      return await auth.getPublicConfig();
+      const query = request.query as { origin?: unknown };
+      const requestedOrigin = typeof query.origin === "string" && query.origin.length <= 255 ? query.origin : undefined;
+      return await auth.getPublicConfig(requestedOrigin);
     } catch (error) {
       return sendAuthError(error, request, reply);
     }

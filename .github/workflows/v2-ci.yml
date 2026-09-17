@@ -21,7 +21,7 @@ jobs:
   verify:
     name: Audit, build and test
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     defaults:
       run:
         working-directory: V2
@@ -53,3 +53,9 @@ jobs:
 
       - name: Lint, typecheck, build and test
         run: pnpm check
+
+      - name: Install Chromium for acceptance tests
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run browser acceptance tests
+        run: pnpm e2e

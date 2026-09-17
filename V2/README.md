@@ -74,6 +74,8 @@ Profilmodulen samler aktive utstyrs-, kjøretøy- og sambandlån samt åpne fore
 
 Transportmodulen bruker V1-tabellene `transport_jobs` og `transport_job_stops` direkte. V1-rollene beholdes: ledelse/logistikk oppretter, tildeler, starter og fullfører oppdrag, mens `innkjop` rekvirerer persontransport og ser egne turer. Kjøretøyreservasjon, kompetansekontroll, kilometerstand og audit oppdateres transaksjonelt. Geokoding går via Nominatim fra API-et, og rutelengde beregnes mot `osrm_base_url` i `system_settings`; Web kontakter aldri rutetjenestene direkte.
 
+Sambandsmodulen bruker V1-tabellene `comms_items`, `comms_sets`, `comms_set_items`, `comms_loans` og `comms_loan_items` direkte. Enheter, tilbehør, standardsett, badge-/personoppslag, enkelt- og settutlån, delretur og bytte er tilgjengelig for de samme fem V1-rollene. Beholdning og lånelinjer låses og oppdateres i én transaksjon, slik at mislykkede settutlån eller returer ikke etterlater delvis lagerendring.
+
 ## PM2
 
 ```bash

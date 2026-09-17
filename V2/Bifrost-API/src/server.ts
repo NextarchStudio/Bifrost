@@ -15,10 +15,12 @@ import { createVegvesenVehicleDataService } from "./modules/vehicles/vegvesen.js
 import { createProfileService } from "./modules/profiles/service.js";
 import { createTransportService } from "./modules/transport/service.js";
 import { createTransportRouting } from "./modules/transport/routing.js";
+import { createCommsService } from "./modules/comms/service.js";
 import { resolve } from "node:path";
 
 const database = createDatabase(readDatabaseConfig());
 const secureSettings = await createSecureSettingsStore(database, resolve(process.cwd(), "../var/secrets/settings.key"));
+const crew = createCrewDirectoryService(database, secureSettings);
 const app = buildApp({
   auth: createAuthService(database),
   equipment: createEquipmentService(database),
@@ -26,12 +28,13 @@ const app = buildApp({
   locations: createLocationService(database),
   warehouse: createWarehouseService(database),
   loans: createLoanService(database),
-  crew: createCrewDirectoryService(database, secureSettings),
+  crew,
   privateEquipment: createPrivateEquipmentService(database),
   requests: createEquipmentRequestService(database),
   vehicles: createVehicleService(database, createVegvesenVehicleDataService(database, secureSettings)),
   profiles: createProfileService(database),
   transport: createTransportService(database, createTransportRouting(database)),
+  comms: createCommsService(database, crew),
   checkDatabase: async () => {
     const connection = await database.pool.getConnection();
     try {

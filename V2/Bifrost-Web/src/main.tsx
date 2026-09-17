@@ -12,6 +12,7 @@ import { RequestWorkspace } from "./features/requests/RequestWorkspace";
 import { VehicleWorkspace } from "./features/vehicles/VehicleWorkspace";
 import { ProfileWorkspace } from "./features/profiles/ProfileWorkspace";
 import { TransportWorkspace } from "./features/transport/TransportWorkspace";
+import { CommsWorkspace } from "./features/comms/CommsWorkspace";
 import "./styles.css";
 
 type SessionState =
@@ -53,6 +54,7 @@ function App() {
   const hasLogisticsAccess = session.status === "authenticated" && session.user.roles.some((role) => LOGISTICS_ROLES.has(role));
   const hasVehicleAccess = session.status === "authenticated" && session.user.roles.some((role) => VEHICLE_ROLES.has(role));
   const hasTransportAccess = session.status === "authenticated" && session.user.roles.some((role) => TRANSPORT_ROLES.has(role));
+  const hasCommsAccess = session.status === "authenticated" && session.user.roles.some((role) => COMMS_ROLES.has(role));
 
   return (
     <main className="min-h-screen bg-[#07111d] text-slate-100">
@@ -62,11 +64,11 @@ function App() {
             <div className="grid size-10 place-items-center rounded-xl bg-emerald-300 font-black text-slate-950">B</div>
             <div><p className="font-semibold">Bifrost</p><p className="text-xs text-slate-500">TG Logistics</p></div>
           </div>
-          {session.status === "authenticated" && <div className="flex flex-wrap items-center gap-2"><nav className="mr-2 flex flex-wrap rounded-xl border border-white/10 bg-white/[.025] p-1" aria-label="Hovednavigasjon">{hasLogisticsAccess && <><NavigationButton active={workspace === "equipment"} onClick={() => navigate("equipment")}>Utstyr</NavigationButton><NavigationButton active={workspace === "warehouse"} onClick={() => navigate("warehouse")}>Lager</NavigationButton><NavigationButton active={workspace === "locations"} onClick={() => navigate("locations")}>Lokasjoner</NavigationButton><NavigationButton active={workspace === "loans"} onClick={() => navigate("loans")}>Utlån</NavigationButton><NavigationButton active={workspace === "private-equipment"} onClick={() => navigate("private-equipment")}>Privat utstyr</NavigationButton></>}{hasVehicleAccess && <NavigationButton active={workspace === "vehicles"} onClick={() => navigate("vehicles")}>Kjøretøy</NavigationButton>}{hasTransportAccess && <NavigationButton active={workspace === "transport"} onClick={() => navigate("transport")}>Transport</NavigationButton>}<NavigationButton active={workspace === "requests"} onClick={() => navigate("requests")}>Forespørsler</NavigationButton><NavigationButton active={workspace === "profile"} onClick={() => navigate("profile")}>Profil</NavigationButton></nav><button className="rounded-lg border border-white/10 px-4 py-2 text-sm text-slate-300 hover:bg-white/5" onClick={() => void signOut()}>Logg ut</button></div>}
+          {session.status === "authenticated" && <div className="flex flex-wrap items-center gap-2"><nav className="mr-2 flex flex-wrap rounded-xl border border-white/10 bg-white/[.025] p-1" aria-label="Hovednavigasjon">{hasLogisticsAccess && <><NavigationButton active={workspace === "equipment"} onClick={() => navigate("equipment")}>Utstyr</NavigationButton><NavigationButton active={workspace === "warehouse"} onClick={() => navigate("warehouse")}>Lager</NavigationButton><NavigationButton active={workspace === "locations"} onClick={() => navigate("locations")}>Lokasjoner</NavigationButton><NavigationButton active={workspace === "loans"} onClick={() => navigate("loans")}>Utlån</NavigationButton><NavigationButton active={workspace === "private-equipment"} onClick={() => navigate("private-equipment")}>Privat utstyr</NavigationButton></>}{hasVehicleAccess && <NavigationButton active={workspace === "vehicles"} onClick={() => navigate("vehicles")}>Kjøretøy</NavigationButton>}{hasTransportAccess && <NavigationButton active={workspace === "transport"} onClick={() => navigate("transport")}>Transport</NavigationButton>}{hasCommsAccess && <NavigationButton active={workspace === "comms"} onClick={() => navigate("comms")}>Samband</NavigationButton>}<NavigationButton active={workspace === "requests"} onClick={() => navigate("requests")}>Forespørsler</NavigationButton><NavigationButton active={workspace === "profile"} onClick={() => navigate("profile")}>Profil</NavigationButton></nav><button className="rounded-lg border border-white/10 px-4 py-2 text-sm text-slate-300 hover:bg-white/5" onClick={() => void signOut()}>Logg ut</button></div>}
         </header>
 
         {session.status === "authenticated" ? (
-          workspace === "profile" ? <ProfileWorkspace accessToken={session.accessToken} currentUser={session.user} /> : workspace === "requests" ? <RequestWorkspace accessToken={session.accessToken} /> : workspace === "transport" ? (hasTransportAccess ? <TransportWorkspace accessToken={session.accessToken} /> : <NoAccessWorkspace user={session.user} />) : workspace === "vehicles" ? (hasVehicleAccess ? <VehicleWorkspace accessToken={session.accessToken} /> : <NoAccessWorkspace user={session.user} />) : !hasLogisticsAccess ? <NoAccessWorkspace user={session.user} /> : workspace === "locations" ? <LocationWorkspace accessToken={session.accessToken} /> : workspace === "warehouse" ? <WarehouseWorkspace accessToken={session.accessToken} /> : workspace === "loans" ? <LoanWorkspace accessToken={session.accessToken} /> : workspace === "private-equipment" ? <PrivateEquipmentWorkspace accessToken={session.accessToken} /> : <EquipmentWorkspace user={session.user} accessToken={session.accessToken} />
+          workspace === "profile" ? <ProfileWorkspace accessToken={session.accessToken} currentUser={session.user} /> : workspace === "requests" ? <RequestWorkspace accessToken={session.accessToken} /> : workspace === "comms" ? (hasCommsAccess ? <CommsWorkspace accessToken={session.accessToken} /> : <NoAccessWorkspace user={session.user} />) : workspace === "transport" ? (hasTransportAccess ? <TransportWorkspace accessToken={session.accessToken} /> : <NoAccessWorkspace user={session.user} />) : workspace === "vehicles" ? (hasVehicleAccess ? <VehicleWorkspace accessToken={session.accessToken} /> : <NoAccessWorkspace user={session.user} />) : !hasLogisticsAccess ? <NoAccessWorkspace user={session.user} /> : workspace === "locations" ? <LocationWorkspace accessToken={session.accessToken} /> : workspace === "warehouse" ? <WarehouseWorkspace accessToken={session.accessToken} /> : workspace === "loans" ? <LoanWorkspace accessToken={session.accessToken} /> : workspace === "private-equipment" ? <PrivateEquipmentWorkspace accessToken={session.accessToken} /> : <EquipmentWorkspace user={session.user} accessToken={session.accessToken} />
         ) : <section className="grid flex-1 items-center gap-12 py-16 lg:grid-cols-[1.15fr_.85fr]">
           <div>
             <p className="mb-5 text-xs font-bold tracking-[.22em] text-emerald-300">BIFROST V2 · SIKKER LOGISTIKK</p>
@@ -95,8 +97,9 @@ function App() {
 const LOGISTICS_ROLES = new Set(["developer", "chief", "co-chief", "logistikk"]);
 const VEHICLE_ROLES = new Set(["developer", "chief", "co-chief", "skiftleder", "logistikk"]);
 const TRANSPORT_ROLES = new Set(["developer", "chief", "co-chief", "logistikk", "innkjop"]);
+const COMMS_ROLES = new Set(["developer", "chief", "co-chief", "logistikk", "sambandsansvarlig"]);
 
-type Workspace = "equipment" | "warehouse" | "locations" | "loans" | "private-equipment" | "requests" | "vehicles" | "transport" | "profile";
+type Workspace = "equipment" | "warehouse" | "locations" | "loans" | "private-equipment" | "requests" | "vehicles" | "transport" | "comms" | "profile";
 
 function workspaceFromPath(): Workspace {
   if (window.location.pathname === "/locations") return "locations";
@@ -106,6 +109,7 @@ function workspaceFromPath(): Workspace {
   if (window.location.pathname === "/requests") return "requests";
   if (window.location.pathname === "/vehicles") return "vehicles";
   if (window.location.pathname === "/transport") return "transport";
+  if (window.location.pathname === "/comms" || window.location.pathname === "/samband") return "comms";
   if (window.location.pathname === "/profile") return "profile";
   return "equipment";
 }

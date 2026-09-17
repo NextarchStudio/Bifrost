@@ -1,4 +1,4 @@
-import type { ApiError, CrewProfile, CurrentUser, EquipmentCategory, EquipmentListResponse, EquipmentLoanIssueResponse, EquipmentLoanListResponse, EquipmentLoanReturnResponse, EquipmentMutationResponse, EquipmentRequestWorkspaceResponse, Location, Pallet, PalletInspection, PrivateEquipmentNotice, PrivateEquipmentRule, TransportJob, TransportJobKind, TransportWorkspaceResponse, UserProfileResponse, VehicleCompetencyCode, VehicleCompetencyProfile, VehicleCompetencyRequirement, VehicleLoanIssueResponse, VehicleWorkspaceResponse } from "@bifrost/contracts";
+import type { ApiError, CommsItemType, CommsWorkspaceResponse, CrewProfile, CurrentUser, EquipmentCategory, EquipmentListResponse, EquipmentLoanIssueResponse, EquipmentLoanListResponse, EquipmentLoanReturnResponse, EquipmentMutationResponse, EquipmentRequestWorkspaceResponse, Location, Pallet, PalletInspection, PrivateEquipmentNotice, PrivateEquipmentRule, TransportJob, TransportJobKind, TransportWorkspaceResponse, UserProfileResponse, VehicleCompetencyCode, VehicleCompetencyProfile, VehicleCompetencyRequirement, VehicleLoanIssueResponse, VehicleWorkspaceResponse } from "@bifrost/contracts";
 
 const apiUrl = (import.meta.env.VITE_API_URL || "http://localhost:3001").replace(/\/$/, "");
 
@@ -399,6 +399,46 @@ export async function startTransportJob(accessToken: string, id: number, input: 
 
 export async function completeTransportJob(accessToken: string, id: number, endOdometer: number | null): Promise<void> {
   await sendApiMutation(accessToken, `/api/v1/transport/${id}/complete`, "POST", { endOdometer }, "Kunne ikke fullføre transportoppdraget.");
+}
+
+export async function getCommsWorkspace(accessToken: string): Promise<CommsWorkspaceResponse> {
+  const response = await fetch(`${apiUrl}/api/v1/comms`, { headers: createHeaders(accessToken) });
+  if (!response.ok) throw await createApiError(response, "Kunne ikke hente sambandsdata.");
+  return response.json() as Promise<CommsWorkspaceResponse>;
+}
+
+export async function createCommsItem(accessToken: string, input: { name: string; type: CommsItemType; serialNumber?: string | null; quantity: number; notes?: string | null }): Promise<{ id: number }> {
+  const headers = createHeaders(accessToken); headers.set("Content-Type", "application/json");
+  const response = await fetch(`${apiUrl}/api/v1/comms/items`, { method: "POST", headers, body: JSON.stringify(input) });
+  if (!response.ok) throw await createApiError(response, "Kunne ikke opprette samband/tilbehør.");
+  return response.json() as Promise<{ id: number }>;
+}
+
+export async function createCommsSet(accessToken: string, input: { name: string; notes?: string | null; items: Array<{ itemId: number; quantity: number }> }): Promise<{ id: number }> {
+  const headers = createHeaders(accessToken); headers.set("Content-Type", "application/json");
+  const response = await fetch(`${apiUrl}/api/v1/comms/sets`, { method: "POST", headers, body: JSON.stringify(input) });
+  if (!response.ok) throw await createApiError(response, "Kunne ikke opprette sambandssettet.");
+  return response.json() as Promise<{ id: number }>;
+}
+
+export async function updateCommsSet(accessToken: string, id: number, input: { name: string; notes?: string | null; items: Array<{ itemId: number; quantity: number }> }): Promise<void> {
+  await sendApiMutation(accessToken, `/api/v1/comms/sets/${id}`, "PATCH", input, "Kunne ikke oppdatere sambandssettet.");
+}
+
+export async function deleteCommsSet(accessToken: string, id: number): Promise<void> {
+  const response = await fetch(`${apiUrl}/api/v1/comms/sets/${id}`, { method: "DELETE", headers: createHeaders(accessToken) });
+  if (!response.ok) throw await createApiError(response, "Kunne ikke slette sambandssettet.");
+}
+
+export async function issueCommsLoan(accessToken: string, input: { wannabeId: number; loanType: "item"; itemId: number; quantity: number; notes?: string | null } | { wannabeId: number; loanType: "set"; setId: number; notes?: string | null }): Promise<{ loanId: number }> {
+  const headers = createHeaders(accessToken); headers.set("Content-Type", "application/json");
+  const response = await fetch(`${apiUrl}/api/v1/comms/loans`, { method: "POST", headers, body: JSON.stringify(input) });
+  if (!response.ok) throw await createApiError(response, "Kunne ikke registrere sambandslånet.");
+  return response.json() as Promise<{ loanId: number }>;
+}
+
+export async function returnCommsLoan(accessToken: string, id: number, input: { returns: Array<{ itemId: number; quantity: number }>; replacementItemId?: number | null; replacementQuantity?: number | null }): Promise<void> {
+  await sendApiMutation(accessToken, `/api/v1/comms/loans/${id}/return`, "POST", input, "Kunne ikke lagre retur eller bytte.");
 }
 
 export async function getUserProfile(accessToken: string, wannabeId: number): Promise<UserProfileResponse> {

@@ -408,3 +408,67 @@ export interface TransportWorkspaceResponse {
   activeJobs: TransportJob[];
   completedJobs: TransportJob[];
 }
+
+export type CommsItemType = "samband" | "tilbehor";
+
+export interface CommsItem {
+  id: number;
+  name: string;
+  type: CommsItemType;
+  serialNumber: string | null;
+  quantity: number;
+  status: string;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CommsSetItem {
+  id: number;
+  itemId: number;
+  itemName: string;
+  itemType: CommsItemType;
+  availableQuantity: number;
+  status: string;
+  quantity: number;
+}
+
+export interface CommsSet {
+  id: number;
+  name: string;
+  notes: string | null;
+  itemsSummary: string;
+  activeLoanCount: number;
+  items: CommsSetItem[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CommsLoanItem {
+  id: number;
+  itemId: number;
+  itemName: string;
+  itemType: CommsItemType;
+  serialNumber: string | null;
+  quantity: number;
+}
+
+export interface CommsLoan {
+  id: number;
+  wannabeId: number;
+  borrowerName: string | null;
+  issuedByUserId: number;
+  setId: number | null;
+  setName: string | null;
+  itemsSummary: string;
+  totalItems: number;
+  issuedAt: string;
+  notes: string | null;
+  items: CommsLoanItem[];
+}
+
+export interface CommsWorkspaceResponse {
+  items: CommsItem[];
+  sets: CommsSet[];
+  activeLoans: CommsLoan[];
+}

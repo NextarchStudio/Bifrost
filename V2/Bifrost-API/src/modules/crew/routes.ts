@@ -6,7 +6,7 @@ import { AuthenticationError, type AuthService } from "../auth/service.js";
 import { CrewDirectoryError, type CrewDirectoryService } from "./service.js";
 
 const querySchema = z.object({ query: z.string().trim().min(1).max(120) });
-const CREW_LOOKUP_ROLES: ReadonlySet<string> = new Set([...LOGISTICS_ROLES, "skiftleder"]);
+const CREW_LOOKUP_ROLES: ReadonlySet<string> = new Set([...LOGISTICS_ROLES, "skiftleder", "sambandsansvarlig"]);
 
 export async function registerCrewRoutes(app: FastifyInstance, auth: AuthService, crew: CrewDirectoryService): Promise<void> {
   app.get("/api/v1/crew/lookup", async (request, reply) => {

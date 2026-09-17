@@ -1,10 +1,11 @@
-import type { CrewProfile, EquipmentLoanListItem, EquipmentLoanListResponse, EquipmentLoanReturnResponse, PrivateEquipmentNotice } from "@bifrost/contracts";
+import type { CrewProfile, EquipmentListItem, EquipmentLoanListItem, EquipmentLoanListResponse, EquipmentLoanReturnResponse, PrivateEquipmentNotice } from "@bifrost/contracts";
 import { useEffect, useState } from "react";
-import { getEquipmentLoans, getPrivateEquipmentNotices, issueEquipmentLoans, lookupCrewProfile, returnEquipmentLoan } from "../../api/client";
+import { getEquipment, getEquipmentLoans, getPrivateEquipmentNotices, issueEquipmentLoans, lookupCrewProfile, returnEquipmentLoan } from "../../api/client";
 
 interface LoanLine {
   key: number;
   barcode: string;
+  equipmentName: string | null;
   quantity: number;
   privateEquipmentConfirmed: boolean;
 }
@@ -13,7 +14,7 @@ export function LoanWorkspace({ accessToken }: { accessToken: string }) {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [data, setData] = useState<EquipmentLoanListResponse | null>(null);
-  const [lines, setLines] = useState<LoanLine[]>([{ key: 1, barcode: "", quantity: 1, privateEquipmentConfirmed: false }]);
+  const [lines, setLines] = useState<LoanLine[]>([{ key: 1, barcode: "", equipmentName: null, quantity: 1, privateEquipmentConfirmed: false }]);
   const [privateEquipmentNotices, setPrivateEquipmentNotices] = useState<PrivateEquipmentNotice[]>([]);
   const [privateEquipmentError, setPrivateEquipmentError] = useState<string | null>(null);
   const [wannabeQuery, setWannabeQuery] = useState("");
@@ -46,6 +47,12 @@ export function LoanWorkspace({ accessToken }: { accessToken: string }) {
   }, [accessToken]);
 
   const updateLine = (key: number, patch: Partial<LoanLine>) => setLines((current) => current.map((line) => line.key === key ? { ...line, ...patch } : line));
+  const lookupWannabe = () => {
+    const query = wannabeQuery.trim();
+    if (!query || lookupBusy) return;
+    setLookupBusy(true); setLookupError(null); setCrewProfile(null);
+    void lookupCrewProfile(accessToken, query).then((profile) => { setCrewProfile(profile); setWannabeQuery(String(profile.id)); }).catch((reason) => setLookupError(messageFrom(reason))).finally(() => setLookupBusy(false));
+  };
 
   return (
     <section className="py-10">
@@ -68,7 +75,7 @@ export function LoanWorkspace({ accessToken }: { accessToken: string }) {
           wannabeId: crewProfile?.id ?? fallbackWannabeId,
           lines: lines.map(({ barcode, quantity, privateEquipmentConfirmed }) => ({ barcode, quantity, privateEquipmentConfirmed })),
         }).then((result) => {
-          setLines([{ key: 1, barcode: "", quantity: 1, privateEquipmentConfirmed: false }]);
+          setLines([{ key: 1, barcode: "", equipmentName: null, quantity: 1, privateEquipmentConfirmed: false }]);
           setWannabeQuery("");
           setCrewProfile(null);
           setLookupError(null);
@@ -76,18 +83,13 @@ export function LoanWorkspace({ accessToken }: { accessToken: string }) {
           setRefresh((value) => value + 1);
         }).catch((reason) => setError(messageFrom(reason))).finally(() => setSaving(false));
       }}>
-        <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-start"><div><h2 className="text-lg font-medium">Lån ut utstyr</h2><p className="mt-1 text-sm text-slate-500">Slå opp med Wannabe-ID eller badge-scan. Numerisk Wannabe-ID kan brukes direkte hvis crew-API-et er utilgjengelig.</p></div><div className="w-full lg:w-[28rem]"><label><span className="mb-2 block text-sm text-slate-400">Wannabe-ID / badge-scan</span><div className="flex gap-2"><input required value={wannabeQuery} onChange={(event) => { setWannabeQuery(event.target.value); setCrewProfile(null); setLookupError(null); }} className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 outline-none focus:border-emerald-300/60" /><button type="button" disabled={lookupBusy || !wannabeQuery.trim()} className="rounded-xl border border-emerald-300/30 px-4 py-2.5 text-sm text-emerald-200 hover:bg-emerald-300/10 disabled:opacity-40" onClick={() => {
-          const query = wannabeQuery.trim();
-          if (!query) return;
-          setLookupBusy(true); setLookupError(null); setCrewProfile(null);
-          void lookupCrewProfile(accessToken, query).then((profile) => { setCrewProfile(profile); setWannabeQuery(String(profile.id)); }).catch((reason) => setLookupError(messageFrom(reason))).finally(() => setLookupBusy(false));
-        }}>{lookupBusy ? "Søker …" : "Slå opp"}</button></div></label>{crewProfile && <div className="mt-3 rounded-xl border border-emerald-300/20 bg-emerald-300/[.07] px-4 py-3"><p className="font-medium text-emerald-100">{crewProfile.displayName}</p><p className="mt-1 text-xs text-emerald-200/60">Wannabe {crewProfile.id}{crewProfile.crewName ? ` · ${crewProfile.crewName}` : ""}{crewProfile.role ? ` · ${crewProfile.role}` : ""}</p></div>}{lookupError && <p className="mt-2 text-sm text-rose-300">{lookupError}</p>}</div></div>
+        <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-start"><div><h2 className="text-lg font-medium">Lån ut utstyr</h2><p className="mt-1 text-sm text-slate-500">Skann badge eller skriv Wannabe-ID og trykk Enter. Numerisk Wannabe-ID kan brukes direkte hvis crew-API-et er utilgjengelig.</p></div><div className="w-full lg:w-[28rem]"><label><span className="mb-2 block text-sm text-slate-400">Wannabe-ID / badge-scan</span><input required autoComplete="off" value={wannabeQuery} onChange={(event) => { setWannabeQuery(event.target.value); setCrewProfile(null); setLookupError(null); }} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); lookupWannabe(); } }} className="w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 outline-none focus:border-emerald-300/60" /><span className="mt-2 block text-xs text-slate-600">{lookupBusy ? "Søker …" : "Trykk Enter for oppslag."}</span></label>{crewProfile && <div className="mt-3 rounded-xl border border-emerald-300/20 bg-emerald-300/[.07] px-4 py-3"><p className="font-medium text-emerald-100">{crewProfile.displayName}</p><p className="mt-1 text-xs text-emerald-200/60">Wannabe {crewProfile.id}{crewProfile.crewName ? ` · ${crewProfile.crewName}` : ""}{crewProfile.role ? ` · ${crewProfile.role}` : ""}</p></div>}{lookupError && <p className="mt-2 text-sm text-rose-300">{lookupError}</p>}</div></div>
         <div className="mt-5 grid gap-3">{lines.map((line, index) => {
           const privateNotice = privateEquipmentNoticeFor(privateEquipmentNotices, line.barcode);
-          return <div key={line.key} className={`rounded-xl border p-4 ${privateNotice ? "border-amber-300/30 bg-amber-300/[.05]" : "border-white/[.07] bg-black/10"}`}><div className="grid gap-3 sm:grid-cols-[1fr_140px_auto] sm:items-end"><label><span className="mb-2 block text-sm text-slate-400">Strekkode / serienummer {index + 1}</span><input required value={line.barcode} onChange={(event) => updateLine(line.key, { barcode: event.target.value, privateEquipmentConfirmed: false })} className="w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 outline-none focus:border-emerald-300/60" /></label><label><span className="mb-2 block text-sm text-slate-400">Antall</span><input type="number" min="1" required value={line.quantity} onChange={(event) => updateLine(line.key, { quantity: Number(event.target.value) })} className="w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 outline-none focus:border-emerald-300/60" /></label><button type="button" className="rounded-xl border border-white/10 px-4 py-2.5 text-sm text-slate-400 hover:text-slate-100" onClick={() => setLines((current) => current.length === 1 ? [{ ...current[0]!, barcode: "", quantity: 1, privateEquipmentConfirmed: false }] : current.filter((candidate) => candidate.key !== line.key))}>{lines.length === 1 ? "Tøm" : "Fjern"}</button></div>{privateNotice && <label className="mt-3 flex cursor-pointer items-start gap-3 rounded-lg bg-amber-300/10 px-3 py-3 text-sm text-amber-100"><input type="checkbox" className="mt-1 accent-amber-300" checked={line.privateEquipmentConfirmed} onChange={(event) => updateLine(line.key, { privateEquipmentConfirmed: event.target.checked })} /><span><strong>Privat utstyr:</strong> {privateNotice.issueMessage}</span></label>}</div>;
+          return <div key={line.key} className={`rounded-xl border p-4 ${privateNotice ? "border-amber-300/30 bg-amber-300/[.05]" : "border-white/[.07] bg-black/10"}`}><div className="grid gap-3 sm:grid-cols-[1fr_140px_auto] sm:items-end"><EquipmentLookupInput accessToken={accessToken} index={index} line={line} onChange={(patch) => updateLine(line.key, patch)} /><label><span className="mb-2 block text-sm text-slate-400">Antall</span><input type="number" min="1" required value={line.quantity} onChange={(event) => updateLine(line.key, { quantity: Number(event.target.value) })} className="w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 outline-none focus:border-emerald-300/60" /></label><button type="button" className="rounded-xl border border-white/10 px-4 py-2.5 text-sm text-slate-400 hover:text-slate-100" onClick={() => setLines((current) => current.length === 1 ? [{ ...current[0]!, barcode: "", equipmentName: null, quantity: 1, privateEquipmentConfirmed: false }] : current.filter((candidate) => candidate.key !== line.key))}>{lines.length === 1 ? "Tøm" : "Fjern"}</button></div>{privateNotice && <label className="mt-3 flex cursor-pointer items-start gap-3 rounded-lg bg-amber-300/10 px-3 py-3 text-sm text-amber-100"><input type="checkbox" className="mt-1 accent-amber-300" checked={line.privateEquipmentConfirmed} onChange={(event) => updateLine(line.key, { privateEquipmentConfirmed: event.target.checked })} /><span><strong>Privat utstyr:</strong> {privateNotice.issueMessage}</span></label>}</div>;
         })}</div>
         {privateEquipmentError && <p className="mt-3 text-sm text-amber-300">{privateEquipmentError} API-et kontrollerer fortsatt private prefiks ved registrering.</p>}
-        <div className="mt-4 flex flex-wrap justify-between gap-3"><button type="button" className="rounded-xl border border-white/10 px-4 py-2.5 text-sm text-slate-300 hover:border-emerald-300/40" onClick={() => setLines((current) => [...current, { key: Math.max(...current.map((line) => line.key)) + 1, barcode: "", quantity: 1, privateEquipmentConfirmed: false }])}>Legg til linje</button><button disabled={saving} className="rounded-xl bg-emerald-300 px-5 py-2.5 text-sm font-semibold text-slate-950 hover:bg-emerald-200 disabled:opacity-50">{saving ? "Registrerer …" : "Registrer lån"}</button></div>
+        <div className="mt-4 flex flex-wrap justify-between gap-3"><button type="button" className="rounded-xl border border-white/10 px-4 py-2.5 text-sm text-slate-300 hover:border-emerald-300/40" onClick={() => setLines((current) => [...current, { key: Math.max(...current.map((line) => line.key)) + 1, barcode: "", equipmentName: null, quantity: 1, privateEquipmentConfirmed: false }])}>Legg til linje</button><button disabled={saving} className="rounded-xl bg-emerald-300 px-5 py-2.5 text-sm font-semibold text-slate-950 hover:bg-emerald-200 disabled:opacity-50">{saving ? "Registrerer …" : "Registrer lån"}</button></div>
       </form>
 
       <div className="mb-4 flex justify-end"><label className="block w-full sm:w-80"><span className="sr-only">Søk i aktive lån</span><input value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} placeholder="Søk person, utstyr eller strekkode …" className="w-full rounded-xl border border-white/10 bg-white/[.04] px-4 py-3 text-sm outline-none placeholder:text-slate-600 focus:border-emerald-300/60" /></label></div>
@@ -105,6 +107,29 @@ export function LoanWorkspace({ accessToken }: { accessToken: string }) {
       {selectedLoan && <ReturnLoanPanel accessToken={accessToken} loan={selectedLoan} onClose={() => setSelectedLoan(null)} onReturned={(result) => { setSelectedLoan(null); setNotice(result.remainingQuantity === 0 ? "Lånet ble returnert." : `${result.returnedQuantity} ble returnert; ${result.remainingQuantity} gjenstår.`); setWarning(result.privateEquipmentNotice?.returnMessage ?? null); setRefresh((value) => value + 1); }} />}
     </section>
   );
+}
+
+function EquipmentLookupInput({ accessToken, index, line, onChange }: { accessToken: string; index: number; line: LoanLine; onChange: (patch: Partial<LoanLine>) => void }) {
+  const [query, setQuery] = useState(line.equipmentName ?? line.barcode);
+  const [suggestions, setSuggestions] = useState<EquipmentListItem[]>([]);
+  const [open, setOpen] = useState(false);
+  useEffect(() => { setQuery(line.equipmentName ?? line.barcode); }, [line.barcode, line.equipmentName]);
+  useEffect(() => {
+    const term = query.trim();
+    if (line.equipmentName || !term) { setSuggestions([]); return; }
+    let active = true;
+    const timer = window.setTimeout(() => {
+      void getEquipment(accessToken, { page: 1, pageSize: 8, search: term })
+        .then((result) => { if (active) { setSuggestions(result.items); setOpen(true); } })
+        .catch(() => { if (active) setSuggestions([]); });
+    }, 160);
+    return () => { active = false; window.clearTimeout(timer); };
+  }, [accessToken, line.equipmentName, query]);
+  const select = (item: EquipmentListItem) => {
+    setQuery(item.name); setOpen(false); setSuggestions([]);
+    onChange({ barcode: item.serialNumber, equipmentName: item.name, privateEquipmentConfirmed: false });
+  };
+  return <label className="relative"><span className="mb-2 block text-sm text-slate-400">Utstyr / strekkode {index + 1}</span><input required autoComplete="off" value={query} onFocus={() => suggestions.length > 0 && setOpen(true)} onBlur={() => window.setTimeout(() => setOpen(false), 120)} onChange={(event) => { const value = event.target.value; setQuery(value); onChange({ barcode: value, equipmentName: null, privateEquipmentConfirmed: false }); }} onKeyDown={(event) => { if (event.key === "Enter" && suggestions[0]) { event.preventDefault(); select(suggestions[0]); } }} placeholder="Skriv navn eller skann strekkode" className="w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 outline-none focus:border-emerald-300/60" />{line.equipmentName && <span className="mt-1 block font-mono text-xs text-slate-600">Strekkode: {line.barcode}</span>}{open && suggestions.length > 0 && <div className="absolute z-20 mt-1 max-h-64 w-full overflow-y-auto rounded-xl border border-white/10 bg-[#0d1927] p-1 shadow-2xl">{suggestions.map((item) => <button type="button" key={item.id} className="flex w-full items-center justify-between gap-4 rounded-lg px-3 py-2.5 text-left hover:bg-white/[.06]" onMouseDown={(event) => event.preventDefault()} onClick={() => select(item)}><span><span className="block text-sm text-slate-200">{item.name}</span><span className="block font-mono text-xs text-slate-600">{item.serialNumber} · {item.category}</span></span><span className="shrink-0 text-xs text-emerald-300">{item.quantity} tilgjengelig</span></button>)}</div>}</label>;
 }
 
 function ReturnLoanPanel({ accessToken, loan, onClose, onReturned }: { accessToken: string; loan: EquipmentLoanListItem; onClose: () => void; onReturned: (result: EquipmentLoanReturnResponse) => void }) {

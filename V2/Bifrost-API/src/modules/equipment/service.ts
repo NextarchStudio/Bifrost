@@ -10,12 +10,13 @@ import {
   palletSlots,
   type DatabaseConnection,
 } from "@bifrost/database";
-import { and, asc, count, eq, inArray, like, ne, notInArray, sql, type SQL } from "drizzle-orm";
+import { and, asc, count, eq, inArray, like, ne, notInArray, or, sql, type SQL } from "drizzle-orm";
 
 export interface EquipmentListQuery {
   page: number;
   pageSize: number;
   search?: string;
+  category?: string;
   status?: string;
 }
 
@@ -53,7 +54,11 @@ export function createEquipmentService(database: DatabaseConnection): EquipmentS
   return {
     async list(query): Promise<EquipmentListResponse> {
       const filters: SQL[] = [];
-      if (query.search) filters.push(like(equipment.name, `%${query.search}%`));
+      if (query.search) {
+        const searchFilter = or(like(equipment.name, `%${query.search}%`), like(equipment.serialNumber, `%${query.search}%`));
+        if (searchFilter) filters.push(searchFilter);
+      }
+      if (query.category) filters.push(eq(equipment.category, query.category));
       if (query.status) filters.push(eq(equipment.status, query.status));
       const where = filters.length > 0 ? and(...filters) : undefined;
 

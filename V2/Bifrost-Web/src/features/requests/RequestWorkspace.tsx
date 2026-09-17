@@ -30,6 +30,7 @@ export function RequestWorkspace({ accessToken }: { accessToken: string }) {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [refresh, setRefresh] = useState(0);
+  const [activeTab, setActiveTab] = useState<"mine" | "incoming" | "new">("mine");
 
   useEffect(() => {
     let active = true;
@@ -71,7 +72,8 @@ export function RequestWorkspace({ accessToken }: { accessToken: string }) {
     {error && <div className="mb-5 rounded-xl border border-rose-400/20 bg-rose-400/10 px-5 py-4 text-sm text-rose-200">{error}</div>}
 
     {!data && !error && <div className="rounded-2xl border border-white/10 bg-white/[.025] px-5 py-14 text-center text-slate-500">Henter forespørsler …</div>}
-    {data?.canCreate ? <form className="mb-8 rounded-2xl border border-white/10 bg-white/[.025] p-5" onSubmit={(event) => {
+    {data && <div className={`${tabsClass} mb-5`} role="tablist" aria-label="Forespørselsvisning"><Tab active={activeTab === "mine"} onClick={() => setActiveTab("mine")}>Mine ({data.mine.length})</Tab>{data.canManage && <Tab active={activeTab === "incoming"} onClick={() => setActiveTab("incoming")}>Innkommende ({data.incoming.length})</Tab>}{data.canCreate && <Tab active={activeTab === "new"} onClick={() => setActiveTab("new")}>Ny forespørsel</Tab>}</div>}
+    {activeTab === "new" && data?.canCreate ? <form className="mb-8 rounded-2xl border border-white/10 bg-white/[.025] p-5" onSubmit={(event) => {
       event.preventDefault();
       const items = Object.entries(selected).map(([equipmentId, value]) => ({ equipmentId: Number(equipmentId), quantity: value.quantity, note: value.note || undefined }));
       if (items.length === 0) { setError("Velg minst ett utstyr i listen."); return; }
@@ -86,12 +88,14 @@ export function RequestWorkspace({ accessToken }: { accessToken: string }) {
         return <tr key={item.id} className="hover:bg-white/[.025]"><td className="px-4 py-3"><input type="checkbox" disabled={!requestable} checked={Boolean(value)} onChange={(event) => setSelected((current) => { const next = { ...current }; if (event.target.checked) next[item.id] = { quantity: 1, note: "" }; else delete next[item.id]; return next; })} className="accent-sky-300" /></td><td className="px-4 py-3"><p className="font-medium text-slate-200">{item.name}</p><p className="mt-1 font-mono text-xs text-slate-600">{item.serialNumber}</p></td><td className="px-4 py-3 text-slate-400">{item.locationName ?? "–"}</td><td className="px-4 py-3"><span className={requestable ? "text-emerald-300" : "text-rose-300"}>{requestable ? item.quantity : "Utilgjengelig"}</span></td><td className="px-4 py-3"><input type="number" min="1" max={Math.max(1, item.quantity)} disabled={!value} value={value?.quantity ?? 1} onChange={(event) => setSelected((current) => ({ ...current, [item.id]: { ...(current[item.id] ?? { note: "" }), quantity: Number(event.target.value) } }))} className="w-24 rounded-lg border border-white/10 bg-black/20 px-3 py-2 disabled:opacity-30" /></td><td className="px-4 py-3"><input disabled={!value} value={value?.note ?? ""} onChange={(event) => setSelected((current) => ({ ...current, [item.id]: { ...(current[item.id] ?? { quantity: 1 }), note: event.target.value } }))} className="w-full min-w-48 rounded-lg border border-white/10 bg-black/20 px-3 py-2 disabled:opacity-30" /></td></tr>;
       })}</tbody></table></div>
       <div className="mt-4 flex justify-end"><button disabled={saving || !data.currentWannabeId} className="rounded-xl bg-sky-300 px-5 py-2.5 text-sm font-semibold text-slate-950 hover:bg-sky-200 disabled:opacity-40">{saving ? "Sender …" : "Send forespørsel"}</button></div>
-    </form> : data && <div className="mb-8 rounded-2xl border border-white/10 bg-white/[.025] px-5 py-4 text-sm text-slate-400">Rollen din kan se forespørsler, men kan ikke opprette nye. Dette følger V1-regelen for logistikk, ledelse og sambandsansvarlig.</div>}
+    </form> : activeTab === "new" && data && <div className="mb-8 rounded-2xl border border-white/10 bg-white/[.025] px-5 py-4 text-sm text-slate-400">Rollen din kan se forespørsler, men kan ikke opprette nye. Dette følger V1-regelen for logistikk, ledelse og sambandsansvarlig.</div>}
 
-    {data && <RequestTable title="Mine forespørsler" requests={data.mine} onDelete={removeRequest} canManage={false} />}
-    {data?.canManage && <div className="mt-8"><h2 className="mb-4 text-xl font-semibold">Innkommende forespørsler</h2><div className="grid gap-4">{data.incoming.length === 0 && <div className="rounded-2xl border border-white/10 bg-white/[.025] px-5 py-10 text-center text-sm text-slate-500">Ingen innkommende forespørsler.</div>}{data.incoming.map((request) => <ManagementCard key={request.id} accessToken={accessToken} request={request} privateNotices={privateNotices} onChanged={changed} onDelete={() => removeRequest(request)} />)}</div></div>}
+    {activeTab === "mine" && data && <RequestTable title="Mine forespørsler" requests={data.mine} onDelete={removeRequest} canManage={false} />}
+    {activeTab === "incoming" && data?.canManage && <div><h2 className="mb-4 text-xl font-semibold">Innkommende forespørsler</h2><div className="grid gap-4">{data.incoming.length === 0 && <div className="rounded-2xl border border-white/10 bg-white/[.025] px-5 py-10 text-center text-sm text-slate-500">Ingen innkommende forespørsler.</div>}{data.incoming.map((request) => <ManagementCard key={request.id} accessToken={accessToken} request={request} privateNotices={privateNotices} onChanged={changed} onDelete={() => removeRequest(request)} />)}</div></div>}
   </section>;
 }
+
+function Tab({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) { return <button type="button" role="tab" aria-selected={active} className={`rounded-lg px-4 py-2.5 text-sm transition ${active ? "bg-sky-300 font-semibold text-slate-950" : "text-slate-400 hover:bg-white/5 hover:text-slate-200"}`} onClick={onClick}>{children}</button>; }
 
 function RequestTable({ title, requests, onDelete, canManage }: { title: string; requests: EquipmentRequest[]; onDelete: (request: EquipmentRequest) => void; canManage: boolean }) {
   return <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/[.025]"><div className="border-b border-white/10 px-5 py-4"><h2 className="font-medium">{title}</h2></div><div className="overflow-x-auto"><table className="w-full min-w-[900px] text-left text-sm"><thead className="text-xs uppercase tracking-wider text-slate-500"><tr><th className="px-5 py-4">ID</th><th className="px-5 py-4">Utstyr</th><th className="px-5 py-4">Status</th><th className="px-5 py-4">Avvik</th><th className="px-5 py-4">Opprettet</th><th className="px-5 py-4"><span className="sr-only">Handling</span></th></tr></thead><tbody className="divide-y divide-white/[.06]">{requests.length === 0 && <tr><td colSpan={6} className="px-5 py-10 text-center text-slate-500">Ingen forespørsler.</td></tr>}{requests.map((request) => {
@@ -155,3 +159,5 @@ function formatDate(value: string): string {
 function messageFrom(reason: unknown): string {
   return reason instanceof Error ? reason.message : "Handlingen kunne ikke fullføres.";
 }
+
+const tabsClass = "flex flex-wrap gap-1 rounded-xl border border-white/[.08] bg-black/10 p-1.5";

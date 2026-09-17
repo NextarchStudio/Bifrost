@@ -8,6 +8,7 @@ const serviceStub = (overrides: Partial<TaskService> = {}): TaskService => ({
   workspace: async () => workspace,
   create: async () => ({ id: 1 }),
   updateStatus: async () => undefined,
+  delete: async () => undefined,
   ...overrides,
 });
 const auth = (roles: string[]) => ({
@@ -53,4 +54,18 @@ test("rejects invalid task statuses", async () => {
   const response = await app.inject({ method: "PATCH", url: "/api/v1/tasks/9/status", headers: { authorization: "Bearer valid" }, payload: { status: "deleted" } });
   assert.equal(response.statusCode, 400);
   await app.close();
+});
+
+test("lets V1 task managers delete tasks and rejects ordinary users", async () => {
+  let deleted: unknown[] = [];
+  const manager = buildApp({ checkDatabase: async () => undefined, auth: auth(["logistikk"]), tasks: serviceStub({ delete: async (...args) => { deleted = args; } }) });
+  const accepted = await manager.inject({ method: "DELETE", url: "/api/v1/tasks/17", headers: { authorization: "Bearer valid" } });
+  assert.equal(accepted.statusCode, 204);
+  assert.deepEqual(deleted, [17, 5]);
+  await manager.close();
+
+  const ordinary = buildApp({ checkDatabase: async () => undefined, auth: auth(["bruker"]), tasks: serviceStub() });
+  const denied = await ordinary.inject({ method: "DELETE", url: "/api/v1/tasks/17", headers: { authorization: "Bearer valid" } });
+  assert.equal(denied.statusCode, 403);
+  await ordinary.close();
 });

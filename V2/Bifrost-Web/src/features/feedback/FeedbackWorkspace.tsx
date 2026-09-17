@@ -13,6 +13,7 @@ export function FeedbackWorkspace({ accessToken }: { accessToken: string }) {
   const [data, setData] = useState<FeedbackWorkspaceResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"mine" | "all" | "new">("mine");
   const reload = async () => setData(await getFeedbackWorkspace(accessToken));
   useEffect(() => { void reload().catch((reason) => setError(messageFrom(reason))); }, [accessToken]);
   const run = async (action: () => Promise<unknown>, message: string) => {
@@ -35,11 +36,14 @@ export function FeedbackWorkspace({ accessToken }: { accessToken: string }) {
   return <section className="flex-1 py-8">
     <div className="mb-7"><p className="text-sm text-fuchsia-300">Forbedring og feilretting</p><h1 className="mt-1 text-3xl font-semibold">Tilbakemeldinger</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">Meld inn bugs og forslag. Vedlegg lagres lokalt og er bare tilgjengelige for eieren, developer og logistikk.</p></div>
     {error && <Banner tone="error">{error}</Banner>}{success && <Banner tone="success">{success}</Banner>}
-    <NewFeedback accessToken={accessToken} run={run} />
-    <FeedbackList title="Mine tilbakemeldinger" detail="Åpne innmeldinger du har sendt" entries={data.myEntries} accessToken={accessToken} run={run} openAttachment={openAttachment} own />
-    {data.canViewAll && <FeedbackList title="Innmeldt til utvikler" detail="Alle åpne innmeldinger" entries={data.allEntries} accessToken={accessToken} run={run} openAttachment={openAttachment} canManage={data.canManageAll} />}
+    <div className={tabsClass} role="tablist" aria-label="Tilbakemeldingsvisning"><Tab active={activeTab === "mine"} onClick={() => setActiveTab("mine")}>Mine ({data.myEntries.length})</Tab>{data.canViewAll && <Tab active={activeTab === "all"} onClick={() => setActiveTab("all")}>Alle ({data.allEntries.length})</Tab>}<Tab active={activeTab === "new"} onClick={() => setActiveTab("new")}>Ny tilbakemelding</Tab></div>
+    {activeTab === "new" && <div className="mt-5"><NewFeedback accessToken={accessToken} run={run} /></div>}
+    {activeTab === "mine" && <FeedbackList title="Mine tilbakemeldinger" detail="Åpne innmeldinger du har sendt" entries={data.myEntries} accessToken={accessToken} run={run} openAttachment={openAttachment} own />}
+    {activeTab === "all" && data.canViewAll && <FeedbackList title="Innmeldt til utvikler" detail="Alle åpne innmeldinger" entries={data.allEntries} accessToken={accessToken} run={run} openAttachment={openAttachment} canManage={data.canManageAll} />}
   </section>;
 }
+
+function Tab({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) { return <button type="button" role="tab" aria-selected={active} className={`rounded-lg px-4 py-2.5 text-sm transition ${active ? "bg-fuchsia-300 font-semibold text-slate-950" : "text-slate-400 hover:bg-white/5 hover:text-slate-200"}`} onClick={onClick}>{children}</button>; }
 
 function NewFeedback({ accessToken, run }: { accessToken: string; run: RunAction }) {
   const [type, setType] = useState<FeedbackType>("bug");
@@ -102,3 +106,4 @@ const fileClass = "block w-full rounded-xl border border-white/10 bg-black/20 px
 const primaryButton = "rounded-xl bg-fuchsia-300 px-5 py-2.5 text-sm font-semibold text-slate-950 disabled:opacity-50";
 const smallButton = "rounded-lg border border-white/10 px-3 py-1.5 text-xs text-fuchsia-200 hover:bg-white/5";
 const dangerButton = "rounded-lg border border-rose-300/20 px-3 py-2 text-sm text-rose-200 hover:bg-rose-300/10 disabled:opacity-50";
+const tabsClass = "flex flex-wrap gap-1 rounded-xl border border-white/[.08] bg-black/10 p-1.5";

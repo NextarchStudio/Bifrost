@@ -7,6 +7,7 @@ const workspace = { items: [], sets: [], activeLoans: [] };
 const serviceStub = (overrides: Partial<CommsService> = {}): CommsService => ({
   workspace: async () => workspace,
   createItem: async () => ({ id: 1 }),
+  updateItem: async () => undefined,
   createSet: async () => ({ id: 1 }),
   updateSet: async () => undefined,
   deleteSet: async () => undefined,
@@ -56,6 +57,26 @@ test("creates a set with actor context", async () => {
   assert.equal(response.json().id, 9);
   assert.equal(actorId, 22);
   assert.equal(selectedQuantity, 2);
+  await app.close();
+});
+
+test("updates an individual comms item with actor context", async () => {
+  let captured: unknown[] = [];
+  const app = buildApp({
+    checkDatabase: async () => undefined,
+    auth: auth(["sambandsansvarlig"]),
+    comms: serviceStub({ updateItem: async (...args) => { captured = args; } }),
+  });
+  const response = await app.inject({
+    method: "PATCH",
+    url: "/api/v1/comms/items/8",
+    headers: { authorization: "Bearer valid" },
+    payload: { name: "Motorola", type: "samband", serialNumber: "RAD-8", quantity: 3, notes: "Oppdatert" },
+  });
+  assert.equal(response.statusCode, 204);
+  assert.equal(captured[0], 8);
+  assert.equal((captured[1] as { quantity: number }).quantity, 3);
+  assert.equal(captured[2], 22);
   await app.close();
 });
 

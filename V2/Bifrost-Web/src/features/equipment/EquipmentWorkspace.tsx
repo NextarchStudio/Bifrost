@@ -15,6 +15,7 @@ import { confirmAction } from "../../components/notifications";
 
 export function EquipmentWorkspace({ user, accessToken }: { user: CurrentUser; accessToken: string }) {
   const [search, setSearch] = useState("");
+  const [category, setCategory] = useState("");
   const [page, setPage] = useState(1);
   const [data, setData] = useState<EquipmentListResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -33,12 +34,12 @@ export function EquipmentWorkspace({ user, accessToken }: { user: CurrentUser; a
   useEffect(() => {
     const controller = new AbortController();
     const timer = window.setTimeout(() => {
-      getEquipment(accessToken, { page, search: search.trim() || undefined })
+      getEquipment(accessToken, { page, search: search.trim() || undefined, category: category || undefined })
         .then((response) => { if (!controller.signal.aborted) { setData(response); setError(null); } })
         .catch((reason) => { if (!controller.signal.aborted) setError(reason instanceof Error ? reason.message : "Ukjent feil"); });
     }, 250);
     return () => { controller.abort(); window.clearTimeout(timer); };
-  }, [accessToken, page, search, refresh]);
+  }, [accessToken, category, page, search, refresh]);
 
   return (
     <section className="py-10">
@@ -49,10 +50,11 @@ export function EquipmentWorkspace({ user, accessToken }: { user: CurrentUser; a
           <p className="mt-2 text-sm text-slate-500">{user.name} · {user.roles.join(", ")}</p>
         </div>
         <div className="flex w-full flex-wrap gap-3 md:w-auto">
-          <label className="relative block min-w-0 flex-1 md:w-80">
+          <label className="relative block min-w-0 flex-1 md:w-72">
             <span className="sr-only">Søk etter utstyr</span>
-            <input className="w-full rounded-xl border border-white/10 bg-white/[.04] px-4 py-3 text-sm text-slate-100 outline-none placeholder:text-slate-600 focus:border-emerald-300/60" placeholder="Søk etter navn …" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} />
+            <input className="w-full rounded-xl border border-white/10 bg-white/[.04] px-4 py-3 text-sm text-slate-100 outline-none placeholder:text-slate-600 focus:border-emerald-300/60" placeholder="Søk navn eller strekkode …" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} />
           </label>
+          <label><span className="sr-only">Filtrer kategori</span><select value={category} onChange={(event) => { setCategory(event.target.value); setPage(1); }} className="min-w-48 rounded-xl border border-white/10 bg-[#091421] px-4 py-3 text-sm text-slate-300 outline-none focus:border-emerald-300/60"><option value="">Alle kategorier</option>{categories.map((item) => <option key={item.id} value={item.name}>{item.name}</option>)}</select></label>
           <button className="rounded-xl border border-white/10 px-4 py-3 text-sm font-medium text-slate-300 hover:border-emerald-300/40 hover:text-emerald-200" onClick={() => { setNotice(null); setShowCategories(true); }}>Kategorier</button>
           <button className="rounded-xl bg-emerald-300 px-4 py-3 text-sm font-semibold text-slate-950 hover:bg-emerald-200" onClick={() => setShowCreate(true)}>Nytt utstyr</button>
         </div>

@@ -1,6 +1,22 @@
 import type { AdminCrewResetPreview, AdminRole, AdminSettings, AdminStatistics, AdminWorkspaceResponse, ApiError, BarcodeExportRequest, CommsItemType, CommsWorkspaceResponse, CrewClothingItemType, CrewClothingMember, CrewClothingWorkspaceResponse, CrewProfile, CurrentUser, DashboardSummary, EquipmentCategory, EquipmentListResponse, EquipmentLoanIssueResponse, EquipmentLoanListResponse, EquipmentLoanReturnResponse, EquipmentMutationResponse, EquipmentRequestWorkspaceResponse, FeedbackNotificationResponse, FeedbackStatus, FeedbackType, FeedbackWorkspaceResponse, GlobalSearchResponse, LocalLoginRequest, LocalLoginResponse, Location, OidcPublicConfig, Pallet, PalletInspection, PrivateEquipmentNotice, PrivateEquipmentRule, ShopImportSummary, ShopWorkspaceResponse, TaskPriority, TaskStatus, TaskType, TaskWorkspaceResponse, TransportJob, TransportJobKind, TransportWorkspaceResponse, UserProfileResponse, VehicleCompetencyCode, VehicleCompetencyProfile, VehicleCompetencyRequirement, VehicleLoanIssueResponse, VehicleWorkspaceResponse } from "@bifrost/contracts";
 
-const apiUrl = (import.meta.env.VITE_API_URL || "http://localhost:3001").replace(/\/$/, "");
+const configuredApiUrl = (import.meta.env.VITE_API_URL || "http://localhost:3001").replace(/\/$/, "");
+const apiUrl = normalizeLocalApiUrl(configuredApiUrl);
+
+function normalizeLocalApiUrl(value: string): string {
+  if (typeof window === "undefined") return value;
+  try {
+    const target = new URL(value);
+    const localHosts = new Set(["localhost", "127.0.0.1"]);
+    if (localHosts.has(target.hostname) && localHosts.has(window.location.hostname)) {
+      target.hostname = window.location.hostname;
+      return target.toString().replace(/\/$/, "");
+    }
+  } catch {
+    // The request helpers will surface an actionable error if the configured URL is invalid.
+  }
+  return value;
+}
 
 export async function getAuthConfig(): Promise<OidcPublicConfig> {
   const response = await fetch(`${apiUrl}/api/v1/auth/config`, { headers: createHeaders() });
@@ -68,10 +84,11 @@ export async function completeLoginSession(accessToken: string): Promise<Current
 
 export async function getEquipment(
   accessToken: string,
-  query: { page: number; pageSize?: number; search?: string },
+  query: { page: number; pageSize?: number; search?: string; category?: string },
 ): Promise<EquipmentListResponse> {
   const params = new URLSearchParams({ page: String(query.page), pageSize: String(query.pageSize ?? 25) });
   if (query.search) params.set("search", query.search);
+  if (query.category) params.set("category", query.category);
   const response = await fetch(`${apiUrl}/api/v1/equipment?${params}`, { headers: createHeaders(accessToken) });
   if (!response.ok) throw new Error(`Kunne ikke hente utstyr (${response.status}).`);
   return response.json() as Promise<EquipmentListResponse>;
@@ -472,6 +489,10 @@ export async function createCommsItem(accessToken: string, input: { name: string
   return response.json() as Promise<{ id: number }>;
 }
 
+export async function updateCommsItem(accessToken: string, id: number, input: { name: string; type: CommsItemType; serialNumber?: string | null; quantity: number; notes?: string | null }): Promise<void> {
+  await sendApiMutation(accessToken, `/api/v1/comms/items/${id}`, "PATCH", input, "Kunne ikke oppdatere samband/tilbehør.");
+}
+
 export async function createCommsSet(accessToken: string, input: { name: string; notes?: string | null; items: Array<{ itemId: number; quantity: number }> }): Promise<{ id: number }> {
   const headers = createHeaders(accessToken); headers.set("Content-Type", "application/json");
   const response = await fetch(`${apiUrl}/api/v1/comms/sets`, { method: "POST", headers, body: JSON.stringify(input) });
@@ -606,6 +627,11 @@ export async function createTask(accessToken: string, input: { title: string; ty
 
 export async function updateTaskStatus(accessToken: string, id: number, status: TaskStatus): Promise<void> {
   await sendApiMutation(accessToken, `/api/v1/tasks/${id}/status`, "PATCH", { status }, "Kunne ikke oppdatere oppgavestatusen.");
+}
+
+export async function deleteTask(accessToken: string, id: number): Promise<void> {
+  const response = await fetch(`${apiUrl}/api/v1/tasks/${id}`, { method: "DELETE", headers: createHeaders(accessToken) });
+  if (!response.ok) throw await createApiError(response, "Kunne ikke slette oppgaven.");
 }
 
 export async function getFeedbackWorkspace(accessToken: string): Promise<FeedbackWorkspaceResponse> {

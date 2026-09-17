@@ -24,6 +24,7 @@ export interface TaskService {
   workspace(userId: number, canManageAll: boolean): Promise<TaskWorkspaceResponse>;
   create(input: TaskCreateInput, actorUserId: number): Promise<{ id: number }>;
   updateStatus(id: number, status: TaskStatus, actorUserId: number, canManageAll: boolean): Promise<void>;
+  delete(id: number, actorUserId: number): Promise<void>;
 }
 
 type DatabaseTransaction = Parameters<Parameters<DatabaseConnection["db"]["transaction"]>[0]>[0];
@@ -93,6 +94,16 @@ export function createTaskService(database: DatabaseConnection): TaskService {
         const now = new Date();
         await tx.update(tasks).set({ status, completedAt: status === "completed" ? now : null, updatedAt: now }).where(eq(tasks.id, id));
         await writeAudit(tx, actorUserId, "status", "task", id, { status });
+      });
+    },
+
+    async delete(id, actorUserId) {
+      await database.db.transaction(async (tx) => {
+        const [task] = await tx.select({ id: tasks.id, title: tasks.title, status: tasks.status }).from(tasks)
+          .where(eq(tasks.id, id)).limit(1).for("update");
+        if (!task) throw new TaskDomainError("Oppgaven finnes ikke.", "NOT_FOUND");
+        await tx.delete(tasks).where(eq(tasks.id, id));
+        await writeAudit(tx, actorUserId, "delete", "task", id, { title: task.title, status: task.status });
       });
     },
   };

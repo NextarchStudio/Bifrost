@@ -177,9 +177,12 @@ function AuthenticatedShell({ session, workspace, navigate, onSignOut, access }:
       { workspace: "profile", label: "Min profil", icon: "profile" },
     ] },
   ];
+  const activeGroup = groups.find((group) => group.items.some((item) => item.workspace === workspace && item.visible !== false))?.label ?? null;
+  const [expandedGroup, setExpandedGroup] = useState<string | null>(activeGroup);
+  useEffect(() => { if (activeGroup) setExpandedGroup(activeGroup); }, [activeGroup]);
   const meta = workspaceMeta[workspace];
 
-  return <div className="min-h-screen bg-[#07111d] text-slate-100 lg:grid lg:grid-cols-[17.5rem_minmax(0,1fr)]">
+  return <div className="h-[100dvh] overflow-hidden bg-[#07111d] text-slate-100 lg:grid lg:grid-cols-[17.5rem_minmax(0,1fr)]">
     <a href="#main-content" className="sr-only z-[70] rounded-lg bg-emerald-300 px-4 py-2 font-semibold text-slate-950 focus:not-sr-only focus:fixed focus:left-4 focus:top-4">Hopp til innhold</a>
     {navigationOpen && <button type="button" aria-label="Lukk navigasjon" className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm lg:hidden" onClick={() => setNavigationOpen(false)} />}
     <aside id="primary-navigation" className={`fixed inset-y-0 left-0 z-50 flex w-[17.5rem] flex-col border-r border-white/[.08] bg-[#091522] shadow-2xl shadow-black/40 transition-transform duration-200 lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 lg:shadow-none ${navigationOpen ? "translate-x-0" : "-translate-x-full"}`}>
@@ -189,13 +192,18 @@ function AuthenticatedShell({ session, workspace, navigate, onSignOut, access }:
           <span aria-hidden="true" className="text-xl">×</span>
         </button>
       </div>
-      <nav aria-label="Hovednavigasjon" className="min-h-0 flex-1 overflow-y-auto px-3 py-5">
+      <nav aria-label="Hovednavigasjon" className="bifrost-scrollbar min-h-0 flex-1 overflow-y-auto px-3 py-4">
         {groups.map((group) => {
           const items = group.items.filter((item) => item.visible !== false);
           if (!items.length) return null;
-          return <div key={group.label} className="mb-6 last:mb-0">
-            <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[.18em] text-slate-600">{group.label}</p>
-            <div className="grid gap-1">
+          const open = expandedGroup === group.label;
+          const panelId = `navigation-group-${group.label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+          return <div key={group.label} className="mb-2 last:mb-0">
+            <button type="button" aria-expanded={open} aria-controls={panelId} className={`flex w-full items-center justify-between gap-3 rounded-xl border px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-[.14em] transition ${open ? "border-emerald-300/15 bg-emerald-300/[.06] text-emerald-200" : "border-transparent text-slate-600 hover:border-white/[.06] hover:bg-white/[.025] hover:text-slate-400"}`} onClick={() => setExpandedGroup((current) => current === group.label ? null : group.label)}>
+              <span>{group.label}</span>
+              <svg aria-hidden="true" viewBox="0 0 20 20" className={`size-4 transition-transform ${open ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="1.8"><path d="m5 7.5 5 5 5-5" /></svg>
+            </button>
+            <div id={panelId} hidden={!open} className="mt-1 grid gap-1 pl-2">
               {items.map((item) => <SidebarNavigationButton key={item.workspace} item={item} active={workspace === item.workspace} onClick={() => goTo(item.workspace)} />)}
             </div>
           </div>;
@@ -213,8 +221,8 @@ function AuthenticatedShell({ session, workspace, navigate, onSignOut, access }:
       </div>
     </aside>
 
-    <div className="flex min-h-screen min-w-0 flex-col">
-      <header className="sticky top-0 z-30 border-b border-white/[.08] bg-[#07111d]/90 backdrop-blur-xl">
+    <div className="flex h-[100dvh] min-h-0 min-w-0 flex-col overflow-hidden">
+      <header className="z-30 shrink-0 border-b border-white/[.08] bg-[#07111d]/90 backdrop-blur-xl">
         <div className="mx-auto flex min-h-20 w-full max-w-[96rem] flex-wrap items-center gap-3 px-4 py-3 sm:px-6 lg:px-8">
           <button type="button" aria-label="Åpne navigasjon" aria-controls="primary-navigation" aria-expanded={navigationOpen} className="grid size-10 shrink-0 place-items-center rounded-xl border border-white/10 text-slate-300 hover:bg-white/5 lg:hidden" onClick={() => setNavigationOpen(true)}>
             <NavigationIcon name="menu" />
@@ -227,10 +235,10 @@ function AuthenticatedShell({ session, workspace, navigate, onSignOut, access }:
           <NotificationCenter accessToken={session.accessToken} />
         </div>
       </header>
-      <main id="main-content" className="mx-auto flex w-full max-w-[96rem] flex-1 flex-col px-4 sm:px-6 lg:px-8">
-        <WorkspaceContent session={session} workspace={workspace} access={access} />
+      <main id="main-content" className="bifrost-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        <div className="mx-auto flex min-h-full w-full max-w-[96rem] flex-col px-4 sm:px-6 lg:px-8"><WorkspaceContent session={session} workspace={workspace} access={access} /></div>
       </main>
-      <AppFooter />
+      <div className="shrink-0"><AppFooter /></div>
     </div>
   </div>;
 }
@@ -239,7 +247,7 @@ function PublicShell({ session, onLocalLogin }: {
   session: Exclude<SessionState, { status: "authenticated" }>;
   onLocalLogin: (email: string, password: string) => Promise<void>;
 }) {
-  return <main className="min-h-screen bg-[#07111d] text-slate-100">
+  return <main className="bifrost-scrollbar h-[100dvh] overflow-y-auto bg-[#07111d] text-slate-100">
     <div className="mx-auto flex min-h-screen max-w-6xl flex-col px-6 pt-8 md:px-10">
       <header className="flex items-center border-b border-white/10 pb-5"><Brand /></header>
       <section className="grid flex-1 items-center gap-12 py-16 lg:grid-cols-[1.15fr_.85fr]">

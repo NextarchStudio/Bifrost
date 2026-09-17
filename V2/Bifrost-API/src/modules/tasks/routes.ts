@@ -39,6 +39,15 @@ export async function registerTaskRoutes(app: FastifyInstance, auth: AuthService
       return reply.code(204).send();
     } catch (error) { return sendError(error, request, reply); }
   });
+
+  app.delete("/api/v1/tasks/:id", async (request, reply) => {
+    try {
+      const user = await requireRoleAccess(request, auth, TASK_MANAGER_ROLES, "Du har ikke tilgang til å slette oppgaver.");
+      const { id } = idParamsSchema.parse(request.params);
+      await service.delete(id, user.id);
+      return reply.code(204).send();
+    } catch (error) { return sendError(error, request, reply); }
+  });
 }
 
 function sendError(error: unknown, request: FastifyRequest, reply: FastifyReply) {

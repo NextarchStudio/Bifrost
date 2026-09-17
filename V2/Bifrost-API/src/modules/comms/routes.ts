@@ -43,6 +43,11 @@ export async function registerCommsRoutes(app: FastifyInstance, auth: AuthServic
     catch (error) { return sendError(error, request, reply); }
   });
 
+  app.patch("/api/v1/comms/items/:id", async (request, reply) => {
+    try { const user = await authorize(request, auth); const { id } = idParamsSchema.parse(request.params); await service.updateItem(id, itemSchema.parse(request.body), user.id); return reply.code(204).send(); }
+    catch (error) { return sendError(error, request, reply); }
+  });
+
   app.post("/api/v1/comms/sets", async (request, reply) => {
     try { const user = await authorize(request, auth); return reply.code(201).send(await service.createSet(setSchema.parse(request.body), user.id)); }
     catch (error) { return sendError(error, request, reply); }

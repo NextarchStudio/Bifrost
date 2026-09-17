@@ -23,12 +23,30 @@ export function AdminWorkspace({ accessToken }: { accessToken: string }) {
   const [statistics, setStatistics] = useState<AdminStatistics | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"overview" | "users" | "roles" | "settings">("overview");
   const reload = async () => { const [workspace, stats] = await Promise.all([getAdminWorkspace(accessToken), getAdminStatistics(accessToken)]); setData(workspace); setStatistics(stats); };
   useEffect(() => { void reload().catch((reason) => setError(messageFrom(reason))); }, [accessToken]);
   const run = async (action: () => Promise<unknown>, message: string) => { setError(null); setSuccess(null); try { await action(); await reload(); setSuccess(message); } catch (reason) { setError(messageFrom(reason)); throw reason; } };
   if (!data) return <WorkspaceState title="Laster administrasjon" detail={error ?? "Henter brukere, roller og sikker konfigurasjon …"} error={Boolean(error)} />;
-  return <section className="flex-1 py-8"><div className="mb-7"><p className="text-sm text-amber-300">Tilgang og konfigurasjon</p><h1 className="mt-1 text-3xl font-semibold">Administrasjon</h1><p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">Administrer V1-brukere, roller og kompetanser. Nye brukere kobles til Keycloak ved første innlogging; eksisterende V1-passord fungerer når lokal reserveinnlogging er aktiv.</p></div>{error && <Banner tone="error">{error}</Banner>}{success && <Banner tone="success">{success}</Banner>}{statistics && <Statistics data={statistics} />}{data.canManageSettings && data.settings && <><SettingsForm accessToken={accessToken} settings={data.settings} cacheCount={data.crewCacheEntries} run={run} /><CrewReset accessToken={accessToken} /></>}<NewUser accessToken={accessToken} run={run} /><Users data={data} accessToken={accessToken} run={run} /><Roles roles={data.roles} accessToken={accessToken} run={run} /></section>;
+  return <section className="flex-1 py-8">
+    <div className="mb-7"><p className="text-sm text-amber-300">Tilgang og konfigurasjon</p><h1 className="mt-1 text-3xl font-semibold">Administrasjon</h1><p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">Administrer V1-brukere, roller og kompetanser. Nye brukere kobles til Keycloak ved første innlogging; eksisterende V1-passord fungerer når lokal reserveinnlogging er aktiv.</p></div>
+    {error && <Banner tone="error">{error}</Banner>}{success && <Banner tone="success">{success}</Banner>}
+    <div className={tabsClass} role="tablist" aria-label="Administrasjonsområder">
+      <Tab active={activeTab === "overview"} onClick={() => setActiveTab("overview")}>Oversikt</Tab>
+      <Tab active={activeTab === "users"} onClick={() => setActiveTab("users")}>Brukere ({data.users.length})</Tab>
+      <Tab active={activeTab === "roles"} onClick={() => setActiveTab("roles")}>Roller ({data.roles.length})</Tab>
+      {data.canManageSettings && data.settings && <Tab active={activeTab === "settings"} onClick={() => setActiveTab("settings")}>Systeminnstillinger</Tab>}
+    </div>
+    <div className="mt-5">
+      {activeTab === "overview" && statistics && <Statistics data={statistics} />}
+      {activeTab === "users" && <><NewUser accessToken={accessToken} run={run} /><Users data={data} accessToken={accessToken} run={run} /></>}
+      {activeTab === "roles" && <Roles roles={data.roles} accessToken={accessToken} run={run} />}
+      {activeTab === "settings" && data.canManageSettings && data.settings && <><SettingsForm accessToken={accessToken} settings={data.settings} cacheCount={data.crewCacheEntries} run={run} /><CrewReset accessToken={accessToken} /></>}
+    </div>
+  </section>;
 }
+
+function Tab({ active, onClick, children }: { active: boolean; onClick: () => void; children: ReactNode }) { return <button type="button" role="tab" aria-selected={active} className={`rounded-lg px-4 py-2.5 text-sm transition ${active ? "bg-amber-300 font-semibold text-slate-950" : "text-slate-400 hover:bg-white/5 hover:text-slate-200"}`} onClick={onClick}>{children}</button>; }
 
 function Statistics({ data }: { data: AdminStatistics }) {
   return <details className={cardClass} open><summary className="cursor-pointer list-none"><p className="text-sm text-amber-300">V1-datagrunnlag</p><div className="mt-1 flex items-center justify-between gap-3"><h2 className="text-xl font-semibold">Systemstatistikk</h2><span className="text-xs text-slate-600">Klikk for å skjule</span></div></summary><div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -134,3 +152,4 @@ const selectClass = "w-full rounded-xl border border-white/10 bg-[#0b1724] px-3 
 const primaryButton = "rounded-xl bg-amber-300 px-5 py-2.5 text-sm font-semibold text-slate-950 disabled:opacity-50";
 const secondaryButton = "rounded-xl border border-white/10 px-4 py-2.5 text-sm text-slate-300 hover:bg-white/5 disabled:opacity-50";
 const dangerButton = "rounded-xl border border-rose-300/20 px-4 py-2.5 text-sm text-rose-200 hover:bg-rose-300/10 disabled:cursor-not-allowed disabled:opacity-40";
+const tabsClass = "flex flex-wrap gap-1 rounded-xl border border-white/[.08] bg-black/10 p-1.5";

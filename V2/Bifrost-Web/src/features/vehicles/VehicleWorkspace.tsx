@@ -35,6 +35,7 @@ export function VehicleWorkspace({ accessToken }: { accessToken: string }) {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [editing, setEditing] = useState<VehicleListItem | null>(null);
+  const [activeTab, setActiveTab] = useState<"fleet" | "loans" | "new" | "competency">("fleet");
 
   useEffect(() => {
     let active = true;
@@ -57,14 +58,17 @@ export function VehicleWorkspace({ accessToken }: { accessToken: string }) {
 
     {!workspace && !error && <div className="rounded-2xl border border-white/10 bg-white/[.025] px-6 py-12 text-center text-slate-500">Henter kjøretøy …</div>}
     {workspace && <>
-      <div className="grid gap-5 xl:grid-cols-2">
-        {workspace.canCreate && <CreateVehicleCard accessToken={accessToken} onCreated={() => reload("Kjøretøyet ble opprettet.")} />}
-        {workspace.canManageLoans && <IssueVehicleCard accessToken={accessToken} vehicles={workspace.vehicles} onIssued={() => reload("Kjøretøyet ble lånt ut.")} />}
+      <div className={tabsClass} role="tablist" aria-label="Kjøretøyvisning">
+        <Tab active={activeTab === "fleet"} onClick={() => setActiveTab("fleet")}>Kjøretøyliste ({workspace.vehicles.length})</Tab>
+        {workspace.canManageLoans && <Tab active={activeTab === "loans"} onClick={() => setActiveTab("loans")}>Utlån</Tab>}
+        {workspace.canCreate && <Tab active={activeTab === "new"} onClick={() => setActiveTab("new")}>Nytt kjøretøy</Tab>}
+        {workspace.canManageCompetencies && <Tab active={activeTab === "competency"} onClick={() => setActiveTab("competency")}>Kompetanse</Tab>}
       </div>
+      {activeTab === "new" && workspace.canCreate && <div className="mt-6"><CreateVehicleCard accessToken={accessToken} onCreated={() => reload("Kjøretøyet ble opprettet.")} /></div>}
+      {activeTab === "loans" && workspace.canManageLoans && <div className="mt-6"><IssueVehicleCard accessToken={accessToken} vehicles={workspace.vehicles} onIssued={() => reload("Kjøretøyet ble lånt ut.")} /></div>}
+      {activeTab === "competency" && workspace.canManageCompetencies && <CompetencyAdminCard accessToken={accessToken} />}
 
-      {workspace.canManageCompetencies && <CompetencyAdminCard accessToken={accessToken} />}
-
-      <div className="mt-6 overflow-hidden rounded-2xl border border-white/10 bg-white/[.025]">
+      {activeTab === "fleet" && <div className="mt-6 overflow-hidden rounded-2xl border border-white/10 bg-white/[.025]">
         <div className="border-b border-white/10 px-5 py-4"><h2 className="font-medium">Kjøretøyliste</h2><p className="mt-1 text-sm text-slate-500">{workspace.vehicles.length} registrerte kjøretøy</p></div>
         <div className="overflow-x-auto"><table className="w-full min-w-[1050px] text-left text-sm"><thead className="border-b border-white/10 text-xs uppercase tracking-wider text-slate-500"><tr><th className="px-5 py-4">Kjøretøy</th><th className="px-5 py-4">Kilometer</th><th className="px-5 py-4">Nyttelast</th><th className="px-5 py-4">Krav</th><th className="px-5 py-4">Status / låntaker</th><th className="px-5 py-4"><span className="sr-only">Handlinger</span></th></tr></thead><tbody className="divide-y divide-white/[.06]">
           {workspace.vehicles.length === 0 && <tr><td colSpan={6} className="px-5 py-12 text-center text-slate-500">Ingen kjøretøy er registrert.</td></tr>}
@@ -77,12 +81,14 @@ export function VehicleWorkspace({ accessToken }: { accessToken: string }) {
             void deleteVehicle(accessToken, vehicle.id).then(() => reload("Kjøretøyet ble slettet.")).catch((reason) => setError(messageFrom(reason)));
           }}>Slett</button></>}</div></td></tr>)}
         </tbody></table></div>
-      </div>
+      </div>}
     </>}
 
     {editing && <EditVehicleDialog accessToken={accessToken} vehicle={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); reload("Kjøretøyet ble oppdatert."); }} />}
   </section>;
 }
+
+function Tab({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) { return <button type="button" role="tab" aria-selected={active} className={`rounded-lg px-4 py-2.5 text-sm transition ${active ? "bg-emerald-300 font-semibold text-slate-950" : "text-slate-400 hover:bg-white/5 hover:text-slate-200"}`} onClick={onClick}>{children}</button>; }
 
 function CreateVehicleCard({ accessToken, onCreated }: { accessToken: string; onCreated: () => void }) {
   const [saving, setSaving] = useState(false);
@@ -124,6 +130,11 @@ function IssueVehicleCard({ accessToken, vehicles, onIssued }: { accessToken: st
       .then(() => { setVehicleId(""); setQuery(""); setPerson(null); setConfirmation(null); onIssued(); })
       .catch((reason) => { setError(messageFrom(reason)); setConfirmation(null); }).finally(() => setSaving(false));
   };
+  const lookup = () => {
+    if (!query.trim() || lookupBusy) return;
+    setLookupBusy(true); setError(null);
+    void lookupCrewProfile(accessToken, query.trim()).then((profile) => { setPerson(profile); setQuery(String(profile.id)); }).catch((reason) => setError(messageFrom(reason))).finally(() => setLookupBusy(false));
+  };
 
   return <form className="rounded-2xl border border-white/10 bg-white/[.025] p-5" onSubmit={(event) => {
     event.preventDefault();
@@ -136,10 +147,7 @@ function IssueVehicleCard({ accessToken, vehicles, onIssued }: { accessToken: st
       if (requirementSatisfied(vehicle, profile)) performIssue(wannabeId, [], false);
       else { setSaving(false); setConfirmation({ vehicle, wannabeId, profile }); }
     }).catch((reason) => { setSaving(false); setError(messageFrom(reason)); });
-  }}><div><p className="text-sm text-emerald-300">Operativt</p><h2 className="mt-1 text-xl font-semibold">Lån ut kjøretøy</h2></div><div className="mt-5 grid gap-4"><SelectField label="Tilgjengelig kjøretøy" name="vehicleId" value={vehicleId} onChange={(value) => { setVehicleId(value); setConfirmation(null); }} options={[{ code: "", label: "Velg kjøretøy" }, ...available.map((vehicle) => ({ code: String(vehicle.id), label: `${vehicle.name} (${vehicle.registrationNumber}) · ${LABELS[vehicle.competencyRequirement]}` }))]} /><label><span className="mb-2 block text-sm text-slate-400">Wannabe-ID / badge-scan</span><div className="flex gap-2"><input value={query} onChange={(event) => { setQuery(event.target.value); setPerson(null); setConfirmation(null); }} required className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 outline-none focus:border-emerald-300/60" /><button type="button" disabled={lookupBusy || !query.trim()} className="rounded-xl border border-emerald-300/30 px-4 py-2.5 text-sm text-emerald-200 disabled:opacity-40" onClick={() => {
-      setLookupBusy(true); setError(null);
-      void lookupCrewProfile(accessToken, query.trim()).then((profile) => { setPerson(profile); setQuery(String(profile.id)); }).catch((reason) => setError(messageFrom(reason))).finally(() => setLookupBusy(false));
-    }}>{lookupBusy ? "Søker …" : "Slå opp"}</button></div></label>{person && <PersonCard person={person} />}</div>{error && <InlineError>{error}</InlineError>}<div className="mt-5 flex justify-end"><button disabled={saving || available.length === 0} className="rounded-xl bg-emerald-300 px-5 py-2.5 text-sm font-semibold text-slate-950 disabled:opacity-50">{saving ? "Kontrollerer …" : "Registrer utlån"}</button></div>
+  }}><div><p className="text-sm text-emerald-300">Operativt</p><h2 className="mt-1 text-xl font-semibold">Lån ut kjøretøy</h2></div><div className="mt-5 grid gap-4"><SelectField label="Tilgjengelig kjøretøy" name="vehicleId" value={vehicleId} onChange={(value) => { setVehicleId(value); setConfirmation(null); }} options={[{ code: "", label: "Velg kjøretøy" }, ...available.map((vehicle) => ({ code: String(vehicle.id), label: `${vehicle.name} (${vehicle.registrationNumber}) · ${LABELS[vehicle.competencyRequirement]}` }))]} /><label><span className="mb-2 block text-sm text-slate-400">Wannabe-ID / badge-scan</span><input value={query} onChange={(event) => { setQuery(event.target.value); setPerson(null); setConfirmation(null); }} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); lookup(); } }} required autoComplete="off" className="w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 outline-none focus:border-emerald-300/60" /><span className="mt-2 block text-xs text-slate-600">{lookupBusy ? "Søker …" : "Skann badge eller skriv ID, og trykk Enter."}</span></label>{person && <PersonCard person={person} />}</div>{error && <InlineError>{error}</InlineError>}<div className="mt-5 flex justify-end"><button disabled={saving || lookupBusy || available.length === 0} className="rounded-xl bg-emerald-300 px-5 py-2.5 text-sm font-semibold text-slate-950 disabled:opacity-50">{saving ? "Kontrollerer …" : "Registrer utlån"}</button></div>
     {confirmation && <CompetencyConfirmation vehicle={confirmation.vehicle} profile={confirmation.profile} saving={saving} onCancel={() => setConfirmation(null)} onConfirm={(selected) => performIssue(confirmation.wannabeId, selected, true)} />}
   </form>;
 }
@@ -180,7 +188,7 @@ function CompetencyAdminCard({ accessToken }: { accessToken: string }) {
     } catch (reason) { setError(messageFrom(reason)); }
     finally { setBusy(false); }
   };
-  return <div className="mt-6 rounded-2xl border border-white/10 bg-white/[.025] p-5"><div><p className="text-sm text-sky-300">Admin</p><h2 className="mt-1 text-xl font-semibold">Sertifikater og kompetanse</h2><p className="mt-2 text-sm text-slate-500">Tilsvarer kompetansefeltene på brukeradministrasjonen i V1. KDO håndteres per kjøretøy ved utlån.</p></div><div className="mt-5 flex max-w-xl gap-2"><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Wannabe-ID eller badge-scan" className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 outline-none focus:border-sky-300/60" /><button type="button" disabled={busy || !query.trim()} className="rounded-xl border border-sky-300/30 px-4 py-2.5 text-sm text-sky-200 disabled:opacity-40" onClick={() => void load()}>{busy ? "Henter …" : "Hent profil"}</button></div>{person && <PersonCard person={person} />}{wannabeId && <><CompetencyChecks selected={selected} onToggle={toggle} /><div className="mt-5 flex justify-end"><button disabled={busy} className="rounded-xl bg-sky-300 px-5 py-2.5 text-sm font-semibold text-slate-950 disabled:opacity-50" onClick={() => {
+  return <div className="mt-6 rounded-2xl border border-white/10 bg-white/[.025] p-5"><div><p className="text-sm text-sky-300">Admin</p><h2 className="mt-1 text-xl font-semibold">Sertifikater og kompetanse</h2><p className="mt-2 text-sm text-slate-500">Tilsvarer kompetansefeltene på brukeradministrasjonen i V1. KDO håndteres per kjøretøy ved utlån.</p></div><label className="mt-5 block max-w-xl"><span className="sr-only">Wannabe-ID eller badge-scan</span><input value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void load(); } }} placeholder="Wannabe-ID eller badge-scan" autoComplete="off" className="w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 outline-none focus:border-sky-300/60" /><span className="mt-2 block text-xs text-slate-600">{busy ? "Henter profil …" : "Trykk Enter for å hente profilen."}</span></label>{person && <PersonCard person={person} />}{wannabeId && <><CompetencyChecks selected={selected} onToggle={toggle} /><div className="mt-5 flex justify-end"><button disabled={busy} className="rounded-xl bg-sky-300 px-5 py-2.5 text-sm font-semibold text-slate-950 disabled:opacity-50" onClick={() => {
     setBusy(true); setError(null); setNotice(null);
     void saveVehicleCompetencyProfile(accessToken, wannabeId, selected).then(() => setNotice("Kompetanseprofilen ble lagret.")).catch((reason) => setError(messageFrom(reason))).finally(() => setBusy(false));
   }}>{busy ? "Lagrer …" : "Lagre kompetanse"}</button></div></>}{notice && <div className="mt-4 text-sm text-emerald-300">{notice}</div>}{error && <InlineError>{error}</InlineError>}</div>;
@@ -248,3 +256,5 @@ function formatDate(value: string): string {
 function messageFrom(reason: unknown): string {
   return reason instanceof Error ? reason.message : "Handlingen kunne ikke fullføres.";
 }
+
+const tabsClass = "flex flex-wrap gap-1 rounded-xl border border-white/[.08] bg-black/10 p-1.5";

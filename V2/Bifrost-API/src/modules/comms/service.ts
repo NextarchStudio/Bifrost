@@ -53,6 +53,7 @@ export class CommsDomainError extends Error {
 export interface CommsService {
   workspace(): Promise<CommsWorkspaceResponse>;
   createItem(input: CommsItemInput, actorUserId: number): Promise<{ id: number }>;
+  updateItem(id: number, input: CommsItemInput, actorUserId: number): Promise<void>;
   createSet(input: CommsSetInput, actorUserId: number): Promise<{ id: number }>;
   updateSet(id: number, input: CommsSetInput, actorUserId: number): Promise<void>;
   deleteSet(id: number, actorUserId: number): Promise<void>;
@@ -166,6 +167,27 @@ export function createCommsService(database: DatabaseConnection, crew?: CrewDire
         if (!created) throw new Error("Sambandsutstyret kunne ikke opprettes.");
         await writeAudit(tx, actorUserId, "create", "comms_item", created.id, { name: input.name, type: input.type, quantity: input.quantity });
         return { id: created.id };
+      });
+    },
+
+    async updateItem(id, input, actorUserId) {
+      await database.db.transaction(async (tx) => {
+        const [item] = await tx.select({ id: commsItems.id, status: commsItems.status }).from(commsItems)
+          .where(eq(commsItems.id, id)).limit(1).for("update");
+        if (!item) throw new CommsDomainError("Sambandsutstyret finnes ikke.", "NOT_FOUND");
+        const name = plainText(input.name, 140);
+        if (!name) throw new CommsDomainError("Navn på samband/tilbehør er påkrevd.", "CONFLICT");
+        const now = new Date();
+        await tx.update(commsItems).set({
+          name,
+          type: input.type,
+          serialNumber: nullableText(input.serialNumber, 150),
+          quantity: input.quantity,
+          status: input.quantity > 0 ? "available" : item.status === "maintenance" ? "maintenance" : "loaned",
+          notes: nullableText(input.notes, 2000),
+          updatedAt: now,
+        }).where(eq(commsItems.id, id));
+        await writeAudit(tx, actorUserId, "update", "comms_item", id, { name, type: input.type, quantity: input.quantity });
       });
     },
 

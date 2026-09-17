@@ -7,7 +7,7 @@ Denne listen er en hard produksjonsport. En tom avkryssing betyr at cutover ikke
 - [ ] `tg.legacyh.dev` peker til riktig reverse proxy og viser V2 i avtalt cutover-vindu.
 - [ ] `bifrost.tg.no` har gyldig DNS, TLS-kjede og peker til samme V2-installasjon.
 - [ ] Produksjonsbygget bruker `VITE_API_URL=same-origin`.
-- [ ] Nginx-rutene `/api/`, `/health` og `/ready` går til `127.0.0.1:3001`; øvrige ruter går til `127.0.0.1:3000`.
+- [ ] Reverse proxy-rutene `/api/`, `/health` og `/ready` går til `127.0.0.1:3103`; øvrige ruter går til `127.0.0.1:3102`.
 - [ ] `pnpm smoke` består mot begge HTTPS-domener.
 
 ## Database og filer

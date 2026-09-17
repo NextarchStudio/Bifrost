@@ -96,7 +96,7 @@ VITE_API_TOKEN
 
 `VITE_API_TOKEN` er synlig i browser-bundlen og må derfor aldri være en serverhemmelighet. Brukeridentitet og tilgang håndheves i API-et med enten OIDC/Keycloak-token eller et utløpende, ugjenfinnbart lokalt sesjonstoken.
 
-I utvikling brukes `VITE_API_URL=http://127.0.0.1:3001`. Produksjonsbygget skal bruke `VITE_API_URL=same-origin`; da kan samme statiske build kjøre på både `https://tg.legacyh.dev` og `https://bifrost.tg.no`, mens reverse proxy sender `/api/`, `/health` og `/ready` til API-port 3001. Et Nginx-eksempel ligger i [docs/nginx-bifrost.conf.example](docs/nginx-bifrost.conf.example).
+I utvikling brukes `VITE_API_URL=http://127.0.0.1:3001`. Produksjonsbygget skal bruke `VITE_API_URL=same-origin`; da kan samme statiske build kjøre på både `https://tg.legacyh.dev` og `https://bifrost.tg.no`. PM2-produksjonsprofilen bruker `127.0.0.1:3102` for Web og `127.0.0.1:3103` for API etter portkartlegging på målserveren. Reverse proxy sender `/api/`, `/health` og `/ready` til API-porten og øvrige ruter til Web-porten. Se [CyberPanel/OpenLiteSpeed-oppsettet](docs/cyberpanel-openlitespeed.md); et alternativt Nginx-eksempel ligger i [docs/nginx-bifrost.conf.example](docs/nginx-bifrost.conf.example).
 
 Etter OIDC-callback fullfører Web innloggingen mot `POST /api/v1/auth/session`. Lokal innlogging bruker eksisterende Argon2id-hash i V1-tabellen `users` via `POST /api/v1/auth/local`; rått passord lagres aldri. Det tilfeldige lokale sesjonstokenet returneres én gang, mens bare SHA-256-hashen lagres i `bifrost_local_sessions` med 12 timers utløp og eksplisitt revokering ved utlogging. Vellykkede forsøk skrives til både V1-tabellen `login_attempts` og `audit_logs`; avviste bearer-token registreres anonymt i `login_attempts`. Token og claims lagres aldri i auditdata. V1-grensen på fem mislykkede forsøk per e-post/IP på 15 minutter beholdes, og videre forsøk får HTTP 429.
 
@@ -158,11 +158,11 @@ Strekkodeverktøyet genererer V1-kompatible `.udl`-filer fra enkeltkoder, interv
 
 ```bash
 pnpm build
-pm2 start ecosystem.config.cjs
+pm2 startOrReload ecosystem.config.cjs --env production --update-env
 pm2 status
 ```
 
-Prosessene heter `Bifrost-API`, `Bifrost-Web` og `Bifrost-Worker`. API lytter på `3001`, Web på `3000`. Alle tre håndterer `SIGINT` og `SIGTERM` kontrollert ved stopp eller restart fra PM2.
+Prosessene heter `Bifrost-API`, `Bifrost-Web` og `Bifrost-Worker`. Standardprofilen bruker API-port `3001` og Web-port `3000`; produksjonsprofilen bruker henholdsvis `3103` og `3102`, bundet til localhost. Alle tre håndterer `SIGINT` og `SIGTERM` kontrollert ved stopp eller restart fra PM2.
 
 Etter oppstart kan hele kjeden kontrolleres uten å skrive data:
 

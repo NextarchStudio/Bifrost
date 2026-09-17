@@ -94,4 +94,14 @@ const shutdown = async (signal: string): Promise<void> => {
 process.once("SIGINT", () => void shutdown("SIGINT"));
 process.once("SIGTERM", () => void shutdown("SIGTERM"));
 
-await app.listen({ host: "0.0.0.0", port: 3001 });
+const apiHost = process.env.BIFROST_API_HOST?.trim() || "0.0.0.0";
+const apiPort = readPort(process.env.BIFROST_API_PORT, 3001, "BIFROST_API_PORT");
+
+await app.listen({ host: apiHost, port: apiPort });
+
+function readPort(value: string | undefined, fallback: number, name: string): number {
+  if (value === undefined || value.trim() === "") return fallback;
+  const port = Number(value);
+  if (!Number.isInteger(port) || port < 1 || port > 65_535) throw new Error(`${name} må være et heltall mellom 1 og 65535.`);
+  return port;
+}

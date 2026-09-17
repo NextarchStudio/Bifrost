@@ -63,7 +63,7 @@ Opprett lokale miljøfiler fra `.env.example` i hver applikasjon:
 - Web inneholder API-lenke og offentlig klientidentifikator.
 - Hemmelige nøkler skal aldri legges i Web-miljøet eller committes.
 
-API-et lytter på port `3001`, Web på port `3000`. Endepunktene `GET /health` og `GET /ready` brukes til driftssjekk.
+Lokalt lytter API-et på `127.0.0.1:3001` og Web på `127.0.0.1:3000`. PM2-produksjonsprofilen bruker de serverkontrollerte portene `127.0.0.1:3103` og `127.0.0.1:3102`. Endepunktene `GET /health` og `GET /ready` brukes til driftssjekk.
 
 GitHub Actions kjører låst installasjon, produksjonsaudit, `pnpm check` og Playwright/Chromium ved V2-endringer og pull requests. En startet installasjon kontrolleres med `pnpm smoke`.
 
@@ -77,7 +77,7 @@ Etter installasjon og produksjonsbuild:
 cd V2
 pnpm install --frozen-lockfile
 pnpm check
-pm2 start ecosystem.config.cjs
+pm2 startOrReload ecosystem.config.cjs --env production --update-env
 pm2 save
 ```
 

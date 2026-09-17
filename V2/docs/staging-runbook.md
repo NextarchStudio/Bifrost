@@ -66,14 +66,14 @@ Advarsel om manglende krypterte innstillinger må avklares før oppstart. Hemmel
 ## 7. Start med PM2
 
 ```bash
-pm2 start ecosystem.config.cjs
+pm2 startOrReload ecosystem.config.cjs --env production --update-env
 pm2 status
 pm2 logs Bifrost-API --lines 100
 pm2 logs Bifrost-Web --lines 100
 pm2 logs Bifrost-Worker --lines 100
 ```
 
-Kontroller `GET /health`, `GET /ready`, Keycloak-innlogging og at Web bare kommuniserer med API-et.
+Produksjonsprofilen binder Web til `127.0.0.1:3102` og API til `127.0.0.1:3103`. Kontroller `GET /health`, `GET /ready`, Keycloak-innlogging og at Web bare kommuniserer med API-et.
 
 Kjør deretter smoke-testen mot hvert domene:
 

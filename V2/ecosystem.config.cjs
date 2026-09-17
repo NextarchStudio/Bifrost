@@ -5,6 +5,14 @@ module.exports = {
       cwd: "./Bifrost-API",
       script: "dist/server.js",
       node_args: "--env-file-if-exists=.env",
+      env: {
+        BIFROST_API_HOST: "127.0.0.1",
+        BIFROST_API_PORT: "3001"
+      },
+      env_production: {
+        BIFROST_API_HOST: "127.0.0.1",
+        BIFROST_API_PORT: "3103"
+      },
       instances: 1,
       exec_mode: "fork",
       autorestart: true,
@@ -18,6 +26,14 @@ module.exports = {
       name: "Bifrost-Web",
       cwd: "./Bifrost-Web",
       script: "server.mjs",
+      env: {
+        BIFROST_WEB_HOST: "127.0.0.1",
+        BIFROST_WEB_PORT: "3000"
+      },
+      env_production: {
+        BIFROST_WEB_HOST: "127.0.0.1",
+        BIFROST_WEB_PORT: "3102"
+      },
       instances: 1,
       exec_mode: "fork",
       autorestart: true,

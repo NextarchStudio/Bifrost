@@ -63,4 +63,14 @@ const shutdown = (signal) => {
 process.once("SIGINT", () => shutdown("SIGINT"));
 process.once("SIGTERM", () => shutdown("SIGTERM"));
 
-server.listen(3000, "0.0.0.0", () => console.info("Bifrost-Web listening", { port: 3000 }));
+const webHost = process.env.BIFROST_WEB_HOST?.trim() || "0.0.0.0";
+const webPort = readPort(process.env.BIFROST_WEB_PORT, 3000, "BIFROST_WEB_PORT");
+
+server.listen(webPort, webHost, () => console.info("Bifrost-Web listening", { host: webHost, port: webPort }));
+
+function readPort(value, fallback, name) {
+  if (value === undefined || value.trim() === "") return fallback;
+  const port = Number(value);
+  if (!Number.isInteger(port) || port < 1 || port > 65_535) throw new Error(`${name} må være et heltall mellom 1 og 65535.`);
+  return port;
+}

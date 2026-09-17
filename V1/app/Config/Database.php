@@ -27,10 +27,10 @@ class Database extends Config
      */
     public array $default = [
         'DSN'          => '',
-        'hostname'     => 'db.legacyhosting.xyz',
-        'username'     => 'lega_tg_logistics_cms',
-        'password'     => 'A7kP3xQ9mT2Lr8Vz',
-        'database'     => 'lega_tg_logistics_cms',
+        'hostname'     => 'REPLACE',
+        'username'     => 'REPLACE',
+        'password'     => 'REPLACE',
+        'database'     => 'REPLACE',
         'DBDriver'     => 'MySQLi',
         'DBPrefix'     => '',
         'pConnect'     => false,

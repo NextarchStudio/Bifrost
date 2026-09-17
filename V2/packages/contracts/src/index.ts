@@ -571,3 +571,50 @@ export interface CrewClothingWorkspaceResponse {
   inventory: CrewClothingInventoryItem[];
   sizeOptions: readonly ShopSize[];
 }
+
+export type TaskType = "work" | "transport";
+export type TaskStatus = "not_started" | "in_progress" | "blocked" | "completed";
+export type TaskPriority = 1 | 2 | 3;
+
+export interface BifrostTask {
+  id: number;
+  title: string;
+  type: TaskType;
+  transportJobId: number | null;
+  transportDescription: string | null;
+  transportStatus: string | null;
+  status: TaskStatus;
+  priority: TaskPriority;
+  message: string | null;
+  description: string;
+  assignedUserId: number;
+  assignedName: string;
+  assignedWannabeId: number | null;
+  createdByUserId: number;
+  createdByName: string;
+  dueAt: string;
+  completedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TaskUserOption {
+  id: number;
+  name: string;
+  wannabeId: number | null;
+}
+
+export interface TaskTransportOption {
+  id: number;
+  description: string;
+  status: string;
+}
+
+export interface TaskWorkspaceResponse {
+  canManageAll: boolean;
+  currentUserId: number;
+  myTasks: BifrostTask[];
+  allTasks: BifrostTask[];
+  users: TaskUserOption[];
+  transportJobs: TaskTransportOption[];
+}

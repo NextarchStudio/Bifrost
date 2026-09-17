@@ -338,6 +338,23 @@ export const transportJobStops = mysqlTable("transport_job_stops", {
   createdAt: datetime("created_at", { mode: "date" }).notNull(),
 });
 
+export const tasks = mysqlTable("tasks", {
+  id: bigint({ mode: "number", unsigned: true }).primaryKey().autoincrement(),
+  title: varchar({ length: 180 }).notNull(),
+  type: varchar({ length: 20 }).notNull(),
+  transportJobId: bigint("transport_job_id", { mode: "number", unsigned: true }),
+  status: varchar({ length: 20 }).notNull().default("not_started"),
+  priority: tinyint({ unsigned: true }).notNull().default(2),
+  message: text(),
+  description: text().notNull(),
+  assignedUserId: bigint("assigned_user_id", { mode: "number", unsigned: true }).notNull(),
+  createdByUserId: bigint("created_by_user_id", { mode: "number", unsigned: true }).notNull(),
+  dueAt: datetime("due_at", { mode: "date" }).notNull(),
+  completedAt: datetime("completed_at", { mode: "date" }),
+  createdAt: datetime("created_at", { mode: "date" }).notNull(),
+  updatedAt: datetime("updated_at", { mode: "date" }).notNull(),
+});
+
 export const auditLogs = mysqlTable("audit_logs", {
   id: bigint({ mode: "number", unsigned: true }).primaryKey().autoincrement(),
   actorUserId: bigint("actor_user_id", { mode: "number", unsigned: true }).notNull(),

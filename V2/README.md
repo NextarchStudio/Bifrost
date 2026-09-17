@@ -80,6 +80,8 @@ Shop-modulen bruker V1-tabellene `shop_categories`, `shop_items` og `shop_moveme
 
 Crewtøy bruker V1-tabellene `crew_clothing_crews`, `crew_clothing_members` og `crew_clothing_inventory`. Badge-/Wannabe-oppslag, automatisk crewoppretting, størrelser, utlevering av T-skjorte/genser og crewtøylager er levert. De fem V1-Shop-rollene har operativ tilgang; bare `developer`, `chief` og `co-chief` kan endre crew og maksgrenser, slik V1-adminrutene krever. Utleveringsstatus reduserer ikke crewtøylageret automatisk fordi V1 heller ikke kobler disse operasjonene.
 
+Oppgavemodulen bruker V1-tabellen `tasks` og beholder V1s eierregler. Alle innloggede kan se og endre status på egne oppgaver. `developer`, `chief`, `co-chief` og `logistikk` kan i tillegg opprette og tildele oppgaver, se alle oppgaver og koble dem til aktive transportoppdrag. Oppretting og statusendring har audit og kjøres transaksjonelt.
+
 ## PM2
 
 ```bash

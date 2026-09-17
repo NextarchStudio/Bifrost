@@ -1,4 +1,4 @@
-import type { ApiError, CommsItemType, CommsWorkspaceResponse, CrewClothingItemType, CrewClothingMember, CrewClothingWorkspaceResponse, CrewProfile, CurrentUser, EquipmentCategory, EquipmentListResponse, EquipmentLoanIssueResponse, EquipmentLoanListResponse, EquipmentLoanReturnResponse, EquipmentMutationResponse, EquipmentRequestWorkspaceResponse, Location, Pallet, PalletInspection, PrivateEquipmentNotice, PrivateEquipmentRule, ShopImportSummary, ShopWorkspaceResponse, TransportJob, TransportJobKind, TransportWorkspaceResponse, UserProfileResponse, VehicleCompetencyCode, VehicleCompetencyProfile, VehicleCompetencyRequirement, VehicleLoanIssueResponse, VehicleWorkspaceResponse } from "@bifrost/contracts";
+import type { ApiError, CommsItemType, CommsWorkspaceResponse, CrewClothingItemType, CrewClothingMember, CrewClothingWorkspaceResponse, CrewProfile, CurrentUser, EquipmentCategory, EquipmentListResponse, EquipmentLoanIssueResponse, EquipmentLoanListResponse, EquipmentLoanReturnResponse, EquipmentMutationResponse, EquipmentRequestWorkspaceResponse, Location, Pallet, PalletInspection, PrivateEquipmentNotice, PrivateEquipmentRule, ShopImportSummary, ShopWorkspaceResponse, TaskPriority, TaskStatus, TaskType, TaskWorkspaceResponse, TransportJob, TransportJobKind, TransportWorkspaceResponse, UserProfileResponse, VehicleCompetencyCode, VehicleCompetencyProfile, VehicleCompetencyRequirement, VehicleLoanIssueResponse, VehicleWorkspaceResponse } from "@bifrost/contracts";
 
 const apiUrl = (import.meta.env.VITE_API_URL || "http://localhost:3001").replace(/\/$/, "");
 
@@ -531,6 +531,23 @@ export async function createCrewClothingCrew(accessToken: string, input: { name:
 
 export async function updateCrewClothingCrew(accessToken: string, id: number, input: { name: string; tshirtMax: number; hoodieMax: number }): Promise<void> {
   await sendApiMutation(accessToken, `/api/v1/crew-clothing/crews/${id}`, "PATCH", input, "Kunne ikke oppdatere crewet.");
+}
+
+export async function getTaskWorkspace(accessToken: string): Promise<TaskWorkspaceResponse> {
+  const response = await fetch(`${apiUrl}/api/v1/tasks`, { headers: createHeaders(accessToken) });
+  if (!response.ok) throw await createApiError(response, "Kunne ikke hente oppgavene.");
+  return response.json() as Promise<TaskWorkspaceResponse>;
+}
+
+export async function createTask(accessToken: string, input: { title: string; type: TaskType; transportJobId?: number | null; status: TaskStatus; priority: TaskPriority; message?: string | null; description: string; assignedUserId: number; dueAt: string }): Promise<{ id: number }> {
+  const headers = createHeaders(accessToken); headers.set("Content-Type", "application/json");
+  const response = await fetch(`${apiUrl}/api/v1/tasks`, { method: "POST", headers, body: JSON.stringify(input) });
+  if (!response.ok) throw await createApiError(response, "Kunne ikke opprette oppgaven.");
+  return response.json() as Promise<{ id: number }>;
+}
+
+export async function updateTaskStatus(accessToken: string, id: number, status: TaskStatus): Promise<void> {
+  await sendApiMutation(accessToken, `/api/v1/tasks/${id}/status`, "PATCH", { status }, "Kunne ikke oppdatere oppgavestatusen.");
 }
 
 export async function getUserProfile(accessToken: string, wannabeId: number): Promise<UserProfileResponse> {

@@ -41,7 +41,7 @@ Brukere kan ha flere roller. `ingen_tilbakemeldinger` skal behandles som en eksp
 | Samband | `developer`, `chief`, `co-chief`, `logistikk`, `sambandsansvarlig` | Enheter og tilbehør, sett, badge-/profiloppslag, enkelt- og settutlån, delretur og bytte | API og Web levert; lagerendring, lånelinjer, retur og bytte kjøres atomisk |
 | Transport | `developer`, `chief`, `co-chief`, `logistikk`, `innkjop` | Ledelse/logistikk administrerer oppdrag; `innkjop` rekvirerer persontransport og ser egne turer. Utstyrs-, innkjøps- og henterunder har stopp/ruteestimat, kjøretøyreservasjon, kompetansestyrt tildeling, kilometerteller, inspeksjon og historikk | API og Web levert; statusoverganger og kjøretøyoppdatering er transaksjonelle, staging-paritet gjenstår |
 | Shop og crew clothing | `developer`, `chief`, `co-chief`, `logistikk`, `shop`; crewadministrasjon bare `developer`, `chief`, `co-chief` | Varer/kategorier, checkout/checkin, sletting av varehistorikk, ettårsopprydding, XLSX/XLS/CSV-import, CSV/PDF-eksport, crewtøylager, badge-/Wannabe-oppslag, størrelser og utleveringsstatus | API og Web levert; lager/import er transaksjonelt, 10 MB filgrense og autorisert eksport er håndhevet; staging-paritet gjenstår |
-| Oppgaver | Alle innloggede | Opprett og statusoppdatering med interne eier-/tilgangsregler | Ikke startet |
+| Oppgaver | Alle innloggede; oppretting/full oversikt: `developer`, `chief`, `co-chief`, `logistikk` | Alle ser og oppdaterer egne oppgaver; lederrollene oppretter, tildeler, ser alt og kan koble til aktive transportoppdrag | API og Web levert; oppretting/status har audit og transaksjon, staging-paritet gjenstår |
 | Feedback og varsler | Alle innloggede; status: `developer` | `ingen_tilbakemeldinger` blokkerer feedback/varsler; vedlegg og sletting har egne regler | Ikke startet |
 | Admin og statistikk | `developer`, `chief`, `co-chief`; systeminnstillinger/cache: `developer` | Brukere, roller, aktiv-status, kompetanser, systeminnstillinger, crew-cache og statistikk | Ikke startet |
 
@@ -63,6 +63,7 @@ Brukere kan ha flere roller. `ingen_tilbakemeldinger` skal behandles som en eksp
 | `/api/v1/transport*` | Administrasjon: `developer`, `chief`, `co-chief`, `logistikk`; persontransport og egne turer: `innkjop` | Ja; opprettelse/reservasjon, tildeling, start og fullføring har audit og transaksjoner | Ja |
 | `/api/v1/comms*` | `developer`, `chief`, `co-chief`, `logistikk`, `sambandsansvarlig` | Ja; sett, lagerreduksjon, utlån, delretur og bytte har audit og transaksjoner | Ja |
 | `/api/v1/shop*`, `/api/v1/crew-clothing*` | Operativt: `developer`, `chief`, `co-chief`, `logistikk`, `shop`; crewadministrasjon: `developer`, `chief`, `co-chief` | Ja; varebevegelser, import, historikksletting, crew, medlem, utlevering og crewtøylager har audit/transaksjoner i tråd med V1 | Ja |
+| `/api/v1/tasks*` | Egen liste/status: alle innloggede; oppretting/full oversikt: `developer`, `chief`, `co-chief`, `logistikk` | Ja; oppretting og statusendring har audit og transaksjoner | Ja |
 
 API-et bruker én felles Bearer-token- og rollekontroll. Manglende token gir `401`, manglende rolle gir `403`, og manglende OIDC-konfigurasjon beholdes som `503` med kode `OIDC_NOT_CONFIGURED`.
 

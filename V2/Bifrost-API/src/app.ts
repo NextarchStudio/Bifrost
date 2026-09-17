@@ -32,6 +32,8 @@ import type { CommsService } from "./modules/comms/service.js";
 import { registerShopRoutes } from "./modules/shop/routes.js";
 import type { ShopService } from "./modules/shop/service.js";
 import type { CrewClothingService } from "./modules/crew-clothing/service.js";
+import { registerTaskRoutes } from "./modules/tasks/routes.js";
+import type { TaskService } from "./modules/tasks/service.js";
 
 export interface AppDependencies {
   checkDatabase: () => Promise<void>;
@@ -51,6 +53,7 @@ export interface AppDependencies {
   comms?: CommsService;
   shop?: ShopService;
   crewClothing?: CrewClothingService;
+  tasks?: TaskService;
 }
 
 export function buildApp(dependencies: AppDependencies): FastifyInstance {
@@ -99,6 +102,7 @@ export function buildApp(dependencies: AppDependencies): FastifyInstance {
   if (dependencies.auth && dependencies.shop && dependencies.crewClothing) {
     void registerShopRoutes(app, dependencies.auth, dependencies.shop, dependencies.crewClothing);
   }
+  if (dependencies.auth && dependencies.tasks) void registerTaskRoutes(app, dependencies.auth, dependencies.tasks);
 
   app.setNotFoundHandler((request, reply) => {
     const body: ApiError = { error: { code: "NOT_FOUND", message: "Ressursen finnes ikke.", requestId: request.id } };

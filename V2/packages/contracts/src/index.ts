@@ -235,3 +235,44 @@ export interface EquipmentRequestWorkspaceResponse {
   mine: EquipmentRequest[];
   incoming: EquipmentRequest[];
 }
+
+export const VEHICLE_COMPETENCY_CODES = ["t1", "t2", "t3", "t4", "b", "be", "c1", "c1e", "c", "ce"] as const;
+export type VehicleCompetencyCode = (typeof VEHICLE_COMPETENCY_CODES)[number];
+export type VehicleCompetencyRequirement = "none" | "kdo" | VehicleCompetencyCode;
+
+export interface VehicleCompetencyProfile {
+  wannabeId: number;
+  competencies: Record<VehicleCompetencyCode, boolean>;
+  kdoForVehicle: boolean;
+}
+
+export interface VehicleListItem {
+  id: number;
+  name: string;
+  registrationNumber: string;
+  competencyRequirement: VehicleCompetencyRequirement;
+  competencyOverrideRequirement: VehicleCompetencyCode | null;
+  currentOdometer: number | null;
+  odometerExempt: boolean;
+  vegvesenExempt: boolean;
+  maxPayloadKg: number | null;
+  vegvesenLastSyncAt: string | null;
+  status: string;
+  notes: string | null;
+  activeLoanId: number | null;
+  activeWannabeId: number | null;
+  activeBorrowerName: string | null;
+  activeIssuedAt: string | null;
+}
+
+export interface VehicleWorkspaceResponse {
+  canCreate: boolean;
+  canEdit: boolean;
+  canManageLoans: boolean;
+  canManageCompetencies: boolean;
+  vehicles: VehicleListItem[];
+}
+
+export interface VehicleLoanIssueResponse {
+  loanId: number;
+}

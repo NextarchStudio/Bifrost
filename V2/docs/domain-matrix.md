@@ -1,6 +1,6 @@
 # Bifrost domenematrise
 
-Sist verifisert mot `V1/app/Config/Routes.php`, relevante V1-controllere og V2-rutene 16. september 2026.
+Sist verifisert mot `V1/app/Config/Routes.php`, relevante V1-controllere og V2-rutene 17. september 2026.
 
 Denne matrisen er migreringsgrunnlaget for funksjons- og tilgangsparitet. «Alle innloggede» betyr at V1-ruten bare bruker `auth`-filteret; interne controller-/serviceregler kan begrense enkelte handlinger ytterligere. V2 skal håndheve tilgang i API-et, uavhengig av hvilke knapper Web viser.
 
@@ -36,7 +36,7 @@ Brukere kan ha flere roller. `ingen_tilbakemeldinger` skal behandles som en eksp
 | Strekkodeeksport | `developer`, `chief`, `co-chief`, `logistikk` | Generering/eksport av strekkoder | Ikke startet |
 | Privat utstyr | `developer`, `chief`, `co-chief`, `logistikk` | Opprett/slett, prefikstreff, utlånsbekreftelse og returpåminnelse | API og Web levert; bekreftelsen håndheves også i API-et |
 | Utstyrslån og retur | `developer`, `chief`, `co-chief`, `logistikk` | Profiloppslag, antall, lagerkonsistens, utstedelse og retur | Transaksjonelt API og Web for utstedelse/delretur/full retur, person-/badge-oppslag og privat-utstyrsvarsler levert |
-| Kjøretøy og kjøretøylån | `developer`, `chief`, `co-chief`, `skiftleder`, `logistikk` | Redigering/sletting er snevrere for enkelte handlinger; kompetanseprofil og odometer | Ikke startet |
+| Kjøretøy og kjøretøylån | `developer`, `chief`, `co-chief`, `skiftleder`, `logistikk` | Oppretting og lån for alle fem roller; redigering/sletting bare uten `logistikk`; kompetansebevis/førerkort per Wannabe-ID, KDO per kjøretøy, odometer og Vegvesen-nyttelast | API og Web levert; utlån/retur og kompetanseoppdatering er transaksjonell, Vegvesen-nøkkelen leses kryptert |
 | Utstyrsforespørsler | Alle innloggede; status/godkjenning: `developer`, `chief`, `co-chief`, `logistikk` | Vanlige brukere kan opprette; ledelse/logistikk og `sambandsansvarlig` blokkeres fra vanlig opprettingsflyt; delvis godkjenning, lagerreservasjon, koblede lån og statusmaskin | API og Web levert; godkjenning/lager/lån kjøres atomisk |
 | Samband | `developer`, `chief`, `co-chief`, `logistikk`, `sambandsansvarlig` | Enheter, sett, profiloppslag, utlån og retur | Ikke startet |
 | Transport | `developer`, `chief`, `co-chief`, `logistikk`, `innkjop` | Person-/utstyrstransport, innkjøpsrunde, henterunde, stopp, tildeling, kjøretøy, status og inspeksjon | Ikke startet; rolleavvik må avklares |
@@ -55,6 +55,10 @@ Brukere kan ha flere roller. `ingen_tilbakemeldinger` skal behandles som en eksp
 | `/api/v1/locations*` | `developer`, `chief`, `co-chief`, `logistikk` | Ja | Delvis |
 | `/api/v1/pallets*` | `developer`, `chief`, `co-chief`, `logistikk` | Ja | Delvis |
 | `/api/v1/loans*` | `developer`, `chief`, `co-chief`, `logistikk` | Ja | Ja |
+| `/api/v1/equipment-requests*` | Alle innloggede for egne forespørsler; behandling: `developer`, `chief`, `co-chief`, `logistikk` | Ja | Ja |
+| `/api/v1/crew/lookup` | `developer`, `chief`, `co-chief`, `skiftleder`, `logistikk` | Cacheoppdatering ved eksternt treff; `skiftleder` trenger oppslaget i kjøretøylån | Ja |
+| `/api/v1/private-equipment*` | `developer`, `chief`, `co-chief`, `logistikk` | Ja | Delvis |
+| `/api/v1/vehicles*`, `/api/v1/vehicle-loans*` | `developer`, `chief`, `co-chief`, `skiftleder`, `logistikk`; endring/sletting uten `logistikk`; kompetanseadmin uten `skiftleder` og `logistikk` | Ja | Ja |
 
 API-et bruker én felles Bearer-token- og rollekontroll. Manglende token gir `401`, manglende rolle gir `403`, og manglende OIDC-konfigurasjon beholdes som `503` med kode `OIDC_NOT_CONFIGURED`.
 

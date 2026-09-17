@@ -6,11 +6,12 @@ import { AuthenticationError, type AuthService } from "../auth/service.js";
 import { CrewDirectoryError, type CrewDirectoryService } from "./service.js";
 
 const querySchema = z.object({ query: z.string().trim().min(1).max(120) });
+const CREW_LOOKUP_ROLES: ReadonlySet<string> = new Set([...LOGISTICS_ROLES, "skiftleder"]);
 
 export async function registerCrewRoutes(app: FastifyInstance, auth: AuthService, crew: CrewDirectoryService): Promise<void> {
   app.get("/api/v1/crew/lookup", async (request, reply) => {
     try {
-      await requireRoleAccess(request, auth, LOGISTICS_ROLES, "Du har ikke tilgang til personoppslag.");
+      await requireRoleAccess(request, auth, CREW_LOOKUP_ROLES, "Du har ikke tilgang til personoppslag.");
       const query = querySchema.parse(request.query);
       return await crew.lookup(query.query);
     } catch (error) { return sendError(error, request, reply); }

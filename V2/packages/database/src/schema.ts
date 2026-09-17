@@ -134,6 +134,59 @@ export const equipmentLoans = mysqlTable("equipment_loans", {
   status: varchar({ length: 20 }).notNull(),
 });
 
+export const vehicles = mysqlTable("vehicles", {
+  id: bigint({ mode: "number", unsigned: true }).primaryKey().autoincrement(),
+  name: varchar({ length: 150 }).notNull(),
+  registrationNumber: varchar("registration_number", { length: 20 }).notNull(),
+  competencyRequirement: varchar("competency_requirement", { length: 10 }).notNull().default("none"),
+  competencyOverrideRequirement: varchar("competency_override_requirement", { length: 10 }),
+  currentOdometer: int("current_odometer", { unsigned: true }),
+  odometerExempt: boolean("odometer_exempt").notNull().default(false),
+  vegvesenExempt: boolean("vegvesen_exempt").notNull().default(false),
+  maxPayloadKg: int("max_payload_kg", { unsigned: true }),
+  vegvesenLastSyncAt: datetime("vegvesen_last_sync_at", { mode: "date" }),
+  status: varchar({ length: 20 }).notNull().default("available"),
+  notes: text(),
+  createdAt: datetime("created_at", { mode: "date" }).notNull(),
+  updatedAt: datetime("updated_at", { mode: "date" }).notNull(),
+}, (table) => [uniqueIndex("vehicles_registration_number_unique").on(table.registrationNumber)]);
+
+export const vehicleLoans = mysqlTable("vehicle_loans", {
+  id: bigint({ mode: "number", unsigned: true }).primaryKey().autoincrement(),
+  vehicleId: bigint("vehicle_id", { mode: "number", unsigned: true }).notNull(),
+  wannabeId: bigint("wannabe_id", { mode: "number", unsigned: true }).notNull(),
+  issuedByUserId: bigint("issued_by_user_id", { mode: "number", unsigned: true }).notNull(),
+  issuedAt: datetime("issued_at", { mode: "date" }).notNull(),
+  returnedAt: datetime("returned_at", { mode: "date" }),
+  status: varchar({ length: 20 }).notNull(),
+});
+
+export const wannabeCompetencies = mysqlTable("wannabe_competencies", {
+  id: bigint({ mode: "number", unsigned: true }).primaryKey().autoincrement(),
+  wannabeId: bigint("wannabe_id", { mode: "number", unsigned: true }).notNull(),
+  t1: boolean().notNull().default(false),
+  t2: boolean().notNull().default(false),
+  t3: boolean().notNull().default(false),
+  t4: boolean().notNull().default(false),
+  b: boolean().notNull().default(false),
+  be: boolean().notNull().default(false),
+  c1: boolean().notNull().default(false),
+  c1e: boolean().notNull().default(false),
+  c: boolean().notNull().default(false),
+  ce: boolean().notNull().default(false),
+  kdo: boolean().notNull().default(false),
+  createdAt: datetime("created_at", { mode: "date" }).notNull(),
+  updatedAt: datetime("updated_at", { mode: "date" }).notNull(),
+}, (table) => [uniqueIndex("wannabe_competencies_wannabe_id_unique").on(table.wannabeId)]);
+
+export const wannabeVehicleKdo = mysqlTable("wannabe_vehicle_kdo", {
+  id: bigint({ mode: "number", unsigned: true }).primaryKey().autoincrement(),
+  wannabeId: bigint("wannabe_id", { mode: "number", unsigned: true }).notNull(),
+  vehicleId: bigint("vehicle_id", { mode: "number", unsigned: true }).notNull(),
+  createdAt: datetime("created_at", { mode: "date" }).notNull(),
+  updatedAt: datetime("updated_at", { mode: "date" }).notNull(),
+}, (table) => [uniqueIndex("wannabe_vehicle_kdo_wannabe_vehicle_unique").on(table.wannabeId, table.vehicleId)]);
+
 export const transportJobs = mysqlTable("transport_jobs", {
   id: bigint({ mode: "number", unsigned: true }).primaryKey().autoincrement(),
   fromLocationId: int("from_location_id", { unsigned: true }).notNull(),

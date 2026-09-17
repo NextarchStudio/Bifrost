@@ -68,6 +68,8 @@ Regler for privat utstyr leses og administreres direkte i V1-tabellen `private_e
 
 Utstyrsforespørsler bruker V1-tabellene `equipment_requests` og `equipment_request_items`. Godkjenning, lagerreduksjon og opprettelse av koblede lån utføres i samme databasetransaksjon; siste retur flytter en utlevert forespørsel til `returned`.
 
+Kjøretøymodulen bruker V1-tabellene `vehicles`, `vehicle_loans`, `wannabe_competencies` og `wannabe_vehicle_kdo` direkte. Oppretting, utlån, retur, KDO og førerkort-/kompetansekontroll beholder V1-rollene og audit-sporet. Statens vegvesen-oppslag bruker den krypterte innstillingen `vegvesen.api_key`; API-nøkkelen eksponeres aldri til Web.
+
 ## PM2
 
 ```bash

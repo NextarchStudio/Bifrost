@@ -13,6 +13,7 @@ import type { CrewDirectoryService } from "./modules/crew/service.js";
 import { CrewDirectoryError } from "./modules/crew/service.js";
 import type { PrivateEquipmentService } from "./modules/private-equipment/service.js";
 import type { EquipmentRequestService } from "./modules/requests/service.js";
+import type { VehicleService } from "./modules/vehicles/service.js";
 
 const locationStub = (overrides: Partial<LocationService> = {}): LocationService => ({
   list: async () => [],
@@ -70,6 +71,22 @@ const requestStub = (overrides: Partial<EquipmentRequestService> = {}): Equipmen
   delete: async () => undefined,
   updateStatus: async () => undefined,
   approve: async () => undefined,
+  ...overrides,
+});
+
+const vehicleStub = (overrides: Partial<VehicleService> = {}): VehicleService => ({
+  workspace: async () => ({ canCreate: true, canEdit: false, canManageLoans: true, canManageCompetencies: false, vehicles: [] }),
+  competencyProfile: async (wannabeId) => ({
+    wannabeId,
+    competencies: { t1: false, t2: false, t3: false, t4: false, b: false, be: false, c1: false, c1e: false, c: false, ce: false },
+    kdoForVehicle: false,
+  }),
+  saveCompetencyProfile: async () => undefined,
+  create: async () => ({ id: 1 }),
+  update: async () => undefined,
+  delete: async () => undefined,
+  issue: async () => ({ loanId: 1 }),
+  returnLoan: async () => undefined,
   ...overrides,
 });
 
@@ -547,5 +564,116 @@ test("denies request approval to users without a logistics role", async () => {
   const response = await app.inject({ method: "POST", url: "/api/v1/equipment-requests/44/approve", headers: { authorization: "Bearer valid" }, payload: { approveAll: true, decisions: [] } });
   assert.equal(response.statusCode, 403);
   assert.equal(response.json().error.code, "FORBIDDEN");
+  await app.close();
+});
+
+test("allows skiftleder to list vehicles", async () => {
+  const app = buildApp({
+    checkDatabase: async () => undefined,
+    auth: {
+      getPublicConfig: async () => { throw new Error("not called"); },
+      authenticate: async () => ({ id: 40, name: "Skiftleder", firstName: "Skift", lastName: "Leder", email: "skift@example.test", wannabeId: 400, roles: ["skiftleder"] }),
+    },
+    vehicles: vehicleStub(),
+  });
+  const response = await app.inject({ method: "GET", url: "/api/v1/vehicles", headers: { authorization: "Bearer valid" } });
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.json().canManageLoans, true);
+  await app.close();
+});
+
+test("allows skiftleder to look up a vehicle borrower", async () => {
+  const app = buildApp({
+    checkDatabase: async () => undefined,
+    auth: {
+      getPublicConfig: async () => { throw new Error("not called"); },
+      authenticate: async () => ({ id: 40, name: "Skiftleder", firstName: "Skift", lastName: "Leder", email: "skift@example.test", wannabeId: 400, roles: ["skiftleder"] }),
+    },
+    crew: crewStub(),
+  });
+  const response = await app.inject({ method: "GET", url: "/api/v1/crew/lookup?query=BADGE-40", headers: { authorization: "Bearer valid" } });
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.json().id, 12345);
+  await app.close();
+});
+
+test("denies vehicle access to a regular user", async () => {
+  const app = buildApp({
+    checkDatabase: async () => undefined,
+    auth: {
+      getPublicConfig: async () => { throw new Error("not called"); },
+      authenticate: async () => ({ id: 41, name: "Bruker", firstName: "Vanlig", lastName: "Bruker", email: "bruker@example.test", wannabeId: 401, roles: ["bruker"] }),
+    },
+    vehicles: vehicleStub(),
+  });
+  const response = await app.inject({ method: "GET", url: "/api/v1/vehicles", headers: { authorization: "Bearer valid" } });
+  assert.equal(response.statusCode, 403);
+  assert.equal(response.json().error.code, "FORBIDDEN");
+  await app.close();
+});
+
+test("lets logistics issue a vehicle loan with actor context", async () => {
+  let actorId = 0;
+  let confirmed = false;
+  const app = buildApp({
+    checkDatabase: async () => undefined,
+    auth: {
+      getPublicConfig: async () => { throw new Error("not called"); },
+      authenticate: async () => ({ id: 42, name: "Logistikk", firstName: "Logistikk", lastName: "Bruker", email: "logistikk@example.test", wannabeId: 402, roles: ["logistikk"] }),
+    },
+    vehicles: vehicleStub({ issue: async (input, actorUserId) => { actorId = actorUserId; confirmed = input.competencyConfirmed; return { loanId: 19 }; } }),
+  });
+  const response = await app.inject({
+    method: "POST",
+    url: "/api/v1/vehicle-loans",
+    headers: { authorization: "Bearer valid" },
+    payload: { vehicleId: 3, wannabeId: 12345, competencyConfirmed: true, competencies: ["b"] },
+  });
+  assert.equal(response.statusCode, 201);
+  assert.equal(response.json().loanId, 19);
+  assert.equal(actorId, 42);
+  assert.equal(confirmed, true);
+  await app.close();
+});
+
+test("keeps vehicle editing unavailable to logistics", async () => {
+  const app = buildApp({
+    checkDatabase: async () => undefined,
+    auth: {
+      getPublicConfig: async () => { throw new Error("not called"); },
+      authenticate: async () => ({ id: 42, name: "Logistikk", firstName: "Logistikk", lastName: "Bruker", email: "logistikk@example.test", wannabeId: 402, roles: ["logistikk"] }),
+    },
+    vehicles: vehicleStub(),
+  });
+  const response = await app.inject({
+    method: "PATCH",
+    url: "/api/v1/vehicles/3",
+    headers: { authorization: "Bearer valid" },
+    payload: { name: "Bil", registrationNumber: "AB12345", competencyRequirement: "b", vegvesenExempt: false },
+  });
+  assert.equal(response.statusCode, 403);
+  await app.close();
+});
+
+test("lets chief update a user competency profile", async () => {
+  let actorId = 0;
+  let selected = "";
+  const app = buildApp({
+    checkDatabase: async () => undefined,
+    auth: {
+      getPublicConfig: async () => { throw new Error("not called"); },
+      authenticate: async () => ({ id: 43, name: "Chief", firstName: "Chief", lastName: "Bruker", email: "chief@example.test", wannabeId: 403, roles: ["chief"] }),
+    },
+    vehicles: vehicleStub({ saveCompetencyProfile: async (_wannabeId, competencies, actorUserId) => { actorId = actorUserId; selected = competencies.join(","); } }),
+  });
+  const response = await app.inject({
+    method: "PUT",
+    url: "/api/v1/vehicles/competencies/12345",
+    headers: { authorization: "Bearer valid" },
+    payload: { competencies: ["t1", "be"] },
+  });
+  assert.equal(response.statusCode, 204);
+  assert.equal(actorId, 43);
+  assert.equal(selected, "t1,be");
   await app.close();
 });

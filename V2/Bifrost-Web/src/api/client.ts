@@ -1,4 +1,4 @@
-import type { ApiError, CrewProfile, CurrentUser, EquipmentCategory, EquipmentListResponse, EquipmentLoanIssueResponse, EquipmentLoanListResponse, EquipmentLoanReturnResponse, EquipmentMutationResponse, EquipmentRequestWorkspaceResponse, Location, Pallet, PalletInspection, PrivateEquipmentNotice, PrivateEquipmentRule } from "@bifrost/contracts";
+import type { ApiError, CrewProfile, CurrentUser, EquipmentCategory, EquipmentListResponse, EquipmentLoanIssueResponse, EquipmentLoanListResponse, EquipmentLoanReturnResponse, EquipmentMutationResponse, EquipmentRequestWorkspaceResponse, Location, Pallet, PalletInspection, PrivateEquipmentNotice, PrivateEquipmentRule, VehicleCompetencyCode, VehicleCompetencyProfile, VehicleCompetencyRequirement, VehicleLoanIssueResponse, VehicleWorkspaceResponse } from "@bifrost/contracts";
 
 const apiUrl = (import.meta.env.VITE_API_URL || "http://localhost:3001").replace(/\/$/, "");
 
@@ -251,6 +251,99 @@ export async function approveEquipmentRequest(
   },
 ): Promise<void> {
   await sendApiMutation(accessToken, `/api/v1/equipment-requests/${id}/approve`, "POST", input, "Kunne ikke behandle forespørselen.");
+}
+
+export async function getVehicleWorkspace(accessToken: string): Promise<VehicleWorkspaceResponse> {
+  const response = await fetch(`${apiUrl}/api/v1/vehicles`, { headers: createHeaders(accessToken) });
+  if (!response.ok) throw await createApiError(response, "Kunne ikke hente kjøretøy.");
+  return response.json() as Promise<VehicleWorkspaceResponse>;
+}
+
+export async function createVehicle(
+  accessToken: string,
+  input: {
+    name: string;
+    registrationNumber: string;
+    competencyRequirement: VehicleCompetencyRequirement;
+    competencyOverrideRequirement?: VehicleCompetencyCode | null;
+    odometerMode: "tracked" | "exempt";
+    currentOdometer?: number | null;
+    vegvesenExempt: boolean;
+    notes?: string | null;
+  },
+): Promise<{ id: number }> {
+  const headers = createHeaders(accessToken);
+  headers.set("Content-Type", "application/json");
+  const response = await fetch(`${apiUrl}/api/v1/vehicles`, { method: "POST", headers, body: JSON.stringify(input) });
+  if (!response.ok) throw await createApiError(response, "Kunne ikke opprette kjøretøyet.");
+  return response.json() as Promise<{ id: number }>;
+}
+
+export async function updateVehicle(
+  accessToken: string,
+  id: number,
+  input: {
+    name: string;
+    registrationNumber: string;
+    competencyRequirement: VehicleCompetencyRequirement;
+    competencyOverrideRequirement?: VehicleCompetencyCode | null;
+    vegvesenExempt: boolean;
+  },
+): Promise<void> {
+  await sendApiMutation(accessToken, `/api/v1/vehicles/${id}`, "PATCH", input, "Kunne ikke oppdatere kjøretøyet.");
+}
+
+export async function deleteVehicle(accessToken: string, id: number): Promise<void> {
+  const response = await fetch(`${apiUrl}/api/v1/vehicles/${id}`, { method: "DELETE", headers: createHeaders(accessToken) });
+  if (!response.ok) throw await createApiError(response, "Kunne ikke slette kjøretøyet.");
+}
+
+export async function getVehicleCompetencyProfile(
+  accessToken: string,
+  wannabeId: number,
+  vehicleId?: number,
+): Promise<VehicleCompetencyProfile> {
+  const params = new URLSearchParams();
+  if (vehicleId) params.set("vehicleId", String(vehicleId));
+  const query = params.size ? `?${params}` : "";
+  const response = await fetch(`${apiUrl}/api/v1/vehicles/competencies/${wannabeId}${query}`, { headers: createHeaders(accessToken) });
+  if (!response.ok) throw await createApiError(response, "Kunne ikke hente kompetanseprofilen.");
+  return response.json() as Promise<VehicleCompetencyProfile>;
+}
+
+export async function saveVehicleCompetencyProfile(
+  accessToken: string,
+  wannabeId: number,
+  competencies: VehicleCompetencyCode[],
+): Promise<void> {
+  const headers = createHeaders(accessToken);
+  headers.set("Content-Type", "application/json");
+  const response = await fetch(`${apiUrl}/api/v1/vehicles/competencies/${wannabeId}`, {
+    method: "PUT",
+    headers,
+    body: JSON.stringify({ competencies }),
+  });
+  if (!response.ok) throw await createApiError(response, "Kunne ikke lagre kompetanseprofilen.");
+}
+
+export async function issueVehicleLoan(
+  accessToken: string,
+  input: {
+    vehicleId: number;
+    wannabeId: number;
+    competencyConfirmed: boolean;
+    competencies: Array<VehicleCompetencyCode | "kdo">;
+  },
+): Promise<VehicleLoanIssueResponse> {
+  const headers = createHeaders(accessToken);
+  headers.set("Content-Type", "application/json");
+  const response = await fetch(`${apiUrl}/api/v1/vehicle-loans`, { method: "POST", headers, body: JSON.stringify(input) });
+  if (!response.ok) throw await createApiError(response, "Kunne ikke registrere kjøretøylånet.");
+  return response.json() as Promise<VehicleLoanIssueResponse>;
+}
+
+export async function returnVehicleLoan(accessToken: string, loanId: number): Promise<void> {
+  await sendApiMutation(accessToken, `/api/v1/vehicle-loans/${loanId}/return`, "POST", {}, "Kunne ikke returnere kjøretøyet.");
 }
 
 async function sendApiMutation(

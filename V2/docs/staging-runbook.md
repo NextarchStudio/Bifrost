@@ -68,9 +68,9 @@ Advarsel om manglende krypterte innstillinger må avklares før oppstart. Hemmel
 ```bash
 pm2 start ecosystem.config.cjs
 pm2 status
-pm2 logs bifrost-api --lines 100
-pm2 logs bifrost-web --lines 100
-pm2 logs bifrost-worker --lines 100
+pm2 logs Bifrost-API --lines 100
+pm2 logs Bifrost-Web --lines 100
+pm2 logs Bifrost-Worker --lines 100
 ```
 
 Kontroller `GET /health`, `GET /ready`, Keycloak-innlogging og at Web bare kommuniserer med API-et.
@@ -89,7 +89,7 @@ For crew-reset skal bare forhåndsvisningen testes. Ikke skriv bekreftelsesfrase
 
 ## 9. Rollback
 
-1. Stopp V2-prosessene med `pm2 stop bifrost-api bifrost-web bifrost-worker`.
+1. Stopp V2-prosessene med `pm2 stop Bifrost-API Bifrost-Web Bifrost-Worker`.
 2. La V1 fortsette mot den autoritative databasen.
 3. Dersom stagingtesten skrev funksjonsdata, restore den verifiserte backupen eller forkast stagingdatabasen.
 4. V2-tabellene kan bli stående ved applikasjonsrollback; de brukes ikke av V1. Slett dem bare gjennom en separat, godkjent databaseendring.

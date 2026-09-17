@@ -2,11 +2,10 @@ import { createDatabase, readDatabaseConfig } from "@bifrost/database";
 
 const intervalMs = 30_000;
 const database = createDatabase(readDatabaseConfig());
-let running = false;
+let activeRun: Promise<void> | undefined;
+let shuttingDown = false;
 
-const run = async (): Promise<void> => {
-  if (running) return;
-  running = true;
+const heartbeat = async (): Promise<void> => {
   try {
     const connection = await database.pool.getConnection();
     try {
@@ -17,21 +16,36 @@ const run = async (): Promise<void> => {
     }
   } catch (error) {
     console.error("worker heartbeat failed", error);
-  } finally {
-    running = false;
   }
+};
+
+const run = (): Promise<void> => {
+  if (activeRun) return activeRun;
+  activeRun = heartbeat().finally(() => {
+    activeRun = undefined;
+  });
+  return activeRun;
 };
 
 const timer = setInterval(() => void run(), intervalMs);
 const shutdown = async (signal: string): Promise<void> => {
-  console.info("bifrost-worker shutting down", { signal });
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.info("Bifrost-Worker shutting down", { signal });
   clearInterval(timer);
-  await database.pool.end();
-  process.exit(0);
+
+  try {
+    await activeRun;
+    await database.pool.end();
+    console.info("Bifrost-Worker shutdown complete", { signal });
+  } catch (error) {
+    console.error("Bifrost-Worker shutdown failed", { error, signal });
+    process.exitCode = 1;
+  }
 };
 
 process.once("SIGINT", () => void shutdown("SIGINT"));
 process.once("SIGTERM", () => void shutdown("SIGTERM"));
 
-console.info("bifrost-worker started", { intervalMs });
+console.info("Bifrost-Worker started", { intervalMs });
 await run();

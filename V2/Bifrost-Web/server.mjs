@@ -15,7 +15,7 @@ const mimeTypes = new Map([
   [".webp", "image/webp"],
 ]);
 
-createServer((request, response) => {
+const server = createServer((request, response) => {
   let pathname;
   try {
     pathname = decodeURIComponent(new URL(request.url ?? "/", "http://localhost").pathname);
@@ -35,4 +35,32 @@ createServer((request, response) => {
   response.setHeader("X-Content-Type-Options", "nosniff");
   response.setHeader("X-Frame-Options", "DENY");
   createReadStream(filePath).pipe(response);
-}).listen(3000, "0.0.0.0", () => console.info("bifrost-web listening", { port: 3000 }));
+});
+
+let shuttingDown = false;
+const shutdown = (signal) => {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.info("Bifrost-Web shutting down", { signal });
+
+  const forceTimer = setTimeout(() => {
+    console.error("Bifrost-Web forcing open connections closed", { signal });
+    server.closeAllConnections();
+  }, 8_000);
+  forceTimer.unref();
+
+  server.close((error) => {
+    clearTimeout(forceTimer);
+    if (error) {
+      console.error("Bifrost-Web shutdown failed", { error, signal });
+      process.exitCode = 1;
+      return;
+    }
+    console.info("Bifrost-Web shutdown complete", { signal });
+  });
+};
+
+process.once("SIGINT", () => shutdown("SIGINT"));
+process.once("SIGTERM", () => shutdown("SIGTERM"));
+
+server.listen(3000, "0.0.0.0", () => console.info("Bifrost-Web listening", { port: 3000 }));

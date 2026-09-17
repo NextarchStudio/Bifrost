@@ -106,7 +106,7 @@ pm2 start ecosystem.config.cjs
 pm2 status
 ```
 
-Prosessene heter `bifrost-api`, `bifrost-web` og `bifrost-worker`. API lytter på `3001`, Web på `3000`.
+Prosessene heter `Bifrost-API`, `Bifrost-Web` og `Bifrost-Worker`. API lytter på `3001`, Web på `3000`. Alle tre håndterer `SIGINT` og `SIGTERM` kontrollert ved stopp eller restart fra PM2.
 
 ## Viktige regler
 

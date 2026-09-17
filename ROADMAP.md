@@ -256,9 +256,9 @@ PM2 bør kjøre API-et som egen prosess. Frontend bør bygges statisk og servere
 
 Eksempel på produksjonsprosesser:
 
-- `bifrost-api`: Node API, cluster/fork etter lastprofil
-- `bifrost-web`: statisk server ved behov
-- `bifrost-worker`: ETL/synkronisering, varsler, filjobber og andre bakgrunnsjobber
+- `Bifrost-API`: Node API, cluster/fork etter lastprofil
+- `Bifrost-Web`: statisk server ved behov
+- `Bifrost-Worker`: ETL/synkronisering, varsler, filjobber og andre bakgrunnsjobber
 
 Database-migreringer skal kjøres som et eksplisitt deploy-steg, ikke automatisk av hver app-restart.
 

@@ -61,11 +61,21 @@ const app = buildApp({
   },
 });
 
+let shuttingDown = false;
+
 const shutdown = async (signal: string): Promise<void> => {
+  if (shuttingDown) return;
+  shuttingDown = true;
   app.log.info({ signal }, "shutting down");
-  await app.close();
-  await database.pool.end();
-  process.exit(0);
+
+  try {
+    await app.close();
+    await database.pool.end();
+    app.log.info({ signal }, "shutdown complete");
+  } catch (error) {
+    app.log.error({ error, signal }, "shutdown failed");
+    process.exitCode = 1;
+  }
 };
 
 process.once("SIGINT", () => void shutdown("SIGINT"));

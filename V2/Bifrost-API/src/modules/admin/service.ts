@@ -1,3 +1,4 @@
+import { BIFROST_ACCESS } from "@bifrost/contracts";
 import type {
   AdminRole,
   AdminCrewResetPreview,
@@ -26,8 +27,8 @@ import type { SecureSettingsStore } from "../settings/secure-settings.js";
 import { loadAdminStatistics } from "./statistics.js";
 import { loadCrewResetPreview, resetCrewData } from "./crew-reset.js";
 
-export const ADMIN_ROLES: ReadonlySet<string> = new Set(["developer", "chief", "co-chief"]);
-export const SYSTEM_SETTINGS_ROLES: ReadonlySet<string> = new Set(["developer"]);
+export const ADMIN_ROLES = BIFROST_ACCESS.admin;
+export const SYSTEM_SETTINGS_ROLES = BIFROST_ACCESS.systemSettings;
 const PROTECTED_ROLE_NAMES: ReadonlySet<string> = new Set(["developer", "chief", "co-chief", "bruker"]);
 const COMPETENCY_CODES = ["t1", "t2", "t3", "t4", "b", "be", "c1", "c1e", "c", "ce"] as const;
 

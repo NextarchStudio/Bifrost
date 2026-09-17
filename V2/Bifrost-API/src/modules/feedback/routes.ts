@@ -1,4 +1,11 @@
-import type { ApiError, CurrentUser, FeedbackStatus } from "@bifrost/contracts";
+import {
+  BIFROST_ACCESS,
+  hasAnyBifrostRole,
+  isBifrostDenied,
+  type ApiError,
+  type CurrentUser,
+  type FeedbackStatus,
+} from "@bifrost/contracts";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { authenticationErrorCode, requireAuthenticated, requireRoleAccess } from "../../http/authorization.js";
@@ -9,9 +16,8 @@ import {
   type FeedbackService,
 } from "./service.js";
 
-const FEEDBACK_VIEW_ALL_ROLES: ReadonlySet<string> = new Set(["developer", "logistikk"]);
-const FEEDBACK_MANAGER_ROLES: ReadonlySet<string> = new Set(["developer"]);
-const BLOCKED_ROLE = "ingen_tilbakemeldinger";
+const FEEDBACK_VIEW_ALL_ROLES = BIFROST_ACCESS.feedbackViewAll;
+const FEEDBACK_MANAGER_ROLES = BIFROST_ACCESS.feedbackManager;
 const MAX_ATTACHMENT_SIZE = 5 * 1024 * 1024;
 const idParamsSchema = z.object({ id: z.coerce.number().int().positive() });
 const createSchema = z.object({
@@ -26,7 +32,7 @@ export async function registerFeedbackRoutes(app: FastifyInstance, auth: AuthSer
   app.get("/api/v1/feedback", async (request, reply) => {
     try {
       const user = await authorizeFeedback(request, auth);
-      return await feedback.workspace(user.id, hasAnyRole(user, FEEDBACK_VIEW_ALL_ROLES), hasAnyRole(user, FEEDBACK_MANAGER_ROLES));
+      return await feedback.workspace(user.id, hasAnyBifrostRole(user.roles, FEEDBACK_VIEW_ALL_ROLES), hasAnyBifrostRole(user.roles, FEEDBACK_MANAGER_ROLES));
     } catch (error) { return sendError(error, request, reply); }
   });
 
@@ -62,7 +68,7 @@ export async function registerFeedbackRoutes(app: FastifyInstance, auth: AuthSer
     try {
       const user = await authorizeFeedback(request, auth);
       const { id } = idParamsSchema.parse(request.params);
-      const attachment = await feedback.attachmentForUser(id, user.id, hasAnyRole(user, FEEDBACK_VIEW_ALL_ROLES));
+      const attachment = await feedback.attachmentForUser(id, user.id, hasAnyBifrostRole(user.roles, FEEDBACK_VIEW_ALL_ROLES));
       return reply
         .type(attachment.mime)
         .header("Content-Disposition", contentDisposition(attachment.name))
@@ -109,17 +115,15 @@ function fieldName(value: string): string {
 
 async function authorizeFeedback(request: FastifyRequest, auth: AuthService): Promise<CurrentUser> {
   const user = await requireAuthenticated(request, auth);
-  if (user.roles.includes(BLOCKED_ROLE)) throw new AuthenticationError("Tilbakemeldinger er sperret for denne brukeren.", 403);
+  if (isBifrostDenied(user.roles, "feedback")) throw new AuthenticationError("Tilbakemeldinger er sperret for denne brukeren.", 403);
   return user;
 }
 
 async function authorizeFeedbackManager(request: FastifyRequest, auth: AuthService): Promise<CurrentUser> {
   const user = await requireRoleAccess(request, auth, FEEDBACK_MANAGER_ROLES, "Bare developer kan endre tilbakemeldingsstatus.");
-  if (user.roles.includes(BLOCKED_ROLE)) throw new AuthenticationError("Tilbakemeldinger er sperret for denne brukeren.", 403);
+  if (isBifrostDenied(user.roles, "feedback")) throw new AuthenticationError("Tilbakemeldinger er sperret for denne brukeren.", 403);
   return user;
 }
-
-function hasAnyRole(user: CurrentUser, roles: ReadonlySet<string>): boolean { return user.roles.some((role) => roles.has(role)); }
 
 function contentDisposition(filename: string): string {
   const fallback = filename.replace(/[^A-Za-z0-9._-]/g, "_") || "vedlegg";

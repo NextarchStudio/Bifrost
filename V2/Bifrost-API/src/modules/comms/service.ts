@@ -1,3 +1,4 @@
+import { BIFROST_ACCESS } from "@bifrost/contracts";
 import type {
   CommsItem,
   CommsItemType,
@@ -19,7 +20,7 @@ import {
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import type { CrewDirectoryService } from "../crew/service.js";
 
-export const COMMS_ROLES: ReadonlySet<string> = new Set(["developer", "chief", "co-chief", "logistikk", "sambandsansvarlig"]);
+export const COMMS_ROLES = BIFROST_ACCESS.comms;
 
 export interface CommsItemInput {
   name: string;

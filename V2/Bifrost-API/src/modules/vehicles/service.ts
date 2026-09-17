@@ -6,7 +6,7 @@ import type {
   VehicleLoanIssueResponse,
   VehicleWorkspaceResponse,
 } from "@bifrost/contracts";
-import { VEHICLE_COMPETENCY_CODES } from "@bifrost/contracts";
+import { BIFROST_ACCESS, VEHICLE_COMPETENCY_CODES } from "@bifrost/contracts";
 import {
   auditLogs,
   crewDirectoryCache,
@@ -20,9 +20,9 @@ import {
 import { and, asc, eq, ne } from "drizzle-orm";
 import type { VehiclePayloadProvider } from "./vegvesen.js";
 
-export const VEHICLE_ROLES: ReadonlySet<string> = new Set(["developer", "chief", "co-chief", "skiftleder", "logistikk"]);
-export const VEHICLE_EDIT_ROLES: ReadonlySet<string> = new Set(["developer", "chief", "co-chief", "skiftleder"]);
-export const VEHICLE_COMPETENCY_ADMIN_ROLES: ReadonlySet<string> = new Set(["developer", "chief", "co-chief"]);
+export const VEHICLE_ROLES = BIFROST_ACCESS.vehicle;
+export const VEHICLE_EDIT_ROLES = BIFROST_ACCESS.vehicleEdit;
+export const VEHICLE_COMPETENCY_ADMIN_ROLES = BIFROST_ACCESS.vehicleCompetencyAdmin;
 
 export interface VehicleCreateInput {
   name: string;

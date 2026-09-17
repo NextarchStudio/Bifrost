@@ -1,4 +1,11 @@
-import type { CurrentUser, EquipmentRequestStatus, UserProfileResponse } from "@bifrost/contracts";
+import {
+  BIFROST_ACCESS,
+  hasAnyBifrostRole,
+  isBifrostDenied,
+  type CurrentUser,
+  type EquipmentRequestStatus,
+  type UserProfileResponse,
+} from "@bifrost/contracts";
 import {
   commsItems,
   commsLoanItems,
@@ -17,9 +24,8 @@ import {
 } from "@bifrost/database";
 import { and, desc, eq, ne, sql } from "drizzle-orm";
 
-const PROFILE_VIEW_ROLES: ReadonlySet<string> = new Set(["chief", "co-chief", "skiftleder", "sambandsansvarlig", "developer", "logistikk"]);
-const REQUEST_VIEW_ROLES: ReadonlySet<string> = new Set(["chief", "co-chief", "skiftleder", "sambandsansvarlig", "developer"]);
-const PICTURE_BLOCKED_ROLES: ReadonlySet<string> = new Set(["sperret", "ingen_tilbakemeldinger"]);
+const PROFILE_VIEW_ROLES = BIFROST_ACCESS.profileView;
+const REQUEST_VIEW_ROLES = BIFROST_ACCESS.profileRequestView;
 
 export class ProfileDomainError extends Error {
   constructor(message: string, readonly code: "NOT_FOUND" | "FORBIDDEN") { super(message); }
@@ -105,7 +111,7 @@ export function createProfileService(database: DatabaseConnection): ProfileServi
         isOwnProfile,
         canViewOtherProfiles,
         canViewRequests,
-        pictureAvailable: !targetRoles.some((role) => PICTURE_BLOCKED_ROLES.has(role)),
+        pictureAvailable: !isBifrostDenied(targetRoles, "profilePicture"),
         equipmentLoans: equipmentLoanRows.map((row) => ({ ...row, issuedAt: row.issuedAt.toISOString() })),
         vehicleLoans: vehicleLoanRows.map((row) => ({ ...row, issuedAt: row.issuedAt.toISOString() })),
         commsLoans: commsLoanRows.map((row) => ({ ...row, totalItems: Number(row.totalItems), issuedAt: row.issuedAt.toISOString() })),
@@ -117,23 +123,19 @@ export function createProfileService(database: DatabaseConnection): ProfileServi
       const [target] = await database.db.select({ id: users.id }).from(users).where(eq(users.wannabeId, wannabeId)).limit(1);
       if (!target) return true;
       const targetRoles = await roleRows(database, target.id);
-      return !targetRoles.some((role) => PICTURE_BLOCKED_ROLES.has(role.name));
+      return !isBifrostDenied(targetRoles.map((role) => role.name), "profilePicture");
     },
   };
 }
 
 export function profileAccess(viewer: CurrentUser, targetWannabeId: number) {
   const isOwnProfile = viewer.wannabeId === targetWannabeId;
-  const canViewOtherProfiles = hasAnyRole(viewer, PROFILE_VIEW_ROLES);
+  const canViewOtherProfiles = hasAnyBifrostRole(viewer.roles, PROFILE_VIEW_ROLES);
   return {
     isOwnProfile,
     canViewOtherProfiles,
-    canViewRequests: isOwnProfile || hasAnyRole(viewer, REQUEST_VIEW_ROLES),
+    canViewRequests: isOwnProfile || hasAnyBifrostRole(viewer.roles, REQUEST_VIEW_ROLES),
   };
-}
-
-function hasAnyRole(user: CurrentUser, rolesToCheck: ReadonlySet<string>): boolean {
-  return user.roles.some((role) => rolesToCheck.has(role));
 }
 
 async function roleRows(database: DatabaseConnection, userId: number) {

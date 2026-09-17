@@ -1,4 +1,5 @@
 import {
+  BIFROST_ACCESS,
   SHOP_SIZE_OPTIONS,
   type CrewClothingCrew,
   type CrewClothingInventoryItem,
@@ -17,8 +18,8 @@ import {
 import { and, asc, desc, eq } from "drizzle-orm";
 import type { CrewDirectoryService } from "../crew/service.js";
 
-export const CREW_CLOTHING_ROLES: ReadonlySet<string> = new Set(["developer", "chief", "co-chief", "logistikk", "shop"]);
-export const CREW_CLOTHING_ADMIN_ROLES: ReadonlySet<string> = new Set(["developer", "chief", "co-chief"]);
+export const CREW_CLOTHING_ROLES = BIFROST_ACCESS.crewClothing;
+export const CREW_CLOTHING_ADMIN_ROLES = BIFROST_ACCESS.crewClothingAdmin;
 
 export interface CrewInput { name: string; tshirtMax: number; hoodieMax: number; }
 export interface MemberInput { crewId?: number | null; tshirtSize?: string | null; hoodieSize?: string | null; }

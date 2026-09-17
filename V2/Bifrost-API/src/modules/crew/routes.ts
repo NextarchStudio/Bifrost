@@ -1,12 +1,12 @@
-import type { ApiError } from "@bifrost/contracts";
+import { BIFROST_ACCESS, type ApiError } from "@bifrost/contracts";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
-import { authenticationErrorCode, LOGISTICS_ROLES, requireRoleAccess } from "../../http/authorization.js";
+import { authenticationErrorCode, requireRoleAccess } from "../../http/authorization.js";
 import { AuthenticationError, type AuthService } from "../auth/service.js";
 import { CrewDirectoryError, type CrewDirectoryService } from "./service.js";
 
 const querySchema = z.object({ query: z.string().trim().min(1).max(120) });
-const CREW_LOOKUP_ROLES: ReadonlySet<string> = new Set([...LOGISTICS_ROLES, "skiftleder", "sambandsansvarlig"]);
+const CREW_LOOKUP_ROLES = BIFROST_ACCESS.crewLookup;
 
 export async function registerCrewRoutes(app: FastifyInstance, auth: AuthService, crew: CrewDirectoryService): Promise<void> {
   app.get("/api/v1/crew/lookup", async (request, reply) => {

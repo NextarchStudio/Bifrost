@@ -7,7 +7,7 @@ import type {
   VehicleCompetencyCode,
   VehicleCompetencyRequirement,
 } from "@bifrost/contracts";
-import { VEHICLE_COMPETENCY_CODES } from "@bifrost/contracts";
+import { BIFROST_ACCESS, VEHICLE_COMPETENCY_CODES } from "@bifrost/contracts";
 import {
   auditLogs,
   locations,
@@ -23,9 +23,9 @@ import {
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import type { RoutePoint, TransportRouting } from "./routing.js";
 
-export const TRANSPORT_MANAGER_ROLES: ReadonlySet<string> = new Set(["developer", "chief", "co-chief", "logistikk"]);
-export const TRANSPORT_REQUEST_ROLES: ReadonlySet<string> = new Set(["innkjop"]);
-export const TRANSPORT_ACCESS_ROLES: ReadonlySet<string> = new Set([...TRANSPORT_MANAGER_ROLES, ...TRANSPORT_REQUEST_ROLES]);
+export const TRANSPORT_MANAGER_ROLES = BIFROST_ACCESS.transportManager;
+export const TRANSPORT_REQUEST_ROLES = BIFROST_ACCESS.transportRequest;
+export const TRANSPORT_ACCESS_ROLES = BIFROST_ACCESS.transport;
 
 const ACTIVE_STATUSES = ["open", "assigned", "in_progress"] as const;
 const ARCHIVE_LOCATION = "Slettet lokasjon (transportarkiv)";

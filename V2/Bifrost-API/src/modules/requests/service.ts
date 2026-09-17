@@ -1,3 +1,4 @@
+import { BIFROST_ACCESS, hasAnyBifrostRole, isBifrostDenied } from "@bifrost/contracts";
 import type {
   CurrentUser,
   EquipmentRequest,
@@ -18,7 +19,6 @@ import {
   type DatabaseConnection,
 } from "@bifrost/database";
 import { and, asc, count, desc, eq, inArray, notInArray, type SQL } from "drizzle-orm";
-import { LOGISTICS_ROLES } from "../../http/authorization.js";
 import { privateEquipmentNoticeForBarcode } from "../loans/service.js";
 
 export interface EquipmentRequestCreateInput {
@@ -258,11 +258,11 @@ export function createEquipmentRequestService(database: DatabaseConnection): Equ
 }
 
 function hasManagerRole(user: CurrentUser): boolean {
-  return user.roles.some((role) => LOGISTICS_ROLES.has(role));
+  return hasAnyBifrostRole(user.roles, BIFROST_ACCESS.equipmentRequestManager);
 }
 
 function mayCreateRequest(user: CurrentUser): boolean {
-  return !user.roles.some((role) => LOGISTICS_ROLES.has(role) || role === "sambandsansvarlig");
+  return !isBifrostDenied(user.roles, "equipmentRequestCreate");
 }
 
 function requireManager(user: CurrentUser): void {

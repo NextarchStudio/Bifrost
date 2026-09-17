@@ -96,6 +96,8 @@ VITE_API_TOKEN
 
 Etter OIDC-callback fullfører Web innloggingen mot `POST /api/v1/auth/session`. Vellykkede forsøk skrives til både V1-tabellen `login_attempts` og `audit_logs`; avviste bearer-token registreres anonymt i `login_attempts`. Token og claims lagres aldri i auditdata. V1-grensen på fem mislykkede forsøk per IP på 15 minutter beholdes, og videre forsøk får HTTP 429.
 
+Alle autoritative V1-roller og tilgangsgrupper er definert én gang i `packages/contracts`. API-et håndhever matrisen, Web bruker den samme katalogen til navigasjon, og CI tester alle 11 roller mot hvert tilgangsområde. Den dokumenterte matrisen og åpne stagingavklaringer ligger i [docs/domain-matrix.md](docs/domain-matrix.md).
+
 ## Database
 
 V1-tabellene beholdes. Drizzle-definisjonene i `packages/database` mapper mot eksisterende tabellnavn. Nye tekniske tabeller bruker `bifrost_`-prefiks.

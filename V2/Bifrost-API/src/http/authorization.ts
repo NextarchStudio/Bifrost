@@ -1,8 +1,8 @@
-import type { CurrentUser } from "@bifrost/contracts";
+import { BIFROST_ACCESS, type CurrentUser } from "@bifrost/contracts";
 import type { FastifyRequest } from "fastify";
 import { AuthenticationError, type AuthService } from "../modules/auth/service.js";
 
-export const LOGISTICS_ROLES: ReadonlySet<string> = new Set(["developer", "chief", "co-chief", "logistikk"]);
+export const LOGISTICS_ROLES = BIFROST_ACCESS.logistics;
 
 export async function requireAuthenticated(request: FastifyRequest, auth: AuthService): Promise<CurrentUser> {
   const header = request.headers.authorization;

@@ -1,8 +1,8 @@
-import type { BifrostTask, TaskPriority, TaskStatus, TaskType, TaskWorkspaceResponse } from "@bifrost/contracts";
+import { BIFROST_ACCESS, type BifrostTask, type TaskPriority, type TaskStatus, type TaskType, type TaskWorkspaceResponse } from "@bifrost/contracts";
 import { auditLogs, tasks, transportJobs, users, type DatabaseConnection } from "@bifrost/database";
 import { asc, desc, eq, inArray } from "drizzle-orm";
 
-export const TASK_MANAGER_ROLES: ReadonlySet<string> = new Set(["developer", "chief", "co-chief", "logistikk"]);
+export const TASK_MANAGER_ROLES = BIFROST_ACCESS.taskManager;
 
 export interface TaskCreateInput {
   title: string;

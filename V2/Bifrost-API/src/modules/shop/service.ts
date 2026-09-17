@@ -1,9 +1,9 @@
-import { SHOP_SIZE_OPTIONS, type ShopImportSummary, type ShopItem, type ShopSize, type ShopWorkspaceResponse } from "@bifrost/contracts";
+import { BIFROST_ACCESS, SHOP_SIZE_OPTIONS, type ShopImportSummary, type ShopItem, type ShopSize, type ShopWorkspaceResponse } from "@bifrost/contracts";
 import { auditLogs, shopCategories, shopItems, shopMovements, users, type DatabaseConnection } from "@bifrost/database";
 import { and, asc, desc, eq, isNull, lte } from "drizzle-orm";
 import type { ShopImportRow } from "./import.js";
 
-export const SHOP_ROLES: ReadonlySet<string> = new Set(["developer", "chief", "co-chief", "logistikk", "shop"]);
+export const SHOP_ROLES = BIFROST_ACCESS.shop;
 
 export interface ShopItemInput {
   name: string;

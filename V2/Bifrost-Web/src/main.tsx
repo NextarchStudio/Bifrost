@@ -1,4 +1,4 @@
-import type { CurrentUser } from "@bifrost/contracts";
+import { hasBifrostAccess, isBifrostDenied, type CurrentUser } from "@bifrost/contracts";
 import { StrictMode, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { completeLoginSession, getCurrentUser } from "./api/client";
@@ -61,13 +61,13 @@ function App() {
     window.history.pushState({}, "", `/${nextWorkspace}`);
   };
 
-  const hasLogisticsAccess = session.status === "authenticated" && session.user.roles.some((role) => LOGISTICS_ROLES.has(role));
-  const hasVehicleAccess = session.status === "authenticated" && session.user.roles.some((role) => VEHICLE_ROLES.has(role));
-  const hasTransportAccess = session.status === "authenticated" && session.user.roles.some((role) => TRANSPORT_ROLES.has(role));
-  const hasCommsAccess = session.status === "authenticated" && session.user.roles.some((role) => COMMS_ROLES.has(role));
-  const hasShopAccess = session.status === "authenticated" && session.user.roles.some((role) => SHOP_ROLES.has(role));
-  const hasFeedbackAccess = session.status === "authenticated" && !session.user.roles.includes("ingen_tilbakemeldinger");
-  const hasAdminAccess = session.status === "authenticated" && session.user.roles.some((role) => ADMIN_ROLES.has(role));
+  const hasLogisticsAccess = session.status === "authenticated" && hasBifrostAccess(session.user.roles, "logistics");
+  const hasVehicleAccess = session.status === "authenticated" && hasBifrostAccess(session.user.roles, "vehicle");
+  const hasTransportAccess = session.status === "authenticated" && hasBifrostAccess(session.user.roles, "transport");
+  const hasCommsAccess = session.status === "authenticated" && hasBifrostAccess(session.user.roles, "comms");
+  const hasShopAccess = session.status === "authenticated" && hasBifrostAccess(session.user.roles, "shop");
+  const hasFeedbackAccess = session.status === "authenticated" && !isBifrostDenied(session.user.roles, "feedback");
+  const hasAdminAccess = session.status === "authenticated" && hasBifrostAccess(session.user.roles, "admin");
 
   return (
     <main className="min-h-screen bg-[#07111d] text-slate-100">
@@ -106,13 +106,6 @@ function App() {
     </main>
   );
 }
-
-const LOGISTICS_ROLES = new Set(["developer", "chief", "co-chief", "logistikk"]);
-const VEHICLE_ROLES = new Set(["developer", "chief", "co-chief", "skiftleder", "logistikk"]);
-const TRANSPORT_ROLES = new Set(["developer", "chief", "co-chief", "logistikk", "innkjop"]);
-const COMMS_ROLES = new Set(["developer", "chief", "co-chief", "logistikk", "sambandsansvarlig"]);
-const SHOP_ROLES = new Set(["developer", "chief", "co-chief", "logistikk", "shop"]);
-const ADMIN_ROLES = new Set(["developer", "chief", "co-chief"]);
 
 type Workspace = "dashboard" | "equipment" | "warehouse" | "locations" | "loans" | "private-equipment" | "requests" | "vehicles" | "transport" | "comms" | "shop" | "tasks" | "feedback" | "admin" | "profile";
 

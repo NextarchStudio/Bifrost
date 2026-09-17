@@ -14,6 +14,63 @@ export const BIFROST_ROLES = [
 
 export type BifrostRole = (typeof BIFROST_ROLES)[number];
 
+function roleSet(...roles: BifrostRole[]): ReadonlySet<string> {
+  return new Set(roles);
+}
+
+function denySet(...roles: string[]): ReadonlySet<string> {
+  return new Set(roles);
+}
+
+/**
+ * Autoritativ V1-tilgangsmatrise. API-et håndhever disse policyene, mens Web
+ * bruker dem til å skjule navigasjon som brukeren uansett ikke kan åpne.
+ */
+export const BIFROST_ACCESS = {
+  logistics: roleSet("developer", "chief", "co-chief", "logistikk"),
+  vehicle: roleSet("developer", "chief", "co-chief", "skiftleder", "logistikk"),
+  vehicleEdit: roleSet("developer", "chief", "co-chief", "skiftleder"),
+  vehicleCompetencyAdmin: roleSet("developer", "chief", "co-chief"),
+  transport: roleSet("developer", "chief", "co-chief", "logistikk", "innkjop"),
+  transportManager: roleSet("developer", "chief", "co-chief", "logistikk"),
+  transportRequest: roleSet("innkjop"),
+  comms: roleSet("developer", "chief", "co-chief", "logistikk", "sambandsansvarlig"),
+  shop: roleSet("developer", "chief", "co-chief", "logistikk", "shop"),
+  crewClothing: roleSet("developer", "chief", "co-chief", "logistikk", "shop"),
+  crewClothingAdmin: roleSet("developer", "chief", "co-chief"),
+  taskManager: roleSet("developer", "chief", "co-chief", "logistikk"),
+  admin: roleSet("developer", "chief", "co-chief"),
+  systemSettings: roleSet("developer"),
+  feedbackViewAll: roleSet("developer", "logistikk"),
+  feedbackManager: roleSet("developer"),
+  profileView: roleSet("developer", "chief", "co-chief", "skiftleder", "sambandsansvarlig", "logistikk"),
+  profileRequestView: roleSet("developer", "chief", "co-chief", "skiftleder", "sambandsansvarlig"),
+  crewLookup: roleSet("developer", "chief", "co-chief", "skiftleder", "sambandsansvarlig", "logistikk"),
+  globalSearch: roleSet("developer", "chief", "co-chief", "logistikk"),
+  equipmentRequestManager: roleSet("developer", "chief", "co-chief", "logistikk"),
+} as const;
+
+export const BIFROST_DENY = {
+  feedback: denySet("ingen_tilbakemeldinger"),
+  equipmentRequestCreate: denySet("developer", "chief", "co-chief", "logistikk", "sambandsansvarlig"),
+  profilePicture: denySet("sperret", "ingen_tilbakemeldinger"),
+} as const;
+
+export type BifrostAccessArea = keyof typeof BIFROST_ACCESS;
+export type BifrostDenyArea = keyof typeof BIFROST_DENY;
+
+export function hasAnyBifrostRole(assignedRoles: readonly string[], allowedRoles: ReadonlySet<string>): boolean {
+  return assignedRoles.some((role) => allowedRoles.has(role));
+}
+
+export function hasBifrostAccess(assignedRoles: readonly string[], area: BifrostAccessArea): boolean {
+  return hasAnyBifrostRole(assignedRoles, BIFROST_ACCESS[area]);
+}
+
+export function isBifrostDenied(assignedRoles: readonly string[], area: BifrostDenyArea): boolean {
+  return assignedRoles.some((role) => BIFROST_DENY[area].has(role));
+}
+
 export interface HealthResponse {
   service: "bifrost-api";
   status: "ok";

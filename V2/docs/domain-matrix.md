@@ -2,7 +2,7 @@
 
 Sist verifisert mot `V1/app/Config/Routes.php`, relevante V1-controllere og V2-rutene 17. september 2026.
 
-Denne matrisen er migreringsgrunnlaget for funksjons- og tilgangsparitet. «Alle innloggede» betyr at V1-ruten bare bruker `auth`-filteret; interne controller-/serviceregler kan begrense enkelte handlinger ytterligere. V2 skal håndheve tilgang i API-et, uavhengig av hvilke knapper Web viser.
+Denne matrisen er migreringsgrunnlaget for funksjons- og tilgangsparitet. «Alle innloggede» betyr at V1-ruten bare bruker `auth`-filteret; interne controller-/serviceregler kan begrense enkelte handlinger ytterligere. V2 håndhever tilgang i API-et, uavhengig av hvilke knapper Web viser. Rollegruppene ligger sentralt i `packages/contracts`, brukes av både API og Web, og testes uttømmende mot alle 11 autoritative V1-roller i CI.
 
 ## Autoritative roller
 
@@ -27,8 +27,8 @@ Brukere kan ha flere roller. `ingen_tilbakemeldinger` skal behandles som en eksp
 | Domene | V1-tilgang på rutenivå | Viktige V1-regler | V2-status |
 |---|---|---|---|
 | OIDC og profil | Alle innloggede; utvidet innsyn følger V1-rollene | Keycloak/OIDC, egen profil, autorisert innsyn i andres lån/forespørsler og blokkering av profilbilde for sperrede roller; lokal V1-passordflyt erstattes av obligatorisk Keycloak | OIDC, tokenvalidering, brukerprovisjonering, profilside, aktive utstyrs-/kjøretøy-/sambandlån, forespørsler og sikker bildeproxy levert |
-| Dashboard | Alle innloggede | Operativ oversikt og varsler | Ikke startet |
-| Globalt søk | `developer`, `chief`, `co-chief`, `logistikk` | Søk på tvers av utstyr, serienummer, lokasjon, palle, plass og Wannabe-ID | Ikke startet |
+| Dashboard | Alle innloggede | Operativ oversikt og varsler | API og Web levert med V1-felter og tilgangstester; staging-paritet gjenstår |
+| Globalt søk | `developer`, `chief`, `co-chief`, `logistikk` | Søk på tvers av utstyr, serienummer, lokasjon, palle, plass og Wannabe-ID | API og Web levert med søkeresultatgrense, escaping og tilgangstester; staging-paritet gjenstår |
 | Utstyr | `developer`, `chief`, `co-chief`, `logistikk` | Opprett/merge på serienummer, rediger, antall, status, flytt og slettingsvern | API og Web levert |
 | Utstyrskategorier | `developer`, `chief`, `co-chief`, `logistikk` | Kategori i bruk kan ikke slettes | API og Web levert |
 | Lokasjoner | `developer`, `chief`, `co-chief`, `logistikk` | Paller og aktive transportoppdrag blokkerer sletting; historikk arkiveres | API og Web levert |
@@ -43,7 +43,6 @@ Brukere kan ha flere roller. `ingen_tilbakemeldinger` skal behandles som en eksp
 | Shop og crew clothing | `developer`, `chief`, `co-chief`, `logistikk`, `shop`; crewadministrasjon bare `developer`, `chief`, `co-chief` | Varer/kategorier, checkout/checkin, sletting av varehistorikk, ettårsopprydding, XLSX/XLS/CSV-import, CSV/PDF-eksport, crewtøylager, badge-/Wannabe-oppslag, størrelser og utleveringsstatus | API og Web levert; lager/import er transaksjonelt, 10 MB filgrense og autorisert eksport er håndhevet; staging-paritet gjenstår |
 | Oppgaver | Alle innloggede; oppretting/full oversikt: `developer`, `chief`, `co-chief`, `logistikk` | Alle ser og oppdaterer egne oppgaver; lederrollene oppretter, tildeler, ser alt og kan koble til aktive transportoppdrag | API og Web levert; oppretting/status har audit og transaksjon, staging-paritet gjenstår |
 | Feedback og varsler | Feedback: alle innloggede uten `ingen_tilbakemeldinger`; samlet innsyn: `developer`, `logistikk`; status: `developer`; varsler: alle innloggede | Egen ventende innmelding kan slettes; bildevedlegg bare på bugs, maks 5 MB, og kan åpnes av eier/`developer`/`logistikk`; V1s tre nyeste globale `fixed`/`added`-varsler beholdes | API og Web levert med lokal V1/V2-filstøtte, audit og tilgangstester; staging-paritet gjenstår |
-| Dashboard og globalt søk | Dashboard: alle innloggede; søk: `developer`, `chief`, `co-chief`, `logistikk` | Aktive utlån/transporter, kjøretøylån, kjørt distanse og utstyr per lokasjon; søk i utstyr/lagerplass og utlån via Wannabe-ID | API og Web levert med V1-felter, søkeresultatgrense og tilgangstester; staging-paritet gjenstår |
 | Admin og statistikk | `developer`, `chief`, `co-chief`; systeminnstillinger/destruktiv crew-reset: `developer` | Brukere, roller, aktiv-status, kompetanser, krypterte systeminnstillinger, alle V1-statistikkgrupper og V1s crew-/brukerreset er levert | API/Web levert med audit og tilgangstester; reset krever forhåndsvisning, eksakt frase og bevart bruker-ID 2; staging-paritet gjenstår |
 
 ## Implementert V2-tilgang
@@ -70,7 +69,7 @@ Brukere kan ha flere roller. `ingen_tilbakemeldinger` skal behandles som en eksp
 | `/api/v1/dashboard` | Alle innloggede | Lesebasert V1-oppsummering | Ja |
 | `/api/v1/search` | `developer`, `chief`, `co-chief`, `logistikk` | Lesebasert; input begrenses og LIKE-jokertegn escapes | Ja |
 
-API-et bruker én felles Bearer-token- og rollekontroll. Manglende token gir `401`, manglende rolle gir `403`, og manglende OIDC-konfigurasjon beholdes som `503` med kode `OIDC_NOT_CONFIGURED`.
+API-et bruker én felles Bearer-token- og rollekontroll. Manglende token gir `401`, manglende rolle gir `403`, og manglende OIDC-konfigurasjon beholdes som `503` med kode `OIDC_NOT_CONFIGURED`. Policytesten evaluerer hver av de 11 V1-rollene mot alle tilgangsområder og låser de negative reglene; rutetestene verifiserer i tillegg autentisering og kritiske positive/negative API-flyter.
 
 ## Åpne verifikasjonspunkter
 

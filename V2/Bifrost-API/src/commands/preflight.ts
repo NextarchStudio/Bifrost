@@ -1,3 +1,4 @@
+import { BIFROST_ROLES } from "@bifrost/contracts";
 import * as databaseExports from "@bifrost/database";
 import { createDatabase, readDatabaseConfig } from "@bifrost/database";
 import { getTableColumns, getTableName, isTable } from "drizzle-orm";
@@ -5,7 +6,6 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { compareSchema, missingRoles, type SchemaColumn } from "./preflight-checks.js";
 
-const REQUIRED_ROLES = ["developer", "chief", "co-chief", "transport_ansvarlig", "skiftleder", "sambandsansvarlig", "logistikk", "shop", "innkjop", "bruker", "ingen_tilbakemeldinger"] as const;
 let database: ReturnType<typeof createDatabase> | undefined;
 let failures = 0;
 let warnings = 0;
@@ -54,8 +54,8 @@ try {
   else pass("Beskyttet bruker", `#2 ${protectedUser.name} (${protectedUser.email}) finnes.`);
 
   const roleNames = rows<{ name: string }>(rolesResult).map((row) => row.name);
-  const absentRoles = missingRoles(roleNames, REQUIRED_ROLES);
-  if (absentRoles.length) fail("V1-roller", `Mangler: ${absentRoles.join(", ")}`); else pass("V1-roller", `${REQUIRED_ROLES.length} autoritative roller finnes.`);
+  const absentRoles = missingRoles(roleNames, BIFROST_ROLES);
+  if (absentRoles.length) fail("V1-roller", `Mangler: ${absentRoles.join(", ")}`); else pass("V1-roller", `${BIFROST_ROLES.length} autoritative roller finnes.`);
 
   const secureKeys = rows<{ key: string }>(secureKeysResult).map((row) => row.key);
   if (!secureKeys.length) warn("Krypterte innstillinger", "Ingen krypterte verdier er migrert til bifrost_secure_settings.");

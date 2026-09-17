@@ -26,7 +26,7 @@ Bifrost/
 - Bifrost-API, Bifrost-Web og Bifrost-Worker kjøres som separate PM2-prosesser.
 - OIDC/Keycloak er obligatorisk i V2.
 - Et separat V2-skjema kan brukes via kontrollerte ETL-/synkroniseringsjobber.
-- Lager, utstyr, utlån, forespørsler, kjøretøy, profil, transport, samband, Shop, crewtøy, oppgaver, tilbakemeldinger og varsler er implementert i V2-kode; staging-paritet gjenstår.
+- Lager, utstyr, utlån, forespørsler, kjøretøy, profil, transport, samband, Shop, crewtøy, oppgaver, tilbakemeldinger, varsler og kjerneadministrasjon er implementert i V2-kode; staging-paritet gjenstår.
 
 Se [ROADMAP.md](ROADMAP.md) for plan, arkitektur og leveranserekkefølge.
 

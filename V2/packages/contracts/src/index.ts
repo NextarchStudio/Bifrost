@@ -661,3 +661,62 @@ export interface FeedbackNotificationResponse {
   items: FeedbackNotification[];
   unreadCount: number;
 }
+
+export interface AdminRole {
+  id: number;
+  name: string;
+  displayName: string | null;
+  wannabeRoleName: string | null;
+  protected: boolean;
+  userCount: number;
+}
+
+export interface AdminUser {
+  id: number;
+  name: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  wannabeId: number | null;
+  badgeScanNumber: string | null;
+  active: boolean;
+  roleIds: number[];
+  roleNames: string[];
+  roleDisplayNames: string[];
+  competencies: VehicleCompetencyCode[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminSettings {
+  appName: string;
+  logoUrl: string | null;
+  faviconUrl: string | null;
+  keycloakBaseUrl: string | null;
+  keycloakRealm: string | null;
+  keycloakClientId: string | null;
+  keycloakRedirectUri: string | null;
+  smtpFromEmail: string | null;
+  smtpFromName: string | null;
+  smtpHost: string | null;
+  smtpPort: number | null;
+  smtpUser: string | null;
+  smtpCrypto: "tls" | "ssl" | null;
+  osrmBaseUrl: string | null;
+  crewApiBaseUrl: string | null;
+  crewApiProfileEndpoint: string | null;
+  crewApiPictureEndpoint: string | null;
+  crewCacheYear: number | null;
+  hasOidcClientSecret: boolean;
+  hasSmtpPassword: boolean;
+  hasVegvesenApiKey: boolean;
+  hasCrewApiBearerToken: boolean;
+}
+
+export interface AdminWorkspaceResponse {
+  canManageSettings: boolean;
+  crewCacheEntries: number;
+  roles: AdminRole[];
+  users: AdminUser[];
+  settings: AdminSettings | null;
+}

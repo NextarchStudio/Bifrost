@@ -20,6 +20,7 @@ import { createShopService } from "./modules/shop/service.js";
 import { createCrewClothingService } from "./modules/crew-clothing/service.js";
 import { createTaskService } from "./modules/tasks/service.js";
 import { createFeedbackService } from "./modules/feedback/service.js";
+import { createAdminService } from "./modules/admin/service.js";
 import { resolve } from "node:path";
 
 const database = createDatabase(readDatabaseConfig());
@@ -47,6 +48,7 @@ const app = buildApp({
     mirrorWriteRoots: [resolve(process.cwd(), "../../V1/writable")],
     readRoots: [resolve(process.cwd(), "../../V1/writable")],
   }),
+  admin: createAdminService(database, secureSettings),
   checkDatabase: async () => {
     const connection = await database.pool.getConnection();
     try {

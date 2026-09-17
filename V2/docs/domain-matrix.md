@@ -43,7 +43,7 @@ Brukere kan ha flere roller. `ingen_tilbakemeldinger` skal behandles som en eksp
 | Shop og crew clothing | `developer`, `chief`, `co-chief`, `logistikk`, `shop`; crewadministrasjon bare `developer`, `chief`, `co-chief` | Varer/kategorier, checkout/checkin, sletting av varehistorikk, ettårsopprydding, XLSX/XLS/CSV-import, CSV/PDF-eksport, crewtøylager, badge-/Wannabe-oppslag, størrelser og utleveringsstatus | API og Web levert; lager/import er transaksjonelt, 10 MB filgrense og autorisert eksport er håndhevet; staging-paritet gjenstår |
 | Oppgaver | Alle innloggede; oppretting/full oversikt: `developer`, `chief`, `co-chief`, `logistikk` | Alle ser og oppdaterer egne oppgaver; lederrollene oppretter, tildeler, ser alt og kan koble til aktive transportoppdrag | API og Web levert; oppretting/status har audit og transaksjon, staging-paritet gjenstår |
 | Feedback og varsler | Feedback: alle innloggede uten `ingen_tilbakemeldinger`; samlet innsyn: `developer`, `logistikk`; status: `developer`; varsler: alle innloggede | Egen ventende innmelding kan slettes; bildevedlegg bare på bugs, maks 5 MB, og kan åpnes av eier/`developer`/`logistikk`; V1s tre nyeste globale `fixed`/`added`-varsler beholdes | API og Web levert med lokal V1/V2-filstøtte, audit og tilgangstester; staging-paritet gjenstår |
-| Admin og statistikk | `developer`, `chief`, `co-chief`; systeminnstillinger/cache: `developer` | Brukere, roller, aktiv-status, kompetanser, systeminnstillinger, crew-cache og statistikk | Ikke startet |
+| Admin og statistikk | `developer`, `chief`, `co-chief`; systeminnstillinger/cache: `developer` | Brukere, roller, aktiv-status, kompetanser og krypterte systeminnstillinger er levert; statistikk og destruktiv crew-cache-/brukernullstilling gjenstår | Admin-API og Web levert med audit og tilgangstester; resterende del pågår |
 
 ## Implementert V2-tilgang
 
@@ -65,6 +65,7 @@ Brukere kan ha flere roller. `ingen_tilbakemeldinger` skal behandles som en eksp
 | `/api/v1/shop*`, `/api/v1/crew-clothing*` | Operativt: `developer`, `chief`, `co-chief`, `logistikk`, `shop`; crewadministrasjon: `developer`, `chief`, `co-chief` | Ja; varebevegelser, import, historikksletting, crew, medlem, utlevering og crewtøylager har audit/transaksjoner i tråd med V1 | Ja |
 | `/api/v1/tasks*` | Egen liste/status: alle innloggede; oppretting/full oversikt: `developer`, `chief`, `co-chief`, `logistikk` | Ja; oppretting og statusendring har audit og transaksjoner | Ja |
 | `/api/v1/feedback*` | Innmelding/eget innsyn: alle uten `ingen_tilbakemeldinger`; alt innsyn/vedlegg: `developer`, `logistikk`; status: `developer`; varsler: alle innloggede | Ja; oppretting, status og sletting har audit; vedlegg har type-, størrelses- og tilgangskontroll | Ja |
+| `/api/v1/admin*` | Bruker-/rolleadmin: `developer`, `chief`, `co-chief`; systeminnstillinger: `developer` | Ja; bruker, rolle, aktiv-status, kompetanser og innstillinger har audit; hemmeligheter krypteres og eksponeres ikke | Ja |
 
 API-et bruker én felles Bearer-token- og rollekontroll. Manglende token gir `401`, manglende rolle gir `403`, og manglende OIDC-konfigurasjon beholdes som `503` med kode `OIDC_NOT_CONFIGURED`.
 

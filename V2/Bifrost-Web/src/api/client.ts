@@ -1,4 +1,4 @@
-import type { ApiError, CommsItemType, CommsWorkspaceResponse, CrewClothingItemType, CrewClothingMember, CrewClothingWorkspaceResponse, CrewProfile, CurrentUser, EquipmentCategory, EquipmentListResponse, EquipmentLoanIssueResponse, EquipmentLoanListResponse, EquipmentLoanReturnResponse, EquipmentMutationResponse, EquipmentRequestWorkspaceResponse, FeedbackNotificationResponse, FeedbackStatus, FeedbackType, FeedbackWorkspaceResponse, Location, Pallet, PalletInspection, PrivateEquipmentNotice, PrivateEquipmentRule, ShopImportSummary, ShopWorkspaceResponse, TaskPriority, TaskStatus, TaskType, TaskWorkspaceResponse, TransportJob, TransportJobKind, TransportWorkspaceResponse, UserProfileResponse, VehicleCompetencyCode, VehicleCompetencyProfile, VehicleCompetencyRequirement, VehicleLoanIssueResponse, VehicleWorkspaceResponse } from "@bifrost/contracts";
+import type { AdminRole, AdminSettings, AdminWorkspaceResponse, ApiError, CommsItemType, CommsWorkspaceResponse, CrewClothingItemType, CrewClothingMember, CrewClothingWorkspaceResponse, CrewProfile, CurrentUser, EquipmentCategory, EquipmentListResponse, EquipmentLoanIssueResponse, EquipmentLoanListResponse, EquipmentLoanReturnResponse, EquipmentMutationResponse, EquipmentRequestWorkspaceResponse, FeedbackNotificationResponse, FeedbackStatus, FeedbackType, FeedbackWorkspaceResponse, Location, Pallet, PalletInspection, PrivateEquipmentNotice, PrivateEquipmentRule, ShopImportSummary, ShopWorkspaceResponse, TaskPriority, TaskStatus, TaskType, TaskWorkspaceResponse, TransportJob, TransportJobKind, TransportWorkspaceResponse, UserProfileResponse, VehicleCompetencyCode, VehicleCompetencyProfile, VehicleCompetencyRequirement, VehicleLoanIssueResponse, VehicleWorkspaceResponse } from "@bifrost/contracts";
 
 const apiUrl = (import.meta.env.VITE_API_URL || "http://localhost:3001").replace(/\/$/, "");
 
@@ -591,6 +591,54 @@ export async function markFeedbackNotificationsRead(accessToken: string): Promis
   await sendApiMutation(accessToken, "/api/v1/feedback/notifications/read", "POST", {}, "Kunne ikke markere varsler som lest.");
 }
 
+export async function getAdminWorkspace(accessToken: string): Promise<AdminWorkspaceResponse> {
+  const response = await fetch(`${apiUrl}/api/v1/admin`, { headers: createHeaders(accessToken) });
+  if (!response.ok) throw await createApiError(response, "Kunne ikke hente administrasjonen.");
+  return response.json() as Promise<AdminWorkspaceResponse>;
+}
+
+export async function createAdminUser(accessToken: string, input: { firstName: string; lastName: string; email: string; wannabeId?: number | null }): Promise<{ id: number }> {
+  const headers = createHeaders(accessToken); headers.set("Content-Type", "application/json");
+  const response = await fetch(`${apiUrl}/api/v1/admin/users`, { method: "POST", headers, body: JSON.stringify(input) });
+  if (!response.ok) throw await createApiError(response, "Kunne ikke opprette brukeren.");
+  return response.json() as Promise<{ id: number }>;
+}
+
+export async function setAdminUserActive(accessToken: string, id: number, active: boolean): Promise<void> {
+  await sendApiMutation(accessToken, `/api/v1/admin/users/${id}/active`, "PATCH", { active }, "Kunne ikke oppdatere brukerstatusen.");
+}
+
+export async function syncAdminUserRoles(accessToken: string, id: number, roleIds: number[]): Promise<void> {
+  await sendApiPut(accessToken, `/api/v1/admin/users/${id}/roles`, { roleIds }, "Kunne ikke oppdatere brukerrollene.");
+}
+
+export async function updateAdminUserCompetencies(accessToken: string, id: number, competencies: VehicleCompetencyCode[]): Promise<void> {
+  await sendApiPut(accessToken, `/api/v1/admin/users/${id}/competencies`, { competencies }, "Kunne ikke oppdatere kompetansene.");
+}
+
+export async function deleteAdminUser(accessToken: string, id: number): Promise<void> {
+  await sendApiDelete(accessToken, `/api/v1/admin/users/${id}`, "Kunne ikke slette brukeren.");
+}
+
+export async function createAdminRole(accessToken: string, input: Omit<AdminRole, "id" | "protected" | "userCount">): Promise<{ id: number }> {
+  const headers = createHeaders(accessToken); headers.set("Content-Type", "application/json");
+  const response = await fetch(`${apiUrl}/api/v1/admin/roles`, { method: "POST", headers, body: JSON.stringify(input) });
+  if (!response.ok) throw await createApiError(response, "Kunne ikke opprette rollen.");
+  return response.json() as Promise<{ id: number }>;
+}
+
+export async function updateAdminRole(accessToken: string, id: number, input: Omit<AdminRole, "id" | "protected" | "userCount">): Promise<void> {
+  await sendApiMutation(accessToken, `/api/v1/admin/roles/${id}`, "PATCH", input, "Kunne ikke oppdatere rollen.");
+}
+
+export async function deleteAdminRole(accessToken: string, id: number): Promise<void> {
+  await sendApiDelete(accessToken, `/api/v1/admin/roles/${id}`, "Kunne ikke slette rollen.");
+}
+
+export async function updateAdminSettings(accessToken: string, input: AdminSettings & { keycloakClientSecret?: string | null; smtpPassword?: string | null; vegvesenApiKey?: string | null; crewApiBearerToken?: string | null }): Promise<void> {
+  await sendApiPut(accessToken, "/api/v1/admin/settings", input, "Kunne ikke oppdatere systeminnstillingene.");
+}
+
 export async function getUserProfile(accessToken: string, wannabeId: number): Promise<UserProfileResponse> {
   const response = await fetch(`${apiUrl}/api/v1/profiles/${wannabeId}`, { headers: createHeaders(accessToken) });
   if (!response.ok) throw await createApiError(response, "Kunne ikke hente profilen.");
@@ -614,6 +662,17 @@ async function sendApiMutation(
   const headers = createHeaders(accessToken);
   headers.set("Content-Type", "application/json");
   const response = await fetch(`${apiUrl}${path}`, { method, headers, body: JSON.stringify(body) });
+  if (!response.ok) throw await createApiError(response, fallbackMessage);
+}
+
+async function sendApiPut(accessToken: string, path: string, body: unknown, fallbackMessage: string): Promise<void> {
+  const headers = createHeaders(accessToken); headers.set("Content-Type", "application/json");
+  const response = await fetch(`${apiUrl}${path}`, { method: "PUT", headers, body: JSON.stringify(body) });
+  if (!response.ok) throw await createApiError(response, fallbackMessage);
+}
+
+async function sendApiDelete(accessToken: string, path: string, fallbackMessage: string): Promise<void> {
+  const response = await fetch(`${apiUrl}${path}`, { method: "DELETE", headers: createHeaders(accessToken) });
   if (!response.ok) throw await createApiError(response, fallbackMessage);
 }
 

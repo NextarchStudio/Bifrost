@@ -30,7 +30,7 @@ V1 er i dag en CodeIgniter 4-applikasjon med PHP 8.2+, MariaDB, server-renderte 
 
 | Område | Status | Levert |
 |---|---|---|
-| Fase 0 – baseline | Pågår | V1 er bevart under `V1/` og en første rute-/rollematrise ligger i `V2/docs/domain-matrix.md`. Detaljvalidering per handling, anonymisert staging-database og restore-test gjenstår. |
+| Fase 0 – baseline | Pågår | V1 er bevart under `V1/`, rute-/rollematrisen er dokumentert og staging-runbook med lesebasert skjema-/rolle-/OIDC-preflight er levert. Kjøring mot anonymisert staging-database og verifisert restore gjenstår. |
 | Fase 1 – fundament | Nær ferdig | pnpm-monorepo, strict TypeScript, Fastify, React/Vite/Tailwind, Drizzle, health/readiness, PM2-oppsett, samlet kvalitetssjekk og GitHub CI med produksjonsaudit er på plass. Lokal databasecontainer gjenstår. |
 | Fase 2 – identitet | Pågår | Obligatorisk Keycloak/OIDC med PKCE, JWT/JWKS-validering, automatisk V1-brukerprovisjonering og eksisterende roller er på plass. Audit av innlogging og full tilgangsmatrise gjenstår. |
 | Fase 3 – lager og utstyr | Nær ferdig | Utstyr, kategoriadministrasjon, lokasjoner, paller, palleplasser, strekkodeflyt, inspeksjon, flytting, slettingsvern, audit og nytt React-design er implementert. Playwright og paritetstest mot representativ V1-database gjenstår. |
@@ -45,6 +45,7 @@ Teknisk fundament kjører som `Bifrost-API`, `Bifrost-Web` og `Bifrost-Worker`. 
 
 1. Utvid positive og negative tilgangstester for hver implementerte modul.
 2. Kjør V2 mot en anonymisert kopi av eksisterende database og dokumenter V1/V2-avvik.
+   Start med `pnpm --filter @bifrost/api preflight` etter V2-migrering og hemmelighetsflytting.
 3. Legg til Playwright-flyt for opprett utstyr → opprett palle → flytt → inspiser.
 4. Verifiser Keycloak-klient, redirect URI, roller og token-claims i staging.
 5. Paritetstest fase 4 og 5 mot anonymiserte data, inkludert Shop-import/eksport og crewtøyutlevering.

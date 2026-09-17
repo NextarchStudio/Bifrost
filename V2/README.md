@@ -26,6 +26,12 @@ pnpm check
 
 Den samme kontrollen kjører i `.github/workflows/v2-ci.yml` ved endringer under `V2/`. Jobben bruker frosset låsefil, kjører produksjonsaudit og deretter lint, typekontroll, bygg og tester.
 
+Før stagingstart følges [staging-runbooken](docs/staging-runbook.md). Etter migrering og hemmelighetsflytting kjøres den lesebaserte kontrollen:
+
+```bash
+pnpm --filter @bifrost/api preflight
+```
+
 ## Miljøfiler
 
 Kopier `.env.example` i API, Web og Worker til `.env` i samme katalog.

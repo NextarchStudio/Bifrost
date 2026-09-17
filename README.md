@@ -64,7 +64,7 @@ API-et lytter på port `3001`, Web på port `3000`. Endepunktene `GET /health` o
 
 GitHub Actions kjører låst installasjon, produksjonsaudit og `pnpm check` ved V2-endringer og pull requests.
 
-Se [V2/README.md](V2/README.md) for utvikling, bygg og PM2.
+Se [V2/README.md](V2/README.md) for utvikling, bygg og PM2, og [staging-runbooken](V2/docs/staging-runbook.md) for backup, preflight, paritet og rollback.
 
 ## Produksjon med PM2
 
